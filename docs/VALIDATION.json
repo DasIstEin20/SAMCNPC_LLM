@@ -1,0 +1,26 @@
+{
+  "status": "PASS",
+  "utc": "2026-09-20T01:09:14.286401+00:00",
+  "llmUnits": 19,
+  "sourceMatchesCanonical": true,
+  "artifacts": {
+    "samcnpc-llm": {
+      "sha256": "dc129604d8e6784341aeaa48168d33b8c75bf9428fb2d890b983ae82b3499019",
+      "bytes": 862597
+    },
+    "samcnpc-behavior": {
+      "sha256": "59685d47066262f6b18c93440e32c7c982f405226c440ebcae938f8f46ee9b38",
+      "bytes": 3483543
+    },
+    "samcnpc-core": {
+      "sha256": "a05ccad93e8e3f9536ee896a15d9c4f223e757c01ac27dd0d996c4f31f3be9c5",
+      "bytes": 1704387
+    }
+  },
+  "reports": {
+    "client": "PASS titleScreen=true frames=229 configGui=true configSave=true staleDraft=true logo=true mods=[samcnpc_behavior, samcnpc_core, samcnpc_llm] behaviorValidation=true componentCatalog=14/23 registeredSchema=true typedOrders=true configLoaded=true defaultDisabled=true emulatedHttp=true boundedBodyTimeout=true http503=true recovery=true calls=4",
+    "server": "PASS dedicated=true ticks=42 coreApi=true mods=[samcnpc_behavior, samcnpc_core, samcnpc_llm] behaviorValidation=true componentCatalog=14/23 registeredSchema=true typedOrders=true configLoaded=true defaultDisabled=true emulatedHttp=true boundedBodyTimeout=true http503=true recovery=true calls=4"
+  },
+  "coreCommit": "74d2ba9c9775cbd4729fbb146a750db6ba12ea32",
+  "behaviorCommit": "ea56e6e1232fdc680a9e532bf0d56d8a7553c1b1"
+}

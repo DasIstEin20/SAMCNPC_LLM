@@ -1,0 +1,131 @@
+plugins {
+    id 'java-library'
+    id 'net.minecraftforge.gradle' version '6.0.54'
+    id 'org.jetbrains.kotlin.jvm' version '2.2.21'
+}
+
+group = providers.gradleProperty('mod_group').get()
+version = providers.gradleProperty('mod_version').get()
+
+repositories {
+    mavenCentral()
+    maven {
+        name = 'KotlinForForge'
+        url = 'https://thedarkcolour.github.io/KotlinForForge/'
+        content { includeGroup 'thedarkcolour' }
+    }
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = 17
+    options.encoding = 'UTF-8'
+}
+
+tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile).configureEach {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+        freeCompilerArgs.add('-Xjvm-default=all')
+    }
+}
+
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
+}
+
+// Published dependencies are pinned Git submodules and use the same dev remapping.
+ext.fullVerificationId = null
+evaluationDependsOn(':samcnpc-core')
+evaluationDependsOn(':samcnpc-behavior')
+
+minecraft {
+    mappings channel: 'official', version: minecraft_version
+    copyIdeResources = true
+
+    runs {
+        configureEach {
+            workingDirectory project.file('run')
+            property 'forge.logging.console.level', 'info'
+            mods {
+                // Match the working two-mod userdev path; production JARs use runtime names.
+                samcnpc_core { source project(':samcnpc-core').sourceSets.main }
+                samcnpc_behavior { source project(':samcnpc-behavior').sourceSets.main }
+                samcnpc_llm {
+                    source sourceSets.main
+                }
+            }
+        }
+        client {}
+        clientLoadingSmoke {
+            parent runs.client
+            workingDirectory project.file('run-client-loading-smoke')
+            property 'samcnpc.clientLoadingSmoke', 'true'
+            mods { samcnpc_llm { source sourceSets.test } }
+        }
+        server { args '--nogui' }
+        serverLoadingSmoke {
+            parent runs.server
+            workingDirectory project.file('run-server-loading-smoke')
+            property 'samcnpc.serverLoadingSmoke', 'true'
+            mods { samcnpc_llm { source sourceSets.test } }
+        }
+    }
+}
+
+dependencies {
+    minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
+    implementation project(':samcnpc-core')
+    implementation project(':samcnpc-behavior')
+    implementation "thedarkcolour:kotlinforforge:${kotlin_for_forge_version}"
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+}
+
+tasks.named('processResources', ProcessResources).configure {
+    inputs.property 'version', project.version
+    filesMatching('META-INF/mods.toml') {
+        expand version: project.version
+    }
+}
+
+tasks.named('jar', Jar).configure {
+    finalizedBy 'reobfJar'
+}
+
+// Real loading checks use test-only drivers and isolated run directories.
+['Client', 'Server'].each { side ->
+    tasks.matching { it.name == "run${side}LoadingSmoke" }.configureEach {
+        def report = layout.projectDirectory.file("run-${side.toLowerCase()}-loading-smoke/${side.toLowerCase()}-loading-result.txt").asFile
+        doFirst {
+            report.parentFile.mkdirs()
+            report.text = 'RUNNING\n'
+        }
+        doLast {
+            if (!report.text.startsWith('PASS ')) throw new GradleException("Three-mod ${side} loading failed: ${report}")
+        }
+    }
+}
+
+// Command-line userdev needs the exact bundled Behavior data staged under its game directory.
+['Run': 'run', 'ClientLoadingSmoke': 'run-client-loading-smoke', 'ServerLoadingSmoke': 'run-server-loading-smoke'].each { suffix, folder ->
+    def stage = tasks.register("stageBehaviorData${suffix}", Copy) {
+        from project(':samcnpc-behavior').layout.projectDirectory.dir('src/main/resources/data')
+        into layout.projectDirectory.dir("${folder}/data")
+    }
+    tasks.matching {
+        suffix == 'Run' ? it.name in ['runClient', 'runServer'] : it.name == "run${suffix}"
+    }.configureEach { dependsOn stage }
+}
+
+tasks.withType(Jar).configureEach {
+    archiveBaseName = 'samcnpc-llm'
+    manifest {
+        attributes('Specification-Title': 'samcnpc-llm', 'Specification-Vendor': 'SAMCNPC',
+            'Specification-Version': '1', 'Implementation-Title': 'samcnpc-llm',
+            'Implementation-Version': project.version, 'Implementation-Vendor': 'SAMCNPC')
+    }
+}

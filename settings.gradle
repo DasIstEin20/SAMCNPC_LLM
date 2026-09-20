@@ -1,0 +1,13 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        maven { url = 'https://maven.minecraftforge.net/' }
+    }
+}
+rootProject.name = 'samcnpc-llm'
+if (!file('behavior/build.gradle').isFile() || !file('behavior/core/build.gradle').isFile()) {
+    throw new GradleException('Dependencies missing. Run: git submodule update --init --recursive')
+}
+include 'samcnpc-behavior', 'samcnpc-core'
+project(':samcnpc-behavior').projectDir = file('behavior')
+project(':samcnpc-core').projectDir = file('behavior/core')
