@@ -28,8 +28,10 @@ Endpoint/model selection alone is not a verified tokenizer profile. Follow
 [LLM_CONFIGURATION](LLM_CONFIGURATION.md) before enabling inference. Its conservative
 input bound must include the complete request/schema and fit the model's actual
 context window. Emulator profile declarations are test fixtures, not profiles
-approved for arbitrary local models. Real model selection/testing is currently
-deferred to the user; this mod installs no model and allocates no model VRAM.
+approved for arbitrary local models. A narrow Qwen3.5-4B Q4_K_M profile and live
+three-case smoke are recorded in [the connection repair](LLM_CONNECTION_REPAIR.md).
+The full real-model evaluation corpus remains pending. This mod installs no model
+and allocates no model VRAM.
 
 For authentication, set the API key in the configured environment variable of the
 server process. Configuration stores the variable's name, never the key. Do not
@@ -38,17 +40,23 @@ put credentials in goals, behavior packs or source control.
 ## Using an NPC
 
 Use a connected summoner or authorized operator in the same dimension, within
-256 blocks. Replace `<npc UUID>` with the NPC's full UUID.
+256 blocks. `<npc>` accepts the name (for example `Sam`), a unique name prefix,
+the eight-character UUID prefix shown by Core, or the full UUID. Matching ignores
+case and uses Core's order: exact UUID, exact name, name prefix, UUID prefix.
+Ambiguous matches are rejected. Tab suggests authorized nearby names and short IDs.
+Full UUIDs retain lifecycle diagnostics; a capped nearby query requests a full UUID
+instead of guessing uniqueness. Current range, dimension and summoner/operator
+checks still apply after resolution.
 
 ```text
-/samcnpc llm goal <npc UUID> <one concrete goal>
-/samcnpc llm maintain <npc UUID> <item ID> <low> <target> <x> <y> <z> <goal text>
-/samcnpc llm plan <npc UUID> <bounded multi-step goal>
-/samcnpc llm status <npc UUID>
-/samcnpc llm answer <npc UUID> <clarification>
-/samcnpc llm stop <npc UUID>
-/samcnpc llm resume <npc UUID>
-/samcnpc llm complete <npc UUID>
+/samcnpc llm goal <npc> <one concrete goal>
+/samcnpc llm maintain <npc> <item ID> <low> <target> <x> <y> <z> <goal text>
+/samcnpc llm plan <npc> <bounded multi-step goal>
+/samcnpc llm status <npc>
+/samcnpc llm answer <npc> <clarification>
+/samcnpc llm stop <npc>
+/samcnpc llm resume <npc>
+/samcnpc llm complete <npc>
 ```
 
 Translator selects one of sixteen operation families. Supervisor maintains a

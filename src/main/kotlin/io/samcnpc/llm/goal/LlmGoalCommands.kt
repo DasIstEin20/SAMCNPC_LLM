@@ -13,7 +13,6 @@ import net.minecraftforge.event.RegisterCommandsEvent
 import net.minecraftforge.eventbus.api.SubscribeEvent
 import net.minecraftforge.fml.common.Mod
 import io.samcnpc.llm.SamcnpcLlm
-import java.util.UUID
 
 @Mod.EventBusSubscriber(modid = SamcnpcLlm.MOD_ID)
 internal object LlmGoalCommands {
@@ -21,13 +20,13 @@ internal object LlmGoalCommands {
     fun register(event: RegisterCommandsEvent) {
         val branch = Commands.literal("llm")
         for (action in listOf("goal", "answer", "plan")) {
-            branch.then(Commands.literal(action).then(Commands.argument("npc", StringArgumentType.word())
+            branch.then(Commands.literal(action).then(LlmNpcArguments.argument()
                 .then(Commands.argument("text", StringArgumentType.greedyString()).executes { context ->
                     execute(context.source, action, StringArgumentType.getString(context, "npc"),
                         StringArgumentType.getString(context, "text"))
                 })))
         }
-        branch.then(Commands.literal("remember").then(Commands.argument("npc", StringArgumentType.word())
+        branch.then(Commands.literal("remember").then(LlmNpcArguments.argument()
             .then(Commands.argument("name", StringArgumentType.word())
             .then(Commands.argument("x", IntegerArgumentType.integer(-29999984, 29999984))
             .then(Commands.argument("y", IntegerArgumentType.integer(-2048, 2048))
@@ -37,13 +36,13 @@ internal object LlmGoalCommands {
                         IntegerArgumentType.getInteger(context, "x"), IntegerArgumentType.getInteger(context, "y"),
                         IntegerArgumentType.getInteger(context, "z")))
             }))))))
-        branch.then(Commands.literal("forget_place").then(Commands.argument("npc", StringArgumentType.word())
+        branch.then(Commands.literal("forget_place").then(LlmNpcArguments.argument()
             .then(Commands.argument("name", StringArgumentType.word()).executes { context ->
                 execute(context.source, "forget_place", StringArgumentType.getString(context, "npc"),
                     StringArgumentType.getString(context, "name"))
             })))
         branch.then(Commands.literal("maintain")
-            .then(Commands.argument("npc", StringArgumentType.word())
+            .then(LlmNpcArguments.argument()
             .then(Commands.argument("item", ResourceLocationArgument.id())
             .then(Commands.argument("low", IntegerArgumentType.integer(1, 2304))
             .then(Commands.argument("target", IntegerArgumentType.integer(1, 2304))
@@ -61,7 +60,7 @@ internal object LlmGoalCommands {
                     StringArgumentType.getString(context, "text"), target)
             })))))))))
         for (action in listOf("status", "stop", "resume", "forget", "complete")) {
-            branch.then(Commands.literal(action).then(Commands.argument("npc", StringArgumentType.word()).executes { context ->
+            branch.then(Commands.literal(action).then(LlmNpcArguments.argument().executes { context ->
                 execute(context.source, action, StringArgumentType.getString(context, "npc"), "")
             }))
         }
@@ -70,8 +69,7 @@ internal object LlmGoalCommands {
 
     private fun execute(source: CommandSourceStack, action: String, rawNpc: String, text: String, stock: StockTarget? = null, position: NpcBlockPosition? = null): Int {
         val actor = source.entity as? ServerPlayer ?: return fail(source, "PLAYER_REQUIRED")
-        val npc = try { UUID.fromString(rawNpc) } catch (_: IllegalArgumentException) { return fail(source, "INVALID_NPC_UUID") }
-        if (!npc.toString().equals(rawNpc, ignoreCase = true)) return fail(source, "INVALID_NPC_UUID")
+        val npc = LlmNpcArguments.resolve(source, actor, rawNpc) ?: return 0
         val controller = LlmServerEvents.controller(source.server) ?: return fail(source, "LLM_SERVER_NOT_READY")
         val now = LlmServerEvents.nowMillis()
         val reply = when (action) {

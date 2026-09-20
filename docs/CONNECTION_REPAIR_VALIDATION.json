@@ -1,0 +1,170 @@
+{
+  "schemaVersion": 1,
+  "recordedUtc": "2026-09-20T22:06:10.062142+00:00",
+  "scope": "NPC selectors and explicit JSON_SCHEMA prompt contract repair; focused model/runtime regression",
+  "baseLlmCommit": "d14c747a57504f95121889c8d5f922b800459d46",
+  "pinnedCoreCommit": "1834e5db8e7c7606f418b06b5e5f9da64837ebfb",
+  "pinnedBehaviorCommit": "c6e0273bbbe583cebd20cdd17175aa868686e172",
+  "canonicalUnits": {
+    "samcnpc-core": {
+      "tests": 49,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "samcnpc-behavior": {
+      "tests": 364,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "samcnpc-llm": {
+      "tests": 112,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "standaloneCleanBuild": {
+    "result": "PASS",
+    "units": {
+      "core": {
+        "tests": 49,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "behavior": {
+        "tests": 364,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "llm": {
+        "tests": 112,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    "matchingOwnSourceFiles": 128,
+    "sourceManifestSha256": "2beb7097a8de4411bc299236448b60010c8e0cfecbc0372e4338edae96d5fb44"
+  },
+  "canonicalStatic": {
+    "sourceGuards": "PASS",
+    "coreGuards": "PASS",
+    "threeJarDistribution": "PASS",
+    "pythonGuardTests": 7
+  },
+  "nativeReports": {
+    "server-loading-result.txt": {
+      "sha256": "cc0adc2c6acfdf07c38ce3cf11f7f6f4c9cd5adbec7220ee14af31e2c05bb8bd",
+      "result": "PASS dedicated=true ticks=581 coreApi=true mods=[samcnpc_behavior, samcnpc_core, samcnpc_llm] behaviorValidation=true componentCatalog=14/23 registeredSchema=true typedOrders=true configLoaded=true defaultDisabled=true emulatedHttp=true boundedBodyTimeout=true http503=true recovery=true calls=4 contextWorker=true detachedAfterDismiss=true inventorySlots=36 hiddenBlockOmitted=true contextBytes=9798 contextBounds=true captureAuthority=true decisionHttpCalls=2 fullSchemaBytes=62934 jsonObjectBytes=53118 lateHttpRejected=true httpResumeApplied=true schedulerCases=15 schedulerHttpCalls=15 schedulerWorkerCalls=15 schedulerThreadChecks=true schedulerVirtualClock=true lastGoalCallAdmitted=true schedulerLateReplySuppressed=true translatorCases=8 translatorHttpCalls=9 translatorMaxRequestBytes=45441 registeredGoalCommands=true goalAuthorityChecks=23 physicalStockReads=5 physicalTransport=true physicalDeliver=true physicalLumberjack=true manualPauseHeld=true memoryCommands=true memoryContext=true confirmedResults=true clarificationBudgetRetained=true offlineBehaviorContinues=true missingResourceFailed=true fullDestinationFailed=true userCancelNoLateAssign=true admissionChecks=37 admissionReplay=true lateManualControlRejected=true exactReceiptReadOnly=true lostReplyNoRetry=true subscriptionsStopped=true"
+    },
+    "client-goals-result.txt": {
+      "sha256": "b62d35bcfc3494bf541d763ee9d2f4e40b86e99cbf82369c9ac023fe7f3280ff",
+      "result": "PASS integratedServer=true actualCommands=true translatorCases=8 translatorHttpCalls=9 translatorMaxRequestBytes=45436 registeredGoalCommands=true goalAuthorityChecks=23 physicalStockReads=5 physicalTransport=true physicalDeliver=true physicalLumberjack=true manualPauseHeld=true memoryCommands=true memoryContext=true confirmedResults=true clarificationBudgetRetained=true offlineBehaviorContinues=true missingResourceFailed=true fullDestinationFailed=true userCancelNoLateAssign=true\nrenderedCases=8 frames={pause=134, full=30, missing=24, deliver=89, clarify=694, offline=95, cancel=36, lumberjack=272} walking={pause=62, full=null, missing=null, deliver=62, clarify=63, offline=63, cancel=null, lumberjack=36}"
+    },
+    "live-model-result.txt": {
+      "sha256": "c9985cbc1c2e1dbb3a159a37c76ad9a3cb75d4d529ba2015fe18207311495c5d",
+      "result": "PASS realEndpoint=true physicalDelivery=32 physicalNavigation=true\ncase=missing_location phase=ASK_USER code=ASK_USER attempts=1 question=Where is the nearest chest containing tools, and which specific tools are required for this task?\ncase=deliver_en phase=COMPLETED code=TASK_COMPLETED attempts=1 question=null\ncase=navigate_pl phase=COMPLETED code=TASK_COMPLETED attempts=1 question=null"
+    },
+    "server-supervisor-result.txt": {
+      "sha256": "9c99990ef1655d04fc4f75c212c24b8920cbdcfc073fbb25aa08e7c0127a044a",
+      "result": "PASS dedicated=true supervisorGroup=physical supervisorCases=10 supervisorHttpCalls=10 supervisorMaxRequestBytes=25033 scenarios=maintain,stale,offline,authority,manual,removed,queue_filled,repair,provider_down,dismiss healthyTaskExtraCalls=0 stockAdmissionRechecked=true"
+    },
+    "server-planner-result.txt": {
+      "sha256": "c63269537a3bbc45eafd652675452506507a3631fb9f023a1d5eb171cee4485c",
+      "result": "PASS dedicated=true plannerCases=6 plannerHttpCalls=9 plannerMaxRequestBytes=41847 physicalFoodWoodInventoryReturn=true freshInventoryRejected=true failedStepAsked=true providerOfflineHeld=true manualPauseResumed=true cancelNoLateAssign=true healthyTaskExtraCalls=0 userConfirmationRequired=true"
+    },
+    "server-goals-save.txt": {
+      "sha256": "5685bd08c17bd4ff651489c2ca29950eaf8cdbc8e988614d739636d5e288525e",
+      "result": "PASS savePid=11856 httpCalls=2 realAssignments=2 lostReceiptInjection=true"
+    },
+    "server-goals-load.txt": {
+      "sha256": "df57dbe2e81915be4a8e86bb68841a7e41b6e7583869463d872c7d3f9372d2e0",
+      "result": "PASS newJvm=true knownTaskPhysicallyCompleted=true exactTaskIdsRetained=true uncertainAdmissionHeld=true heldBudgetSettledOnce=true providerDisabled=true replayAssignments=0 memoryRetained=true authoritativeResultRecorded=true"
+    }
+  },
+  "realModel": {
+    "endpoint": "http://127.0.0.1:1234/v1",
+    "model": "qwen3.5-4b",
+    "loadModelKey": "samcnpc/qwen3.5-4b",
+    "backendVersion": "LMStudio-0.4.25+1/llama.cpp-cuda12-2.41.0",
+    "modelDigest": "25082a7dd3776cc3c741c6347d3bd04523f05796607b3fbc32fa3a25dfa1418c",
+    "tokenizerDigest": "0a72b5cec6d6e4824ee888d38a4a362b6623653d3b5757fa79e5fe62e2f153f0",
+    "templateDigest": "e175bc0107b113da24d85536756d0fd6254ba95a1a685ebfeaba25b06fc97155",
+    "templateReserve": 2048,
+    "contextWindow": 65536,
+    "inputTokens": 63488,
+    "maxOutputTokens": 1024,
+    "expandedContractCheck": {
+      "requestSha256": "4d18f9900a28e395d32e14edbfffc7c6366ac35a57c6ac8acebcccd7b13747e8",
+      "serializedRequestBytes": 56110,
+      "actualPromptTokens": 7278,
+      "conservativeInputBound": 58158,
+      "contextWindowReadback": 65536,
+      "loadConfig": {
+        "gpu": {
+          "ratio": 1.0
+        },
+        "contextLength": 65536,
+        "flashAttention": true
+      }
+    }
+  },
+  "artifacts": [
+    {
+      "file": "samcnpc-core-0.1.0.jar",
+      "bytes": 1757791,
+      "sha256": "95769212a7029dc7433dd40224c91f832b5ade430a7f8eb179323902f54ab8b8",
+      "testSmokeDriversAbsent": true
+    },
+    {
+      "file": "samcnpc-behavior-0.1.0.jar",
+      "bytes": 3642804,
+      "sha256": "7a3e10456a02fe16950084f122fd3366a716e6cb5e06ec6cd1a095603259367b",
+      "testSmokeDriversAbsent": true
+    },
+    {
+      "file": "samcnpc-llm-0.1.0.jar",
+      "bytes": 1229622,
+      "sha256": "24da3b8dc069813a2e8295f61028cd531d3fb8d0d40e4cdc7fc0d3189f2f3d32",
+      "testSmokeDriversAbsent": true
+    }
+  ],
+  "evidenceLogs": {
+    "final-canonical-checks.log": {
+      "sha256": "6fdfebd3ce4ec659db13156def19c909f7989c873b20f61e1fe83614f2e01324",
+      "location": "local autonomy/run-20260920-selector",
+      "note": "Build/static, server loading, client Translator and server Supervisor passed; initial Planner reservation failed. Successful Planner/restart rerun is separate."
+    },
+    "planner-restart-checks.log": {
+      "sha256": "f63913accf5bb266054cf2d5b1c7fed903f3a043a85354cfafe1caabeda4d54b",
+      "location": "local autonomy/run-20260920-selector"
+    },
+    "standalone-build.log": {
+      "sha256": "f0c37a470e86248ab1308f1d2f8015676045b12da75256d037b349baa899a92e",
+      "location": "local autonomy/run-20260920-selector"
+    },
+    "real-model-first.log": {
+      "sha256": "4ea33944c2849574af92d1c5c58d192c3da503bf0de4686d826243ed1d715be1",
+      "location": "local autonomy/run-20260920-selector"
+    }
+  },
+  "limits": [
+    "Full frozen real-model PL/EN/adversarial corpus remains pending",
+    "Other real backends and live-model client rendering not verified",
+    "Prior one-hour benchmark not rerun for this repair",
+    "Authenticated two-account skin acceptance remains manual and nonblocking",
+    "No player-world save modified",
+    "Native smoke uses pinned Forge 47.4.21; actual user installation is Forge 47.4.23; new build not yet played there",
+    "Supervisor rerun covers physical group 10 cases/10 HTTP, not the entire historical fault suite"
+  ],
+  "notes": [
+    "Production quotas and request-size bounds unchanged",
+    "Translator emulator uses explicit JSON_OBJECT to fit nine requests in the same rolling quota; JSON_SCHEMA exercised separately by native HTTP and real Qwen",
+    "Failed iteration logs retained; final Planner/restart rerun passes after test-profile reservation includes the expanded prompt",
+    "CLI model loaded before closeout with non-thinking local profile"
+  ]
+}

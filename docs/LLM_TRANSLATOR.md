@@ -118,3 +118,14 @@ Dedicated and client each passed 8 Translator cases / 9 HTTP requests; client pa
 sources/builds are unchanged from the preceding evidence. Standalone build passed
 80 LLM units with all own source files matching. See TRANSLATOR_VALIDATION.json in
 the publication repository; local detailed evidence is translator-evidence.json.
+
+## NPC selection and a previously waiting goal
+
+All LLM commands accept names and unique prefixes like Core, including `Sam` or
+an eight-character UUID prefix. Tab suggests authorized nearby NPCs. To retry a
+previously idle goal after correcting provider configuration, use
+`/samcnpc llm resume Sam`. Respond to ASK_USER using
+`/samcnpc llm answer Sam <clarification>`. To replace an existing goal, use
+`/samcnpc llm stop Sam` before `/samcnpc llm goal Sam <new goal>`.
+CONTINUE is never completion and cannot start a missing task. The goal/status
+code remains authoritative; a model summary is not an execution receipt.

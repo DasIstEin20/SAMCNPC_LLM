@@ -15,12 +15,17 @@ Translator selects one operation from the 16-family catalog. Supervisor maintain
 an explicit visible chest stock target with hysteresis and failure-loop protection.
 Planner executes one validated step at a time, with fresh inventory preconditions,
 durable bounded memory and explicit player confirmation of an open goal.
-Plan: **35/36**; automated acceptance complete. Real-model testing is user-deferred.
+Plan: **35/36**. The local Qwen profile now has a narrow native smoke; full
+real-model corpus/other-backend evaluation remains pending.
 
 The default endpoint is **http://127.0.0.1:1234/v1**. Address and model are editable
 in Forge Mods Config. Integration is disabled by default; it never installs or
-automatically loads a model. Current tests use a CPU HTTP emulator. Actual model
-understanding and backend/tokenizer profiles remain unverified/user-deferred.
+automatically loads a model. Routine tests use a CPU HTTP emulator. An opt-in
+Qwen3.5-4B Q4_K_M test also passed clarification, physical delivery and Polish
+navigation; see [connection repair](docs/LLM_CONNECTION_REPAIR.md).
+
+Commands accept Core-style NPC names and unique prefixes, with Tab completion:
+`/samcnpc llm status Sam`. Full UUIDs still work.
 
 [Configuration](docs/LLM_CONFIGURATION.md) · [Translator commands](docs/LLM_TRANSLATOR.md) ·
 [Supervisor](docs/LLM_SUPERVISOR.md) · [Planner](docs/LLM_PLANNER.md) ·
@@ -48,6 +53,14 @@ Server runs require Minecraft EULA acceptance.
 
 ## Validation
 
+The selector/connection repair has 525 passing workspace unit tests (49/364/112),
+seven Python guards, dedicated and client Translator regression (8 cases/9 HTTP),
+and 23 command authority checks. Standalone clean build also passed (112 LLM
+units, 128 matching own sources). Server Supervisor/Planner and goal restart
+passed their focused reruns. Real Qwen completed the separate three-case smoke.
+[Repair validation](docs/CONNECTION_REPAIR_VALIDATION.json) records the current
+artifacts and focused reruns. The following release/endurance evidence is historical.
+
 Canonical clean build: 518 units (49 Core/364 Behavior/105 LLM), 850 frozen files and
 three-JAR guards. Client and dedicated server each passed Translator 8 cases/9 HTTP,
 Supervisor 14/22 and Planner 6/9. Physical supply balances, stale resources, provider
@@ -56,8 +69,8 @@ retained known identities/intent without replay and held uncertain admission.
 Dedicated admission: 37 checks; goal authority/input: 15 checks.
 
 Standalone clean build: 105 LLM tests, 122 matching own sources.
-[Release evidence and hashes](docs/RELEASE_VALIDATION.json) record the current
-build; [goal-mode evidence](docs/PLANNER_VALIDATION.json) separates emulator/runtime
+[Release evidence and hashes](docs/RELEASE_VALIDATION.json) record the previous
+release build; [goal-mode evidence](docs/PLANNER_VALIDATION.json) separates emulator/runtime
 proof from real-model semantics. Unchanged Core 146/Behavior 215 native and Core 52 animation
 cases retain prior evidence. [Project state](PROJECT_STATE.md) records limitations.
 The active one-hour restricted patrol/melee test passed with six NPCs, twelve HTTP

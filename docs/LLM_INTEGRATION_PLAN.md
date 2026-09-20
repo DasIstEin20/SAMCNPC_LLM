@@ -1,6 +1,7 @@
+<!-- Evening repair supersedes earlier USER_DEFERRED notes for the narrow Qwen profile only. -->
 # F02 / llm_integration — plan budowy
 
-Data: 2026-09-20. Status: **AUTOMATED_SCOPE_COMPLETE, 35/36 punktów; L3.5 USER_DEFERRED**.
+Data: 2026-09-20. Status: **AUTOMATED_SCOPE_COMPLETE, 35/36 punktów; L3.5 PARTIAL — lokalny Qwen sprawdzony w wąskim teście**.
 To osobny plan rozwoju istniejącego modułu samcnpc-llm, poza licznikiem P00–P12
 i Acceptance Zoo (23/23). L0 domyka istniejące P11.1/P11.7, nie tworzy
 konkurencyjnego katalogu ani drugiego wykonawcy. Pierwotne dopisanie planu nie uruchamiało implementacji. Użytkownik 2026-09-20
@@ -383,7 +384,7 @@ Szczegóły: LLM_CONFIGURATION.md i ADR 0087.
 - [x] L3.2 Dodać bounded HTTP, profile schema/modelu, timeout, cancel, obsługę refusal/incomplete/unsupported; bez cichego osłabiania walidacji.
 - [x] L3.3 Dodać event queue, fair scheduling, request/token/cost budgets, coalescing, backoff i circuit breaker; zero world access w workerze.
 - [x] L3.4 Testowym serwerem HTTP wymusić opóźnienie, brak końca body, 429/5xx, zły auth, odmowę, urwany JSON i utratę odpowiedzi; sprawdzić cleanup.
-- [ ] L3.5 **USER_DEFERRED (decyzja 2026-09-20, nie blokuje emulatora):** Zweryfikować prawdziwe LM Studio i Ollama na przypiętych wersjach/modelach, zapisać profile i pomiary; vLLM/cloud sprawdzać osobno przed deklaracją wsparcia.
+- [ ] L3.5 **PARTIAL (2026-09-20 wieczorem):** LM Studio 0.4.25 / CUDA 2.41.0 / Qwen3.5-4B Q4_K_M: profil tokenizera i test pytań, dostawy 32 bloków oraz nawigacji PASS. Pełny korpus jakości, Ollama i inne backendy pozostają do sprawdzenia. Patrz LLM_CONNECTION_REPAIR.md.
 
 Dowód L3.3: [LLM_SCHEDULING](LLM_SCHEDULING.md), ADR0096; 473 unit (62 LLM), 15 scenariuszy rzeczywistego serwera / 15 HTTP, clean/client/server/distribution PASS; 789 plików zamrożonych. Zegar limitów w próbach jest wirtualny; rzeczywisty model i długotrwały soak pozostają osobno.
 
@@ -520,7 +521,7 @@ Sprawdzone 2026-09-20; uzasadniają projekt transportu, nie dowodzą zgodności 
 - Ollama opisuje własny /v1/chat/completions i wspierany podzbiór pól. [OpenAI compatibility](https://docs.ollama.com/api/openai-compatibility).
 - vLLM opisuje zgodność Chat API i dodatkowe parametry; zgodność zależy też od modelowego chat template. Odczytana dokumentacja v0.18.2 nie jest wyborem wersji wdrożenia. [OpenAI-Compatible Server](https://docs.vllm.ai/en/v0.18.2/serving/openai_compatible_server/).
 
-**Pozostaje L3.5: rzeczywisty endpoint/model po udostępnieniu przez użytkownika.**
+**Pozostaje pełny zakres L3.5: korpus jakości i pozostałe backendy. Lokalny Qwen ma już wąski test fizycznego wykonania.**
 Najpierw zweryfikować profil backend/model/tokenizer/template i limity kontekstu,
 potem uruchomić zamrożony korpus oraz fizyczne scenariusze. Emulator nie zastępuje
 oceny jakości modelu. Test skórek pozostaje w oddzielnej ręcznej kolejce.

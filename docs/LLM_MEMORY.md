@@ -15,9 +15,9 @@ are never executable orders or proof of current world state.
 For an existing idle, waiting, asking, stopped or finished goal:
 
 ```text
-/samcnpc llm remember <npc UUID> <name> <x> <y> <z>
-/samcnpc llm forget_place <npc UUID> <name>
-/samcnpc llm status <npc UUID>
+/samcnpc llm remember <npc> <name> <x> <y> <z>
+/samcnpc llm forget_place <npc> <name>
+/samcnpc llm status <npc>
 ```
 
 Names contain 1–64 lowercase letters, digits, underscores or hyphens. Coordinates
@@ -44,3 +44,6 @@ aliases across a new goal/restart and recorded known completion without claiming
 a result for uncertain admission. Full Translator and stock Supervisor regressions
 passed. Standalone clean build: 96 LLM tests, 105 matching source files.
 See MEMORY_VALIDATION.json in the standalone repo. Planner execution remains next.
+
+`<npc>` accepts a name, unique name/UUID prefix or full UUID, with Tab completion.
+See [NPC selection](LLM_INSTALLATION.md#using-an-npc).

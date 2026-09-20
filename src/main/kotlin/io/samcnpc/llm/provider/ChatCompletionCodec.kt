@@ -22,9 +22,12 @@ internal object ChatCompletionCodec {
         root.addProperty("temperature", settings.temperature)
         root.addProperty("max_tokens", settings.maxOutputTokens)
         val messages = JsonArray()
-        val system = if (settings.responseFormat == ResponseFormat.JSON_OBJECT)
-            request.systemPrompt + "\nOUTPUT_CONTRACT_JSON_SCHEMA\n" + schema.toString()
-        else request.systemPrompt
+        // Constrained decoding may enforce a grammar without showing it to the model.
+        // Both modes need the operation parameters in the actual prompt.
+        val contractText = if (settings.responseFormat == ResponseFormat.JSON_OBJECT)
+            "OUTPUT_CONTRACT_JSON_SCHEMA\n" + schema.toString()
+        else SchemaPrompt.describe(schema)
+        val system = request.systemPrompt + "\n" + contractText
         messages.add(message("system", system))
         messages.add(message("user", context.toString()))
         root.add("messages", messages)

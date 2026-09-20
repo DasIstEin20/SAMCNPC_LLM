@@ -51,6 +51,7 @@ internal class DecisionHttpProbe(private val server: MinecraftServer, private va
 
     fun poll(): String? {
         completed?.let { return it }
+        if (phase == 0 && worker.isCompletedExceptionally) worker.join()
         if (phase == 0 && arrived.get()) {
             val view = observe(); val task = checkNotNull(view.task)
             expectedResumedState = task.state
@@ -127,8 +128,11 @@ internal class DecisionHttpProbe(private val server: MinecraftServer, private va
                         waitBeforeHeaders = release))
                     OpenAiCompatibleProvider(settings).use { provider ->
                         val request = LlmRequest(UUID.randomUUID(), DecisionPrompt.text, state.stateJson, schema)
+                        val requestBytes = ChatCompletionCodec.request(request, settings)
+                        java.nio.file.Files.write(java.nio.file.Path.of("decision-wire-" + format.name + ".json"), requestBytes)
+                        check(requestBytes.size <= settings.maxContextBytes) { "Decision request bytes=" + requestBytes.size }
                         val call = provider.complete(request)
-                        check(endpoint.arrivals.tryAcquire(3, TimeUnit.SECONDS))
+                        check(endpoint.arrivals.tryAcquire(3, TimeUnit.SECONDS)) { "No request arrival; response=" + call.result.toCompletableFuture().get(6, TimeUnit.SECONDS) }
                         arrived?.set(true)
                         val response = call.result.toCompletableFuture().get(6, TimeUnit.SECONDS)
                         check(response is LlmResponse.Candidate) { "decision HTTP result=" + (response as? LlmResponse.Failed)?.code }

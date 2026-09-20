@@ -1,3 +1,15 @@
+# Current selector/connection repair artifacts — 2026-09-21
+
+The matched three-JAR repair build is identified by
+[repair checksums](CONNECTION_REPAIR_SHA256SUMS) and
+[focused validation](CONNECTION_REPAIR_VALIDATION.json). Its LLM JAR contents
+match the standalone clean-build JAR entry for entry. Archive timestamps may
+change hashes on rebuilding. Core/Behavior source pins remain unchanged.
+Test smoke drivers are absent from the published mod JARs.
+
+The artifact checksums and release checkpoint below are historical and identify
+the previous validation build, before the NPC-selector/prompt repair.
+
 # Retained validation artifacts
 
 The retained canonical build contains exactly these three Java 17 mod JARs.

@@ -1,3 +1,35 @@
+# NPC selectors and Qwen connection repair — 2026-09-21
+
+LLM commands accept Core-style names, unique name/UUID prefixes and authorized
+Tab completion. Ambiguous matches are rejected; execution retains existing
+summoner/operator, range, dimension and revision checks. Core/Behavior sources
+and pinned dependency commits are unchanged.
+
+The observed idle goal had a successful HTTP response but no useful assignment.
+JSON_SCHEMA now includes a compact operation contract in the model messages,
+while preserving the full decoding schema and local validation. The prior mode
+had exposed the contract only through backend response_format. No automatic
+retry/fallback or quota increase was introduced.
+
+Validation: canonical and standalone clean builds each passed 525 unit tests
+(49 Core / 364 Behavior / 112 LLM); 128 own source files match. Seven Python guards
+and source/Core/distribution checks passed. Dedicated loading and client Translator
+passed 8 scenarios/9 HTTP each with 23 command authority checks. Server Supervisor
+physical group passed 10/10, Planner 6/9; fresh-JVM goal restart retained identities
+without replay. Native HTTP exercised both response formats and delayed replies.
+
+Actual LM Studio/Qwen3.5-4B Q4_K_M passed three native cases: clarification of
+missing chest/tool details, physical delivery of 32 cobblestone, and navigation
+from a Polish goal. One request per case. Its verified 65536-context profile uses
+63488 reserved input / 1024 output / 2048 framing reserve; existing goal/server
+quotas remain unchanged. Full real-model corpus and other-backend evaluation
+remain pending (L3.5 PARTIAL, plan 35/36). Authenticated two-account skins remain
+MANUAL_PENDING and nonblocking. The historical one-hour benchmark was not rerun.
+
+See docs/LLM_CONNECTION_REPAIR.md, docs/CONNECTION_REPAIR_VALIDATION.json and
+docs/CONNECTION_REPAIR_SHA256SUMS for current evidence/artifacts. All sections
+below describe earlier checkpoints and retain their original scope.
+
 # Integration acceptance — 2026-09-20
 
 Automated LLM scope complete: **35/36**. Translator, explicit stock Supervisor and bounded Planner are implemented. L3.5 remains USER_DEFERRED until the user supplies a real endpoint/model; authenticated two-account skins remain MANUAL_PENDING and nonblocking. No actual model was installed. The default endpoint is http://127.0.0.1:1234/v1, editable with the model in Forge Mods Config.

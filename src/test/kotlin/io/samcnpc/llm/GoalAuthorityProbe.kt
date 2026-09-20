@@ -33,6 +33,32 @@ internal object GoalAuthorityProbe {
                 check(!reply.accepted && reply.record == null)
                 checks++
             }
+            val handle = checkNotNull(io.samcnpc.core.api.CoreNpcApi.service(server).find(npc))
+            for (selector in listOf(handle.displayName, npc.toString().take(8))) {
+                check(server.commands.dispatcher.execute("samcnpc llm stop $selector", stranger.createCommandSourceStack()) == 0)
+                val input = "samcnpc llm status $selector"
+                val suggestions = server.commands.dispatcher.getCompletionSuggestions(
+                    server.commands.dispatcher.parse(input, stranger.createCommandSourceStack())).join()
+                check(suggestions.list.none { it.text == selector })
+                checks += 2
+            }
+            val ownSuggestions = server.commands.dispatcher.getCompletionSuggestions(
+                server.commands.dispatcher.parse("samcnpc llm status ", actor.createCommandSourceStack())).join()
+            check(ownSuggestions.list.any { it.text == handle.displayName })
+            check(ownSuggestions.list.any { it.text == npc.toString().take(8) })
+            checks += 2
+            val duplicate = io.samcnpc.core.api.CoreNpcApi.service(server).summon(io.samcnpc.core.api.NpcSummonRequest(
+                actor.uuid, handle.displayName, actor.serverLevel().dimension().location().toString(),
+                io.samcnpc.core.api.NpcPosition(actor.x + 1, actor.y, actor.z), 0F))
+            val duplicateHandle = checkNotNull(duplicate.handle)
+            try {
+                check(server.commands.dispatcher.execute("samcnpc llm stop " + handle.displayName, actor.createCommandSourceStack()) == 0)
+                check(server.commands.dispatcher.execute("samcnpc llm status $npc", actor.createCommandSourceStack()) == 1)
+                checks += 2
+            } finally {
+                check(io.samcnpc.core.api.CoreNpcApi.service(server).dismiss(duplicateHandle,
+                    io.samcnpc.core.api.NpcDismissMode.ONLY_IF_EMPTY).status == io.samcnpc.core.api.NpcActionStatus.SUCCEEDED)
+            }
             check(controller.store.get(npc) == before)
         } finally {
             server.playerList.remove(stranger)

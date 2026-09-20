@@ -1,6 +1,6 @@
 # One-step bounded Planner
 
-Use /samcnpc llm plan <npc UUID> <goal text>. The same current summoner/operator,
+Use /samcnpc llm plan <npc> <goal text>. The same current summoner/operator,
 range and dimension checks, disabled default, endpoint profile and whole-goal budgets
 apply. The first Planner permits Food, Lumberjack, Inventory Work, Navigate,
 Transport and Deliver. It cannot craft, build, issue task controls/amendments or
@@ -36,7 +36,7 @@ summary never mean goal completion. After the last recorded step, the open goal
 asks for explicit confirmation:
 
 ```text
-/samcnpc llm complete <npc UUID>
+/samcnpc llm complete <npc>
 ```
 
 Confirmation works without a provider and requires the specific confirmation state,
@@ -67,3 +67,6 @@ tests and 113 matching source files. See PLANNER_VALIDATION.json in the standalo
 repository. Real-model semantics remain user-deferred; active endurance/release
 acceptance is still pending. Controlled stale-save/lost-receipt injection is not
 abrupt-crash atomicity.
+
+`<npc>` accepts a name, unique name/UUID prefix or full UUID, with Tab completion.
+See [NPC selection](LLM_INSTALLATION.md#using-an-npc).

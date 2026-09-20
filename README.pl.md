@@ -15,12 +15,17 @@ Translator wybiera jedną operację z katalogu 16 rodzin. Supervisor utrzymuje w
 zapas w widocznej skrzyni, z histerezą i ochroną przed pętlami. Planner wykonuje
 jeden zwalidowany krok naraz, sprawdza świeże inventory i zapisuje ograniczoną
 pamięć. Otwarty cel po zakończeniu kroków potwierdza gracz.
-Plan: **35/36**; akceptacja automatyczna zakończona. Test rzeczywistego modelu odłożony przez użytkownika.
+Plan: **35/36**. Lokalny Qwen ma już sprawdzony profil i wąski test w grze;
+pełny korpus jakości oraz inne backendy pozostają do sprawdzenia.
 
 Domyślny endpoint to **http://127.0.0.1:1234/v1**. Adres i model zmienisz w Forge Mods
 Config. Integracja jest domyślnie wyłączona; nie instaluje ani nie ładuje modelu.
-Testy używają lekkiego emulatora HTTP. Rozumienie języka przez rzeczywisty model
-oraz profile backendu/tokenizera pozostają niezweryfikowane i odłożone przez gracza.
+Zwykłe testy używają emulatora HTTP. Osobny test Qwen3.5-4B Q4_K_M zaliczył
+pytanie o brakujące dane, fizyczną dostawę i nawigację po polskim poleceniu.
+Szczegóły: [naprawa połączenia](docs/LLM_CONNECTION_REPAIR.md).
+
+Komendy przyjmują nazwy i unikalne skróty tak jak Core, z podpowiedziami Tab:
+`/samcnpc llm status Sam`. Pełne UUID nadal działają.
 
 [Konfiguracja](docs/LLM_CONFIGURATION.md) · [Komendy Translatora](docs/LLM_TRANSLATOR.md) ·
 [Supervisor](docs/LLM_SUPERVISOR.md) · [Planner](docs/LLM_PLANNER.md) ·
@@ -48,6 +53,14 @@ Uruchomienie serwera wymaga zaakceptowania Minecraft EULA.
 
 ## Weryfikacja
 
+Naprawa wyboru NPC i połączenia: 525 testów jednostkowych workspace (49/364/112),
+siedem testów Python, regresja Translatora na serwerze i kliencie (8 scenariuszy /
+9 HTTP) oraz 23 kontrole uprawnień komend. Build osobnego repo również przeszedł
+(112 testów LLM, 128 zgodnych plików). Powtórzone próby serwerowego Supervisora,
+Plannera i restartu celu przeszły. Qwen zaliczył osobny test trzech przypadków.
+[Dowody naprawy](docs/CONNECTION_REPAIR_VALIDATION.json) wskazują aktualne artefakty
+i zakres powtórzonych testów. Poniższe dowody wydania i testu godzinnego są historyczne.
+
 Pełny clean build: 518 testów (49 Core/364 Behavior/105 LLM), 850 zgodnych hashy i
 kontrola trzech JAR-ów. Dedicated i klient zaliczyły odpowiednio po: Translator 8
 scenariuszy/9 HTTP, Supervisor 14/22, Planner 6/9. Sprawdzone fizyczne bilanse,
@@ -56,7 +69,7 @@ Trzy zestawy restartów zachowały tożsamość/intencję, bez powielania operac
 Serwer: 37 kontroli admission; komendy: 15 kontroli uprawnień/danych.
 
 Build tego repo: 105 testów LLM, 122 zgodne pliki źródłowe.
-[Dowody wydania i hashe](docs/RELEASE_VALIDATION.json) opisują bieżący build;
+[Dowody wydania i hashe](docs/RELEASE_VALIDATION.json) opisują poprzedni build wydania;
 [dowody trybów](docs/PLANNER_VALIDATION.json) oddzielają weryfikację integracji
 od jakości rzeczywistego modelu. Niezmienione Core 146/Behavior 215 native i Core 52
 animacji zachowują wcześniejsze dowody. [Stan projektu](PROJECT_STATE.md) opisuje

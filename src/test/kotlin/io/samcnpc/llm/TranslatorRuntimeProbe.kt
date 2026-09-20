@@ -35,8 +35,10 @@ internal class TranslatorRuntimeProbe(private val server: MinecraftServer, priva
     private val cases = listOf("clarify", "deliver", "lumberjack", "pause", "offline", "missing", "full", "cancel")
     private val script = Script(operation(), delivery(), lumberjack())
     private val endpoint = FakeOpenAiEndpoint(script::reply)
+    // Nine fault/command attempts fit the unchanged rolling quota with the single-schema JSON_OBJECT wire.
+    // JSON_SCHEMA is independently exercised by DecisionHttpProbe and opt-in LiveModelServerSmoke.
     private val settings = ProviderSettings(enabled = true, baseUrl = endpoint.baseUrl, model = "translator-emulator",
-        apiKeyEnvironment = "", requestTimeoutSeconds = 4,
+        apiKeyEnvironment = "", requestTimeoutSeconds = 4, responseFormat = ResponseFormat.JSON_OBJECT,
         inference = InferenceSettings(true, endpoint.baseUrl, "translator-emulator", "emulator-v1",
             "scripted-fixture", "test-byte-bound", "test-template", 256, 131072, 49152))
     private var index = 0
@@ -271,8 +273,15 @@ internal class TranslatorRuntimeProbe(private val server: MinecraftServer, priva
         .sumOf { if (it.stack.itemId == "minecraft:cobblestone") it.stack.count else 0 }
     private fun bounds() = AABB(base.offset(-3, -2, -3), base.offset(12, 5, 4))
     private fun command(action: String, handle: NpcHandle, text: String = ""): Int =
-        server.commands.dispatcher.execute("samcnpc llm $action ${handle.npcUuid}" + if (text.isEmpty()) "" else " $text",
+        server.commands.dispatcher.execute("samcnpc llm $action ${selector(handle)}" + if (text.isEmpty()) "" else " $text",
             actor.createCommandSourceStack())
+    private fun selector(handle: NpcHandle): String = when (index % 4) {
+        0 -> handle.displayName
+        1 -> handle.displayName.dropLast(2).uppercase()
+        2 -> handle.npcUuid.toString().take(8)
+        else -> handle.npcUuid.toString()
+    }
+
     private fun configure(values: ProviderSettings) {
         check(LlmConfig.update(LlmConfig.snapshot().revision, values))
     }
@@ -319,6 +328,8 @@ internal class TranslatorRuntimeProbe(private val server: MinecraftServer, priva
         val maxRequestBytes = AtomicInteger()
         fun reply(request: FakeOpenAiEndpoint.Received): FakeOpenAiEndpoint.Reply {
             calls.incrementAndGet()
+            if (caseName in setOf("clarify", "deliver", "lumberjack"))
+                java.nio.file.Files.writeString(java.nio.file.Path.of("translator-wire-" + caseName + ".json"), request.body)
             val bytes = LlmJson.utf8(request.body).size
             check(bytes + 256 <= 49152)
             maxRequestBytes.getAndUpdate { previous -> maxOf(previous, bytes) }

@@ -38,7 +38,9 @@ unknown. Never treat an alias or text-injection string as world knowledge.
 Preserve failed cases and report each model profile separately. Zero unauthorized
 effects, duplicate admission and false completion are mandatory. Do not reduce
 the corpus or loosen assertions to pass a weaker model. The actual model profile
-remains USER_DEFERRED until the user supplies the endpoint/model.
+remains pending for the full corpus. A separate three-case Qwen3.5-4B native smoke
+now covers clarification, delivery and navigation; it is not a corpus-wide language
+quality score. See [connection repair](LLM_CONNECTION_REPAIR.md).
 
 Run the scripted corpus with
 `gradlew.bat :samcnpc-llm:test --tests '*FrozenEvaluationTest'` in the three-module

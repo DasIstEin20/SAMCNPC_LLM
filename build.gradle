@@ -157,6 +157,12 @@ minecraft {
             property 'samcnpc.goalRestartPhase', 'load'
             mods { samcnpc_llm { source sourceSets.test } }
         }
+        serverLiveModelSmoke {
+            parent runs.server
+            workingDirectory project.file('run-server-live-model-smoke')
+            property 'samcnpc.liveModelSmoke', 'true'
+            mods { samcnpc_llm { source sourceSets.test } }
+        }
         serverLoadingSmoke {
             parent runs.server
             workingDirectory project.file('run-server-loading-smoke')
@@ -200,7 +206,7 @@ tasks.named('jar', Jar).configure {
 }
 
 // Command-line userdev needs the exact bundled Behavior data staged under its game directory.
-['Run': 'run', 'ClientLoadingSmoke': 'run-client-loading-smoke', 'ServerLoadingSmoke': 'run-server-loading-smoke', 'ClientGoalsSmoke': 'run-client-goals-smoke', 'ServerGoalsSaveSmoke': goalRestartDirectory, 'ServerGoalsLoadSmoke': goalRestartDirectory, 'ClientSupervisorSmoke': 'run-client-supervisor-smoke', 'ServerSupervisorSmoke': supervisorDirectory, 'ServerSupervisorSaveSmoke': supervisorRestartDirectory, 'ServerSupervisorLoadSmoke': supervisorRestartDirectory, 'ClientSupervisorFaultsSmoke': 'run-client-supervisor-faults-smoke', 'ServerSupervisorFaultsSmoke': supervisorFaultsDirectory, 'ClientPlannerSmoke': 'run-client-planner-smoke', 'ServerPlannerSmoke': plannerDirectory, 'ServerPlannerSaveSmoke': plannerRestartDirectory, 'ServerPlannerLoadSmoke': plannerRestartDirectory].each { suffix, folder ->
+['Run': 'run', 'ClientLoadingSmoke': 'run-client-loading-smoke', 'ServerLoadingSmoke': 'run-server-loading-smoke', 'ServerLiveModelSmoke': 'run-server-live-model-smoke', 'ClientGoalsSmoke': 'run-client-goals-smoke', 'ServerGoalsSaveSmoke': goalRestartDirectory, 'ServerGoalsLoadSmoke': goalRestartDirectory, 'ClientSupervisorSmoke': 'run-client-supervisor-smoke', 'ServerSupervisorSmoke': supervisorDirectory, 'ServerSupervisorSaveSmoke': supervisorRestartDirectory, 'ServerSupervisorLoadSmoke': supervisorRestartDirectory, 'ClientSupervisorFaultsSmoke': 'run-client-supervisor-faults-smoke', 'ServerSupervisorFaultsSmoke': supervisorFaultsDirectory, 'ClientPlannerSmoke': 'run-client-planner-smoke', 'ServerPlannerSmoke': plannerDirectory, 'ServerPlannerSaveSmoke': plannerRestartDirectory, 'ServerPlannerLoadSmoke': plannerRestartDirectory].each { suffix, folder ->
     def stage = tasks.register("stageBehaviorData${suffix}", Copy) {
         from project(':samcnpc-behavior').layout.projectDirectory.dir('src/main/resources/data')
         into layout.projectDirectory.dir("${folder}/data")
@@ -386,5 +392,14 @@ tasks.withType(Jar).configureEach {
         attributes('Specification-Title': 'samcnpc-llm', 'Specification-Vendor': 'SAMCNPC',
             'Specification-Version': '1', 'Implementation-Title': 'samcnpc-llm',
             'Implementation-Version': project.version, 'Implementation-Vendor': 'SAMCNPC')
+    }
+}
+
+// Requires an explicitly configured real endpoint; deliberately excluded from verifyAll.
+tasks.matching { it.name == 'runServerLiveModelSmoke' }.configureEach {
+    def report = layout.projectDirectory.file('run-server-live-model-smoke/live-model-result.txt').asFile
+    doFirst { report.parentFile.mkdirs(); report.text = 'RUNNING\n' }
+    doLast {
+        if (!report.text.startsWith('PASS ')) throw new GradleException("Real model smoke failed: ${report}")
     }
 }

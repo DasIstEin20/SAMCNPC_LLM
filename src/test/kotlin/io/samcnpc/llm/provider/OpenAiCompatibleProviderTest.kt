@@ -50,6 +50,9 @@ class OpenAiCompatibleProviderTest {
                 val format = sent["response_format"].asJsonObject
                 assertEquals("json_schema", format["type"].asString)
                 assertTrue(format["json_schema"].asJsonObject["strict"].asBoolean)
+                val system = sent["messages"].asJsonArray[0].asJsonObject["content"].asString
+                assertEquals(input.systemPrompt + "\n" + SchemaPrompt.describe(format["json_schema"].asJsonObject["schema"].asJsonObject), system)
+                assertTrue(system.contains("decision:string"))
                 assertEquals(0, provider.activeRequests())
             }
         }

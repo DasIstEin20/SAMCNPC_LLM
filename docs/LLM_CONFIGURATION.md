@@ -81,8 +81,13 @@ The current adapter bounds input by the entire UTF-8 serialized HTTP request plu
 not measured token consumption. `inputTokens` must cover that bound and, together
 with `maxOutputTokens`, fit the verified context window. Defaults are not an assertion
 that every catalog prompt fits an 8192-token allocation. The full Translator catalog
-used about 40 KiB of HTTP data in emulator scenarios and a 49152 input reservation;
-this fixture size does not characterize a future model's token usage.
+uses about 40 KiB in the JSON_OBJECT emulator profile (49152 input reservation).
+JSON_SCHEMA also sends a compact parameter contract in the model's system message;
+the repaired Qwen profile uses a 63488 input reservation and a 65536 context window,
+with 1024 output tokens and 2048 template reserve. These are conservative caps,
+not actual tokenizer counts. See [connection repair](LLM_CONNECTION_REPAIR.md).
+Goal/rolling-hour token caps remain unchanged, so a larger per-call reservation
+allows fewer calls before waiting for the next quota window.
 
 Rates and cost caps use integer millionths of the same operator-chosen currency;
 zero rates/caps describe a local endpoint with no configured monetary charge.

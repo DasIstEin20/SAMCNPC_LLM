@@ -129,7 +129,7 @@ class DecisionDecoderTest {
         Files.writeString(folder.resolve("valid-decisions.json"), corpus.toString())
     }
 
-    @Test fun completeSchemaFitsBothExplicitTransportProfilesAndJsonModeReceivesIt() {
+    @Test fun completeSchemaFitsBothExplicitTransportProfilesAndBothPromptsReceiveParameters() {
         val schema = DecisionSchema.forContext(id, policy())
         val request = LlmRequest(UUID.randomUUID(), DecisionPrompt.text,
             """{"contextId":"$id","goal":{"text":"Gather wood"}}""", schema)
@@ -138,9 +138,11 @@ class DecisionDecoderTest {
             val bytes = ChatCompletionCodec.request(request, settings)
             assertTrue(bytes.size <= settings.maxContextBytes, "format=$format bytes=" + bytes.size)
             val payload = LlmJson.parse(LlmJson.decode(bytes), settings.maxContextBytes)
-            if (format == ResponseFormat.JSON_OBJECT) {
-                assertTrue(payload["messages"].asJsonArray[0].asJsonObject["content"].asString.contains("OUTPUT_CONTRACT_JSON_SCHEMA"))
-            }
+            val system = payload["messages"].asJsonArray[0].asJsonObject["content"].asString
+            assertTrue(system.contains(if (format == ResponseFormat.JSON_OBJECT) "OUTPUT_CONTRACT_JSON_SCHEMA" else "OUTPUT_CONTRACT_TYPES"))
+            for (operation in OperationType.entries) assertTrue(system.contains(operation.operationId))
+            assertTrue(system.contains("quantity"))
+            assertTrue(system.contains("definitionVersion"))
         }
     }
 }

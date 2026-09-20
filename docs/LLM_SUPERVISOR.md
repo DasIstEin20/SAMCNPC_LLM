@@ -6,7 +6,7 @@ vanilla chest. This is an optional goal mode; Translator still supports the comp
 user-deferred. Tests use a CPU HTTP emulator and do not establish model quality.
 
 ```text
-/samcnpc llm maintain <npc UUID> <item ID> <low> <target> <x> <y> <z> <goal text>
+/samcnpc llm maintain <npc> <item ID> <low> <target> <x> <y> <z> <goal text>
 ```
 
 For example, with low=192 and target=256, initial stock below 256 starts a refill.
@@ -67,3 +67,6 @@ This uses controlled lost-receipt injection and ordinary saves, not abrupt-crash
 atomicity. Standalone LLM clean build passes 91 tests with all 102 source files
 matching the canonical runtime-tested tree. See SUPERVISOR_VALIDATION.json in
 the standalone repository. Planner and the active one-hour soak remain next.
+
+`<npc>` accepts a name, unique name/UUID prefix or full UUID, with Tab completion.
+See [NPC selection](LLM_INSTALLATION.md#using-an-npc).
