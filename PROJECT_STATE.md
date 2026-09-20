@@ -1,3 +1,15 @@
+# Resource dependency update — 2026-09-20
+
+Behavior now exposes immutable per-item accounting and own work reservations
+behind the existing inspection authorization. Canonical clean build passed
+418 units, 210 Behavior native cases, 12 real client operations and both
+three-mod GUI/HTTP smokes; the 737-file source snapshot matches. Core sources
+are unchanged from the 141-case native visual campaign.
+Standalone LLM clean build passed 19 units with exact canonical LLM sources.
+Runtime proof is the canonical resource campaign; standalone loading smokes were
+not repeated for this dependency-only update. See docs/RESOURCE_DEPENDENCY_VALIDATION.json.
+No goal executor is enabled. See docs/RESOURCE_INSPECTION.md.
+
 # Visual dependency update — 2026-09-20
 
 Core and Behavior now expose authorized bounded real-eye visual observations.
