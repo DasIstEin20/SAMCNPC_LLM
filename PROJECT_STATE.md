@@ -1,3 +1,20 @@
+# Frozen bilingual evaluation — 2026-09-20
+
+L7.1 complete; integration plan 32/36. Corpus v1 has 56 complete PL/EN,
+clarification and adversarial inputs with pinned prompt/corpus hashes and three
+repetitions. Workspace and standalone each passed 168 scripted HTTP candidates:
+96 typed assignments and 72 questions without executable payloads. This proves
+the wire/decoder/policy contract; real-model operation selection, injection
+resistance and gameplay success are separate scores, not inferred from fixtures.
+
+Clean build/static/distribution: 516 units (49 Core / 364 Behavior / 103 LLM),
+844 frozen source/build files; standalone 103 tests / 116 matching own sources.
+Production and runtime tests match the accepted Planner evidence. See
+LLM_EVALUATION.md and standalone EVALUATION_VALIDATION.json.
+
+Next: active multi-NPC endurance and final packaging/acceptance. Real model is
+USER_DEFERRED; authenticated skins are MANUAL_PENDING and nonblocking.
+
 # Verified bounded Planner — 2026-09-20
 
 L6.2–L6.4 complete; LLM plan 31/36. Planner admits one current operation through the

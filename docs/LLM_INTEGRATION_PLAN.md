@@ -1,6 +1,6 @@
 # F02 / llm_integration — plan budowy
 
-Data: 2026-09-20. Status: **IN_PROGRESS, L0–L2, L3.1–L3.4, L4, L5 i L6 ukończone, 31/36 punktów zamkniętych**.
+Data: 2026-09-20. Status: **IN_PROGRESS, L0–L2, L3.1–L3.4, L4, L5 i L6 ukończone, 32/36 punktów zamkniętych**.
 To osobny plan rozwoju istniejącego modułu samcnpc-llm, poza licznikiem P00–P12
 (104/112) i Acceptance Zoo (23/23). L0 domyka istniejące P11.1/P11.7, nie tworzy
 konkurencyjnego katalogu ani drugiego wykonawcy. Pierwotne dopisanie planu nie uruchamiało implementacji. Użytkownik 2026-09-20
@@ -457,7 +457,9 @@ pozostają USER_DEFERRED.
 
 ### L7 — Akceptacja integracji i wydanie (po L4–L6)
 
-- [ ] L7.1 Zamrozić korpus ewaluacji i profile backend/model/prompt/schema; osobno raportować poprawność JSON, wybór operacji, bezpieczne odrzucenia i fizyczny sukces.
+- [x] L7.1 Zamrozić korpus ewaluacji i profile backend/model/prompt/schema; osobno raportować poprawność JSON, wybór operacji, bezpieczne odrzucenia i fizyczny sukces.
+Dowód L7.1: LLM_EVALUATION.md, korpus v1 (56 przypadków PL/EN, 3 powtórzenia), 168 odpowiedzi HTTP: 96 typowanych operacji i 72 pytań bez payloadu wykonawczego. Zamrożone hashe korpusu/promptu, oddzielne metryki; semantyka prawdziwego modelu USER_DEFERRED. Clean/static/distribution: 516 unit, 844 hashy; standalone 103 unit /116 zgodnych plików.
+
 - [ ] L7.2 Wykonać kampanię klient/serwer/restart/fault injection oraz >=3600 s aktywnego testu wielu NPC; zmierzyć tick cost, heap, queues, latency, tokens i calls.
 - [ ] L7.3 Przejść clean build/static/distribution i trzy konfiguracje: bez LLM, disabled LLM, provider offline/wolny; zero regresji Core/Behavior i żadnych testowych sterowników w JAR-ach.
 - [ ] L7.4 Zmapować wszystkie punkty na dowody, opisać instalację/config/sekrety/limity/znane profile i przygotować trzy artefakty z hashami; skórki zachować MANUAL_PENDING.

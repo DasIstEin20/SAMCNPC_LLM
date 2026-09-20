@@ -15,7 +15,7 @@ Translator wybiera jedną operację z katalogu 16 rodzin. Supervisor utrzymuje w
 zapas w widocznej skrzyni, z histerezą i ochroną przed pętlami. Planner wykonuje
 jeden zwalidowany krok naraz, sprawdza świeże inventory i zapisuje ograniczoną
 pamięć. Otwarty cel po zakończeniu kroków potwierdza gracz.
-Plan: 31/36; końcowa akceptacja i aktywny test godzinny pozostają do wykonania.
+Plan: 32/36; końcowa akceptacja i aktywny test godzinny pozostają do wykonania.
 
 Domyślny endpoint to **http://127.0.0.1:1234/v1**. Adres i model zmienisz w Forge Mods
 Config. Integracja jest domyślnie wyłączona; nie instaluje ani nie ładuje modelu.
@@ -64,3 +64,5 @@ Skórki dwóch zalogowanych kont są testem ręcznym i nie blokują prac.
 
 [Core](https://github.com/DasIstEin20/SAMCNPC_Core) ·
 [Behavior](https://github.com/DasIstEin20/SAMCNPC_Behavior)
+
+[Zamrożony korpus i kryteria oceny](docs/LLM_EVALUATION.md): 56 przypadków, trzy powtórzenia emulatora; jakość prawdziwego modelu pozostaje do sprawdzenia.

@@ -15,7 +15,7 @@ Translator selects one operation from the 16-family catalog. Supervisor maintain
 an explicit visible chest stock target with hysteresis and failure-loop protection.
 Planner executes one validated step at a time, with fresh inventory preconditions,
 durable bounded memory and explicit player confirmation of an open goal.
-Plan: 31/36; final active endurance/release acceptance remains pending.
+Plan: 32/36; final active endurance/release acceptance remains pending.
 
 The default endpoint is **http://127.0.0.1:1234/v1**. Address and model are editable
 in Forge Mods Config. Integration is disabled by default; it never installs or
@@ -64,3 +64,5 @@ and nonblocking.
 
 [Core](https://github.com/DasIstEin20/SAMCNPC_Core) ·
 [Behavior](https://github.com/DasIstEin20/SAMCNPC_Behavior)
+
+[Frozen evaluation corpus and scoring](docs/LLM_EVALUATION.md): 56 cases, three scripted repetitions; real-model quality remains unmeasured.
