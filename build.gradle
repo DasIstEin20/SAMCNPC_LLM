@@ -326,6 +326,60 @@ spawn-protection=0
 
 tasks.matching { it.name == "runServerPlannerLoadSmoke" }.configureEach { mustRunAfter "runServerPlannerSaveSmoke" }
 
+def hourSourceHash = providers.gradleProperty('llmHourSourceHash').orElse('').get()
+def hourRounds = providers.gradleProperty('llmHourRounds').orElse('24').get()
+def hourRuns = [
+    [name: 'serverLlmHourProbe', mode: 'PROBE', folder: "run-server-llm-hour-probe-${goalRestartId}"],
+    [name: 'serverLlmHourBaseline', mode: 'BASELINE', folder: "run-server-llm-hour-baseline-${goalRestartId}"],
+    [name: 'serverLlmHour', mode: 'FULL', folder: "run-server-llm-hour-${goalRestartId}"]
+]
+minecraft {
+    runs {
+        hourRuns.each { suite ->
+            create(suite.name) {
+                parent runs.server
+                workingDirectory project.file(suite.folder)
+                property 'samcnpc.llmHour', suite.mode
+                property 'samcnpc.llmHourSourceHash', hourSourceHash
+                property 'samcnpc.llmHourRounds', hourRounds
+                mods { samcnpc_llm { source sourceSets.test } }
+            }
+        }
+    }
+}
+hourRuns.each { suite ->
+    def suffix = suite.name.substring(0, 1).toUpperCase() + suite.name.substring(1)
+    def stage = tasks.register("stageBehaviorData${suffix}", Copy) {
+        from project(':samcnpc-behavior').layout.projectDirectory.dir('src/main/resources/data')
+        into layout.projectDirectory.dir(suite.folder + '/data')
+    }
+    tasks.matching { it.name == 'run' + suffix }.configureEach {
+        dependsOn stage
+        def report = layout.projectDirectory.file(suite.folder + '/llm-hour-result.txt').asFile
+        doFirst {
+            if (!(hourSourceHash ==~ /[0-9a-f]{64}/)) throw new GradleException('Supply llmHourSourceHash from the frozen manifest')
+            report.parentFile.mkdirs(); report.text = 'RUNNING\n'
+            new File(report.parentFile, 'eula.txt').text = 'eula=true\n'
+            def settings = new File(report.parentFile, 'server.properties')
+            if (!settings.exists()) settings.text = """server-ip=127.0.0.1
+server-port=25577
+online-mode=true
+level-name=llm-hour-world
+level-type=minecraft:flat
+generator-settings={"layers":[{"block":"minecraft:bedrock","height":1},{"block":"minecraft:dirt","height":2},{"block":"minecraft:grass_block","height":1}],"biome":"minecraft:plains"}
+level-seed=0
+generate-structures=false
+difficulty=normal
+view-distance=8
+simulation-distance=8
+max-players=1
+spawn-protection=0
+"""
+        }
+        doLast { if (!report.text.startsWith('PASS ')) throw new GradleException('LLM hour failed: ' + report) }
+    }
+}
+
 tasks.withType(Jar).configureEach {
     archiveBaseName = 'samcnpc-llm'
     manifest {

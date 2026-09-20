@@ -1,0 +1,305 @@
+{
+  "probe": {
+    "status": "PASS",
+    "mode": "PROBE",
+    "sourceHash": "4728f0064f7ed5f2eb261119e27229db40e26b40b969f988ffec2e19e47f891c",
+    "activeSeconds": 73.3446559,
+    "activeTicks": 1467,
+    "excludedClockGaps": 0,
+    "elapsedSeconds": 76.6347887,
+    "ticks": 1537,
+    "npcCount": 6,
+    "scenes": [
+      {
+        "index": 0,
+        "npc": "3504d06d-9684-4898-bcc6-880fb2715d40",
+        "combat": false,
+        "completed": 1,
+        "completedTaskTicks": [
+          1462
+        ],
+        "distance": 196.3543379252816,
+        "kills": 0
+      },
+      {
+        "index": 1,
+        "npc": "4f882930-0001-459e-8c62-f4835cad1f71",
+        "combat": true,
+        "completed": 1,
+        "completedTaskTicks": [
+          1478
+        ],
+        "distance": 194.17090242901872,
+        "kills": 7
+      },
+      {
+        "index": 2,
+        "npc": "5711a5c3-2441-4be6-a5bb-fb49634812c1",
+        "combat": false,
+        "completed": 1,
+        "completedTaskTicks": [
+          1462
+        ],
+        "distance": 196.21943074651475,
+        "kills": 0
+      },
+      {
+        "index": 3,
+        "npc": "056eeac7-6b3a-4e1d-bd3e-e0a4430bf85c",
+        "combat": true,
+        "completed": 1,
+        "completedTaskTicks": [
+          1478
+        ],
+        "distance": 194.1755430584971,
+        "kills": 7
+      },
+      {
+        "index": 4,
+        "npc": "74bb65c7-8c65-430e-9163-bf5c047bd4c3",
+        "combat": false,
+        "completed": 1,
+        "completedTaskTicks": [
+          1462
+        ],
+        "distance": 196.084527410665,
+        "kills": 0
+      },
+      {
+        "index": 5,
+        "npc": "07a96ba1-b44e-4602-9765-8b5125df6796",
+        "combat": true,
+        "completed": 1,
+        "completedTaskTicks": [
+          1478
+        ],
+        "distance": 194.18096457455292,
+        "kills": 7
+      }
+    ],
+    "providerDisconnectedSeconds": 20.0508605,
+    "inference": {
+      "httpCalls": 12,
+      "admittedTasks": 12,
+      "slowResponseTicks": 20,
+      "maxRequestBytes": 15163,
+      "serverWindowReservations": 12,
+      "trackedNpcBudgets": 6,
+      "inputTokensCharged": 393216,
+      "outputTokensCharged": 12288,
+      "providerUsageScope": "SCRIPTED_USAGE; conservative byte upper bound charged",
+      "pending": 0,
+      "activeWorkers": 0,
+      "queue": 0
+    },
+    "performance": {
+      "llmServerWork": {
+        "samples": 1333,
+        "p95Ms": 0.0498,
+        "p99Ms": 0.1066,
+        "maxMs": 9.2205
+      },
+      "wholeServerTick": {
+        "samples": 1333,
+        "p95Ms": 1.5069,
+        "p99Ms": 2.6646,
+        "maxMs": 17.2052
+      },
+      "snapshot": {
+        "samples": 12,
+        "p95Ms": 29.0077,
+        "p99Ms": 29.0077,
+        "maxMs": 29.0077
+      },
+      "admission": {
+        "samples": 12,
+        "p95Ms": 16.1652,
+        "p99Ms": 16.1652,
+        "maxMs": 16.1652
+      },
+      "requestToAdmissionLatency": {
+        "samples": 12,
+        "p95Ms": 1189.0602,
+        "p99Ms": 1189.0602,
+        "maxMs": 1189.0602
+      },
+      "peakQueue": 6,
+      "peakWorkers": 2,
+      "heapUsedBytes": [
+        520850048,
+        722184928
+      ],
+      "gcCollections": 39,
+      "gcMillis": 255
+    },
+    "scope": "Restricted PATROL policy; production scheduler/context/admission plus native movement and visible melee. Goal-controller modes have separate acceptance."
+  },
+  "baseline": {
+    "status": "PASS",
+    "mode": "BASELINE",
+    "sourceHash": "4728f0064f7ed5f2eb261119e27229db40e26b40b969f988ffec2e19e47f891c",
+    "activeSeconds": 72.9400994,
+    "activeTicks": 1468,
+    "excludedClockGaps": 0,
+    "elapsedSeconds": 74.6619623,
+    "ticks": 1496,
+    "npcCount": 6,
+    "scenes": [
+      {
+        "index": 0,
+        "npc": "5f607145-6c75-456a-894c-6b5e50e5db10",
+        "combat": false,
+        "completed": 1,
+        "completedTaskTicks": [
+          1462
+        ],
+        "distance": 195.5450698839613,
+        "kills": 0
+      },
+      {
+        "index": 1,
+        "npc": "04c0f1b3-4b84-431d-82e1-283f4bfedf2c",
+        "combat": true,
+        "completed": 1,
+        "completedTaskTicks": [
+          1474
+        ],
+        "distance": 193.98473673408634,
+        "kills": 6
+      },
+      {
+        "index": 2,
+        "npc": "552af074-6efc-4321-a619-39a8d3e7826e",
+        "combat": false,
+        "completed": 1,
+        "completedTaskTicks": [
+          1462
+        ],
+        "distance": 195.54506988396352,
+        "kills": 0
+      },
+      {
+        "index": 3,
+        "npc": "c6c93788-24dd-4a52-b8ce-4be0de9d41f0",
+        "combat": true,
+        "completed": 1,
+        "completedTaskTicks": [
+          1474
+        ],
+        "distance": 193.9847367340864,
+        "kills": 6
+      },
+      {
+        "index": 4,
+        "npc": "9c47307b-dfe7-49c3-a87e-13aa7593a0f9",
+        "combat": false,
+        "completed": 1,
+        "completedTaskTicks": [
+          1462
+        ],
+        "distance": 195.5450698839613,
+        "kills": 0
+      },
+      {
+        "index": 5,
+        "npc": "9ba6df4d-beb0-40d1-a51f-3d40a4add4aa",
+        "combat": true,
+        "completed": 1,
+        "completedTaskTicks": [
+          1474
+        ],
+        "distance": 193.9847367340881,
+        "kills": 6
+      }
+    ],
+    "providerDisconnectedSeconds": 0.0,
+    "performance": {
+      "llmServerWork": {
+        "samples": 1294,
+        "p95Ms": 0.0,
+        "p99Ms": 0.0,
+        "maxMs": 0.0
+      },
+      "wholeServerTick": {
+        "samples": 1294,
+        "p95Ms": 1.5738,
+        "p99Ms": 2.7323,
+        "maxMs": 20.4307
+      },
+      "snapshot": {
+        "samples": 0,
+        "p95Ms": 0.0,
+        "p99Ms": 0.0,
+        "maxMs": 0.0
+      },
+      "admission": {
+        "samples": 0,
+        "p95Ms": 0.0,
+        "p99Ms": 0.0,
+        "maxMs": 0.0
+      },
+      "requestToAdmissionLatency": {
+        "samples": 0,
+        "p95Ms": 0.0,
+        "p99Ms": 0.0,
+        "maxMs": 0.0
+      },
+      "peakQueue": 0,
+      "peakWorkers": 0,
+      "heapUsedBytes": [
+        521143976,
+        728922632
+      ],
+      "gcCollections": 33,
+      "gcMillis": 234
+    },
+    "scope": "Restricted PATROL policy; production scheduler/context/admission plus native movement and visible melee. Goal-controller modes have separate acceptance."
+  },
+  "status": "PREFLIGHT_PASS_FULL_HOUR_PENDING",
+  "profile": {
+    "id": "llm-hour-patrol-melee-v1",
+    "status": "FROZEN_BEFORE_FULL",
+    "mode": "FULL",
+    "rounds": 14,
+    "routeCopies": 4,
+    "npcCount": 6,
+    "policy": [
+      "samcnpc:patrol"
+    ],
+    "reactionRoles": [
+      "PASSIVE",
+      "AREA",
+      "PASSIVE",
+      "AREA",
+      "PASSIVE",
+      "AREA"
+    ],
+    "sourceManifest": "hour-probe2-source-manifest.json",
+    "sourceSha256": "4728f0064f7ed5f2eb261119e27229db40e26b40b969f988ffec2e19e47f891c",
+    "requiredActiveSeconds": 3600,
+    "requiredActiveTicks": 72000,
+    "maximumSeconds": 5400,
+    "maximumTicks": 108000,
+    "minimumCompletedTasksPerNpc": 1,
+    "minimumDistancePerNpc": 3000,
+    "minimumKillsPerCombatNpc": 10,
+    "offlineAtActiveSeconds": 60,
+    "offlineWallSeconds": 1200,
+    "p95LlmServerMillis": 1,
+    "p99LlmServerMillis": 2,
+    "inputUpperBoundPerAttempt": 32768,
+    "globalResourceLimits": "unchanged",
+    "budgetClock": "System.nanoTime, no virtual time",
+    "probeCompletedTaskTicks": [
+      1462,
+      1478,
+      1462,
+      1478,
+      1462,
+      1478
+    ],
+    "roundChoice": "Probe two-lap round takes 73.1-73.9 s; full four-lap route x14 targets approximately 34 minutes per task, below its 3600 s budget and beyond the 20-minute provider outage. Renew only after authoritative completion.",
+    "performanceWarmupTicks": 200,
+    "excludedPerformanceTicks": "first 200 ticks, setup, endpoint lifecycle changes and report writes; cold capture/admission timings retained separately"
+  }
+}

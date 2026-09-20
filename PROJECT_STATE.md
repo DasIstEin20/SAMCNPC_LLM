@@ -1,3 +1,10 @@
+# Endurance preflight — 2026-09-20
+
+L7.2 remains IN_PROGRESS. Six real NPCs passed the short restricted patrol/melee
+HTTP and direct-Behavior baseline. Source/profile and performance thresholds are
+frozen before the >=3600-active-second run. The short proof is not an hour pass.
+See LLM_ENDURANCE.md and ENDURANCE_PREFLIGHT.json. No production code changed.
+
 # Frozen bilingual evaluation — 2026-09-20
 
 L7.1 complete; integration plan 32/36. Corpus v1 has 56 complete PL/EN,
