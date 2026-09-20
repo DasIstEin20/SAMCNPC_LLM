@@ -1,0 +1,839 @@
+{
+  "status": "PASS_AUTOMATED_SCOPE_WITH_DECLARED_DEFERRALS",
+  "criteriaDocumentSha256": "f2dedcfeb6fc75af355c39c52c72b08e3befd1094345176329ded4fd7f883900",
+  "criteria": [
+    {
+      "id": "A01",
+      "section": "Build/distribution",
+      "requirement": "Clean checkout/worktree can build with documented Java 17 setup.",
+      "evidence": [
+        "BUILD",
+        "PACKAGING"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A02",
+      "section": "Build/distribution",
+      "requirement": "`clean build` passes.",
+      "evidence": [
+        "BUILD",
+        "PACKAGING"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A03",
+      "section": "Build/distribution",
+      "requirement": "Exactly three first-party SAMCNPC mod artifacts are produced: Core, Behavior, LLM.",
+      "evidence": [
+        "BUILD",
+        "PACKAGING"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A04",
+      "section": "Build/distribution",
+      "requirement": "Core has no dependency/import on Behavior/LLM.",
+      "evidence": [
+        "BUILD",
+        "PACKAGING"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A05",
+      "section": "Build/distribution",
+      "requirement": "Behavior has no dependency/import on LLM.",
+      "evidence": [
+        "BUILD",
+        "PACKAGING"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A06",
+      "section": "Build/distribution",
+      "requirement": "All hand-written `src/main` production source is Kotlin.",
+      "evidence": [
+        "BUILD",
+        "PACKAGING"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A07",
+      "section": "Build/distribution",
+      "requirement": "No floating dependency versions remain.",
+      "evidence": [
+        "BUILD",
+        "PACKAGING"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A08",
+      "section": "Runtime loading",
+      "requirement": "Dev client launches with all three mods.",
+      "evidence": [
+        "CLIENT",
+        "LLM"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A09",
+      "section": "Runtime loading",
+      "requirement": "Dedicated server launches with Core + Behavior + LLM without client-class crash.",
+      "evidence": [
+        "CLIENT",
+        "LLM"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A10",
+      "section": "Runtime loading",
+      "requirement": "LLM shell does not require credentials/network to load.",
+      "evidence": [
+        "CLIENT",
+        "LLM"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A11",
+      "section": "Core NPC",
+      "requirement": "Player command summons an NPC and creates the correct `SummonerBinding`.",
+      "evidence": [
+        "CORE",
+        "RESTART"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A12",
+      "section": "Core NPC",
+      "requirement": "NPC persists across save/stop/start.",
+      "evidence": [
+        "CORE",
+        "RESTART"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A13",
+      "section": "Core NPC",
+      "requirement": "Dismiss/removal cleans runtime indexes without leaked references.",
+      "evidence": [
+        "CORE",
+        "RESTART"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A14",
+      "section": "Core NPC",
+      "requirement": "Two summoners can create NPCs without cross-control.",
+      "evidence": [
+        "CORE",
+        "RESTART"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A15",
+      "section": "Core NPC",
+      "requirement": "Permission checks prevent an ordinary player from controlling another summoner's NPC.",
+      "evidence": [
+        "CORE",
+        "RESTART"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A16",
+      "section": "Skin/rendering",
+      "requirement": "NPC uses summoner skin instead of a static SAMCNPC texture.",
+      "evidence": [
+        "SKINS",
+        "CLIENT"
+      ],
+      "review": "MANUAL_PENDING_NONBLOCKING"
+    },
+    {
+      "id": "A17",
+      "section": "Skin/rendering",
+      "requirement": "Two different summoner skins remain distinct.",
+      "evidence": [
+        "SKINS",
+        "CLIENT"
+      ],
+      "review": "MANUAL_PENDING_NONBLOCKING"
+    },
+    {
+      "id": "A18",
+      "section": "Skin/rendering",
+      "requirement": "Classic/slim model selection works or a precisely documented engine limitation is proven.",
+      "evidence": [
+        "SKINS",
+        "CLIENT"
+      ],
+      "review": "MANUAL_PENDING_NONBLOCKING"
+    },
+    {
+      "id": "A19",
+      "section": "Skin/rendering",
+      "requirement": "Outer skin layers render.",
+      "evidence": [
+        "SKINS",
+        "CLIENT"
+      ],
+      "review": "MANUAL_PENDING_NONBLOCKING"
+    },
+    {
+      "id": "A20",
+      "section": "Skin/rendering",
+      "requirement": "Missing/unavailable skin data produces deterministic vanilla fallback, not crash.",
+      "evidence": [
+        "SKINS",
+        "CLIENT"
+      ],
+      "review": "MANUAL_PENDING_NONBLOCKING"
+    },
+    {
+      "id": "A21",
+      "section": "Skin/rendering",
+      "requirement": "Manual/safe lifecycle refresh works without per-tick network requests.",
+      "evidence": [
+        "SKINS",
+        "CLIENT"
+      ],
+      "review": "MANUAL_PENDING_NONBLOCKING"
+    },
+    {
+      "id": "A22",
+      "section": "Behavior engine",
+      "requirement": "Built-in JSON behavior pack loads and controls NPC.",
+      "evidence": [
+        "BEHAVIOR",
+        "CATALOG",
+        "COMPONENTS"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A23",
+      "section": "Behavior engine",
+      "requirement": "External custom JSON behavior pack loads from documented directory.",
+      "evidence": [
+        "BEHAVIOR",
+        "CATALOG",
+        "COMPONENTS"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A24",
+      "section": "Behavior engine",
+      "requirement": "Unknown action/condition is rejected with pack/rule context.",
+      "evidence": [
+        "BEHAVIOR",
+        "CATALOG",
+        "COMPONENTS"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A25",
+      "section": "Behavior engine",
+      "requirement": "Malformed JSON is rejected without destroying active last-known-good registry.",
+      "evidence": [
+        "BEHAVIOR",
+        "CATALOG",
+        "COMPONENTS"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A26",
+      "section": "Behavior engine",
+      "requirement": "Reload is transactional/atomic from the runtime's perspective.",
+      "evidence": [
+        "BEHAVIOR",
+        "CATALOG",
+        "COMPONENTS"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A27",
+      "section": "Behavior engine",
+      "requirement": "Rule/channel arbitration is deterministic and unit-tested.",
+      "evidence": [
+        "BEHAVIOR",
+        "CATALOG",
+        "COMPONENTS"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A28",
+      "section": "Behavior engine",
+      "requirement": "Conditions cannot mutate the world.",
+      "evidence": [
+        "BEHAVIOR",
+        "CATALOG",
+        "COMPONENTS"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A29",
+      "section": "Behavior engine",
+      "requirement": "No filesystem/JSON parsing occurs per NPC tick.",
+      "evidence": [
+        "BEHAVIOR",
+        "CATALOG",
+        "COMPONENTS"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A30",
+      "section": "Behavior engine",
+      "requirement": "Missing assigned pack degrades to safe idle + diagnostic.",
+      "evidence": [
+        "BEHAVIOR",
+        "CATALOG",
+        "COMPONENTS"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A31",
+      "section": "Behavior engine",
+      "requirement": "Follow behavior is implemented in Behavior, not Core goals/policy.",
+      "evidence": [
+        "BEHAVIOR",
+        "CATALOG",
+        "COMPONENTS"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A32",
+      "section": "Behavior engine",
+      "requirement": "Combat/retaliation decision is implemented in Behavior, not Core target-selection policy.",
+      "evidence": [
+        "BEHAVIOR",
+        "CATALOG",
+        "COMPONENTS"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A33",
+      "section": "Player-like action surface",
+      "requirement": "Movement/look actions visibly function.",
+      "evidence": [
+        "CORE",
+        "CLIENT",
+        "COMPONENTS"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A34",
+      "section": "Player-like action surface",
+      "requirement": "Main/offhand/equipment state is authoritative and rendered.",
+      "evidence": [
+        "CORE",
+        "CLIENT",
+        "COMPONENTS"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A35",
+      "section": "Player-like action surface",
+      "requirement": "Melee action can attack a valid target and does not attack out of allowed conditions/range.",
+      "evidence": [
+        "CORE",
+        "CLIENT",
+        "COMPONENTS"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A36",
+      "section": "Player-like action surface",
+      "requirement": "Action conflicts do not create infinite start/stop oscillation within a single tick.",
+      "evidence": [
+        "CORE",
+        "CLIENT",
+        "COMPONENTS"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A37",
+      "section": "Player-like action surface",
+      "requirement": "Animation state is driven from actual action state rather than client guesses where practical. Verified by the 2026-09-06 Core GameTests and 24-scenario real-client animation smoke; see `PROJECT_STATE.md`.",
+      "evidence": [
+        "CORE",
+        "CLIENT",
+        "COMPONENTS"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A38",
+      "section": "Predefined operations — required scope added 2026-09-10",
+      "requirement": "Manual assignment, parameters, status, pause/resume and cancellation work without an LLM or GUI creator, with validated summoner permissions and registered definitions.",
+      "evidence": [
+        "BEHAVIOR",
+        "CATALOG",
+        "ZOO",
+        "RESTART",
+        "CLIENT"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A39",
+      "section": "Predefined operations — required scope added 2026-09-10",
+      "requirement": "Lumberjack selects wood species/sets, work area/exclusions, destination and quota; mixed-forest tests leave other species and out-of-bounds wood untouched.",
+      "evidence": [
+        "BEHAVIOR",
+        "CATALOG",
+        "ZOO",
+        "RESTART",
+        "CLIENT"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A40",
+      "section": "Predefined operations — required scope added 2026-09-10",
+      "requirement": "Mining completes selected ore/vein, bounded tunnel and bounded excavation variants, with permitted blocks/volume, hazards, tool/drop accounting, return and delivery tested.",
+      "evidence": [
+        "BEHAVIOR",
+        "CATALOG",
+        "ZOO",
+        "RESTART",
+        "CLIENT"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A41",
+      "section": "Predefined operations — required scope added 2026-09-10",
+      "requirement": "Defend protects the summoner, a specified NPC and a point/area with permitted threats, a bounded pursuit, retreat/stop conditions and correct return to interrupted work.",
+      "evidence": [
+        "BEHAVIOR",
+        "CATALOG",
+        "ZOO",
+        "RESTART",
+        "CLIENT"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A42",
+      "section": "Predefined operations — required scope added 2026-09-10",
+      "requirement": "Attack engages an explicit target or permitted types in a bounded area, respecting friendly/summoner checks, melee/ranged policy, quota/deadline, cancellation and retreat.",
+      "evidence": [
+        "BEHAVIOR",
+        "CATALOG",
+        "ZOO",
+        "RESTART",
+        "CLIENT"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A43",
+      "section": "Predefined operations — required scope added 2026-09-10",
+      "requirement": "Food gathering handles edible drops, supported wild-food harvest, stored food and explicitly selected hunting, with a separate retained ration and delivered quantity.",
+      "evidence": [
+        "BEHAVIOR",
+        "CATALOG",
+        "ZOO",
+        "RESTART",
+        "CLIENT"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A44",
+      "section": "Predefined operations — required scope added 2026-09-10",
+      "requirement": "Farming harvests mature crops, prepares permitted soil, sows/replants and maintains bounded cycles; wheat/carrot/potato tests verify seed reserves and actual yields.",
+      "evidence": [
+        "BEHAVIOR",
+        "CATALOG",
+        "ZOO",
+        "RESTART",
+        "CLIENT"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A45",
+      "section": "Predefined operations — required scope added 2026-09-10",
+      "requirement": "Tree planting selects species/positions/spacing, supports advertised 1×1/2×2 layouts, fills eligible gaps and composes with lumberjack replanting using real saplings.",
+      "evidence": [
+        "BEHAVIOR",
+        "CATALOG",
+        "ZOO",
+        "RESTART",
+        "CLIENT"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A46",
+      "section": "Predefined operations — required scope added 2026-09-10",
+      "requirement": "Transport moves the requested filtered quantity between authorized containers, revalidates partial transfers and supports task supply without recursive job spawning.",
+      "evidence": [
+        "BEHAVIOR",
+        "CATALOG",
+        "ZOO",
+        "RESTART",
+        "CLIENT"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A47",
+      "section": "Predefined operations — required scope added 2026-09-10",
+      "requirement": "Every operation has bounded local target/route/tool/resupply recovery, an explicit waiting/partial-failure outcome, resource accounting and tested cancellation/restart.",
+      "evidence": [
+        "BEHAVIOR",
+        "CATALOG",
+        "ZOO",
+        "RESTART",
+        "CLIENT"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A48",
+      "section": "Predefined operations — required scope added 2026-09-10",
+      "requirement": "The catalog runs with the LLM JAR absent and with its unconfigured shell present; routine execution/recovery contains no model/network calls or per-tick data parsing.",
+      "evidence": [
+        "BEHAVIOR",
+        "CATALOG",
+        "ZOO",
+        "RESTART",
+        "CLIENT"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A49",
+      "section": "Predefined operations — required scope added 2026-09-10",
+      "requirement": "Competing and mixed operations preserve resources and work reservations, including shared veins, crop/seed stocks and lumberjack/replanting conflicts; load is measured.",
+      "evidence": [
+        "BEHAVIOR",
+        "CATALOG",
+        "ZOO",
+        "RESTART",
+        "CLIENT"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A50",
+      "section": "Predefined operations — required scope added 2026-09-10",
+      "requirement": "Existing Core movement/look/equip/attack/held-use calls are mapped to real tests; any missing mechanism needed by the operations is completed through Core APIs.",
+      "evidence": [
+        "BEHAVIOR",
+        "CATALOG",
+        "ZOO",
+        "RESTART",
+        "CLIENT"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A51",
+      "section": "Composable behavior components — required scope added 2026-09-10",
+      "requirement": "B01–B04 select nearest/filtered/explicit/attacker targets deterministically and respect summoner/friendly constraints; each damage event is processed once. Continuous damage does not prevent a counterattack through repeated target-acquisition intents.",
+      "evidence": [
+        "COMPONENTS",
+        "BEHAVIOR",
+        "CLIENT",
+        "RESTART"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A52",
+      "section": "Composable behavior components — required scope added 2026-09-10",
+      "requirement": "B05–B08 compose real-inventory equipment, distance, retreat/healing and pursuit limits without replacing an item currently being used or oscillating between modes.",
+      "evidence": [
+        "COMPONENTS",
+        "BEHAVIOR",
+        "CLIENT",
+        "RESTART"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A53",
+      "section": "Composable behavior components — required scope added 2026-09-10",
+      "requirement": "B09–B11 refill needs, deposit only surplus and collect allowed nearby drops within detour/time limits; shared reserves prevent transfer loops and preserve actual resources.",
+      "evidence": [
+        "COMPONENTS",
+        "BEHAVIOR",
+        "CLIENT",
+        "RESTART"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A54",
+      "section": "Composable behavior components — required scope added 2026-09-10",
+      "requirement": "B12–B15 patrol, yield, recover locally and resume the intended task after fresh observations; interruption depth, target memory and retries remain bounded.",
+      "evidence": [
+        "COMPONENTS",
+        "BEHAVIOR",
+        "CLIENT",
+        "RESTART"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A55",
+      "section": "Composable behavior components — required scope added 2026-09-10",
+      "requirement": "Passive/retaliation/protection/area-attack policies are explicit, and newly summoned NPCs remain idle until assignment. Every admitted intent uses the existing arbitration.",
+      "evidence": [
+        "COMPONENTS",
+        "BEHAVIOR",
+        "CLIENT",
+        "RESTART"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A56",
+      "section": "Composable behavior components — required scope added 2026-09-10",
+      "requirement": "Real client/server integration verifies work → damage → equipment → fight/retreat → resume, plus cancellation, repeated hits, target loss, reload and restart. No LLM is needed and no stale control or completion can take over a newer task.",
+      "evidence": [
+        "COMPONENTS",
+        "BEHAVIOR",
+        "CLIENT",
+        "RESTART"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A57",
+      "section": "Robustness",
+      "requirement": "Summoner disconnect does not crash or spin-log.",
+      "evidence": [
+        "CORE",
+        "BEHAVIOR",
+        "RESTART",
+        "LLM"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A58",
+      "section": "Robustness",
+      "requirement": "Summoner reconnect recovers binding/skin behavior safely.",
+      "evidence": [
+        "CORE",
+        "BEHAVIOR",
+        "RESTART",
+        "LLM"
+      ],
+      "review": "PASS_RECORDED_SCOPE",
+      "note": "Binding/reconnect runtime is verified; authenticated visual skin comparison remains manual."
+    },
+    {
+      "id": "A59",
+      "section": "Robustness",
+      "requirement": "NPC death/removal clears behavior runtime state.",
+      "evidence": [
+        "CORE",
+        "BEHAVIOR",
+        "RESTART",
+        "LLM"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A60",
+      "section": "Robustness",
+      "requirement": "Dimension/world unload does not retain entity objects globally.",
+      "evidence": [
+        "CORE",
+        "BEHAVIOR",
+        "RESTART",
+        "LLM"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A61",
+      "section": "Robustness",
+      "requirement": "Behavior reload cannot trigger ConcurrentModificationException by modifying active collections during iteration.",
+      "evidence": [
+        "CORE",
+        "BEHAVIOR",
+        "RESTART",
+        "LLM"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A62",
+      "section": "Robustness",
+      "requirement": "Invalid packets are rejected server-side.",
+      "evidence": [
+        "CORE",
+        "BEHAVIOR",
+        "RESTART",
+        "LLM"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A63",
+      "section": "Robustness",
+      "requirement": "Debug logging is bounded and disabled/cheap by default.",
+      "evidence": [
+        "CORE",
+        "BEHAVIOR",
+        "RESTART",
+        "LLM"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A64",
+      "section": "Completion evidence",
+      "requirement": "`PROJECT_STATE.md` contains exact commands and results.",
+      "evidence": [
+        "BUILD",
+        "PACKAGING",
+        "DOCS"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A65",
+      "section": "Completion evidence",
+      "requirement": "`scripts/verify_boundaries.py` passes.",
+      "evidence": [
+        "BUILD",
+        "PACKAGING",
+        "DOCS"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A66",
+      "section": "Completion evidence",
+      "requirement": "`scripts/verify_distribution.py` passes after build.",
+      "evidence": [
+        "BUILD",
+        "PACKAGING",
+        "DOCS"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    },
+    {
+      "id": "A67",
+      "section": "Completion evidence",
+      "requirement": "Known limitations are separated from unverified claims.",
+      "evidence": [
+        "BUILD",
+        "PACKAGING",
+        "DOCS"
+      ],
+      "review": "PASS_RECORDED_SCOPE"
+    }
+  ],
+  "proofs": {
+    "BUILD": {
+      "status": "PASS",
+      "source": "RELEASE_VALIDATION.json",
+      "scope": "Canonical clean build: 518 units and seven Python guard tests, source/Core/distribution checks; 850 unchanged frozen inputs. Standalone clean build: 105 LLM tests and 122 matching own sources. Fresh standalone client/server loading passed."
+    },
+    "PACKAGING": {
+      "status": "PASS",
+      "source": "RELEASE_VALIDATION.json",
+      "scope": "Exactly three Java-17 first-party JARs; compiled src/test classes absent and no cross-module implementation classes bundled. Core/Behavior built-in Forge GameTests are developer fixtures, distinct from test-only smoke drivers."
+    },
+    "CORE": {
+      "status": "PASS",
+      "source": "STOCK_VALIDATION.json",
+      "scope": "146 native Core cases; latest Core production and build hash identity retained by planner/evaluation/hour manifests."
+    },
+    "BEHAVIOR": {
+      "status": "PASS",
+      "source": "STOCK_VALIDATION.json",
+      "scope": "215 native Behavior cases with no LLM dependency; same current Behavior production/build."
+    },
+    "CLIENT": {
+      "status": "PASS_RECORDED_SCOPE",
+      "source": "PLANNER_VALIDATION.json",
+      "scope": "Latest 52 Core rendered animation scenarios retained; all-mode LLM client/server physical probes and config/logo GUI on exact current production. Earlier twelve operation-client cases retain their recorded mechanic scope."
+    },
+    "LLM": {
+      "status": "PASS_RECORDED_SCOPE",
+      "source": "PLANNER_VALIDATION.json",
+      "scope": "Translator 8/9, Supervisor 14/22, Planner 6/9 cases/HTTP per side; all three two-JVM restart suites, 37 admission and 15 authority checks. Real model semantics remain deferred."
+    },
+    "CATALOG": {
+      "status": "PASS",
+      "source": "OPERATION_CATALOG_AUDIT.md",
+      "scope": "Sixteen published typed families, parameter schema/descriptor conformance and existing P11 validation/reload/public control evidence."
+    },
+    "RESTART": {
+      "status": "PASS_RECORDED_SCOPE",
+      "source": "https://github.com/DasIstEin20/SAMCNPC_Behavior/blob/c6e0273bbbe583cebd20cdd17175aa868686e172/docs/VALIDATION.md",
+      "scope": "24 Behavior ordinary-save checkpoints and 19 lifecycle cases in the Z8 source scope; current exact-task LLM save/recovery suites. No abrupt-crash atomicity claim."
+    },
+    "COMPONENTS": {
+      "status": "PASS_RECORDED_SCOPE",
+      "source": "https://github.com/DasIstEin20/SAMCNPC_Behavior/blob/c6e0273bbbe583cebd20cdd17175aa868686e172/docs/VALIDATION.md",
+      "scope": "Per-point B01-B15/native/client/resource tests; current 364 Behavior units and 215 native regressions. Earlier dedicated client/runtime proofs retain their original source scope."
+    },
+    "ZOO": {
+      "status": "PASS_RECORDED_SCOPE",
+      "source": "https://github.com/DasIstEin20/SAMCNPC_Behavior/blob/c6e0273bbbe583cebd20cdd17175aa868686e172/docs/VALIDATION.md",
+      "scope": "23/23 Zoo points, eight families, 660 completed tasks in 3641.1122805 active seconds/72828 ticks. Historical source; not rerun by the LLM patrol benchmark."
+    },
+    "HOUR": {
+      "status": "PASS_RESTRICTED_PROFILE",
+      "source": "ENDURANCE_VALIDATION.json",
+      "scope": "Six native NPCs, 3600.046 active seconds /72001 ticks, six completed patrols, twelve HTTP calls and twenty minutes of actual endpoint shutdown; zero retained workers. PATROL/melee profile, separate from product goal modes and historical mixed Zoo."
+    },
+    "SKINS": {
+      "status": "MANUAL_PENDING_NONBLOCKING",
+      "source": "MANUAL_SKIN_TEST.md",
+      "scope": "User decision 2026-09-20: two genuine authenticated accounts, skin variants/layers/refresh/reconnect/restart remain a human test. Automated signed-profile/render/fallback fixtures retained separately."
+    },
+    "DOCS": {
+      "status": "PASS",
+      "source": "LLM_INSTALLATION.md",
+      "scope": "Criteria mapping, exact commands, installation, configuration, secrets, persistence compatibility, model limits, manual skin procedure and three-artifact hashes are recorded."
+    }
+  },
+  "manualException": "Skin manual test does not block P10/P12 or release preparation; no skin criterion is silently marked passed.",
+  "runtimeScope": "The LLM hour uses restricted PATROL/melee policy. Product modes, all operation mechanics and earlier mixed Zoo are separate proofs.",
+  "limits": [
+    "Real model/backend/tokenizer semantics USER_DEFERRED",
+    "Normal-save recovery is not cross-mod WAL atomicity",
+    "Older 0.1.0 snapshots are not a validated mixed artifact set",
+    "Historical external-mod/performance/client evidence retains its exact recorded scope",
+    "Expected cancellation diagnostics and Forge fixture startup warnings are not a zero-warning-run claim"
+  ],
+  "utc": "2026-09-20T11:43:55.993482+00:00"
+}

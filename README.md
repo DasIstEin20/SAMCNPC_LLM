@@ -15,7 +15,7 @@ Translator selects one operation from the 16-family catalog. Supervisor maintain
 an explicit visible chest stock target with hysteresis and failure-loop protection.
 Planner executes one validated step at a time, with fresh inventory preconditions,
 durable bounded memory and explicit player confirmation of an open goal.
-Plan: 32/36; final active endurance/release acceptance remains pending.
+Plan: **35/36**; automated acceptance complete. Real-model testing is user-deferred.
 
 The default endpoint is **http://127.0.0.1:1234/v1**. Address and model are editable
 in Forge Mods Config. Integration is disabled by default; it never installs or
@@ -48,21 +48,25 @@ Server runs require Minecraft EULA acceptance.
 
 ## Validation
 
-Canonical clean build: 514 units (49 Core/364 Behavior/101 LLM), 841 frozen files and
+Canonical clean build: 518 units (49 Core/364 Behavior/105 LLM), 850 frozen files and
 three-JAR guards. Client and dedicated server each passed Translator 8 cases/9 HTTP,
 Supervisor 14/22 and Planner 6/9. Physical supply balances, stale resources, provider
 failures, manual controls and late cancellation passed. Three restart suites
 retained known identities/intent without replay and held uncertain admission.
 Dedicated admission: 37 checks; goal authority/input: 15 checks.
 
-Standalone clean build: 101 LLM tests, 113 matching own sources.
-[Evidence and hashes](docs/PLANNER_VALIDATION.json) separate emulator/runtime proof
-from real-model semantics. Unchanged Core 146/Behavior 215 native and Core 52 animation
+Standalone clean build: 105 LLM tests, 122 matching own sources.
+[Release evidence and hashes](docs/RELEASE_VALIDATION.json) record the current
+build; [goal-mode evidence](docs/PLANNER_VALIDATION.json) separates emulator/runtime
+proof from real-model semantics. Unchanged Core 146/Behavior 215 native and Core 52 animation
 cases retain prior evidence. [Project state](PROJECT_STATE.md) records limitations.
-The active one-hour multi-NPC soak remains pending. Two-account skins are manual
-and nonblocking.
+The active one-hour restricted patrol/melee test passed with six NPCs, twelve HTTP
+calls and twenty minutes of actual endpoint shutdown. Fresh standalone client/server
+loading also passed. Two-account skins are manual and nonblocking.
 
 [Core](https://github.com/DasIstEin20/SAMCNPC_Core) ·
 [Behavior](https://github.com/DasIstEin20/SAMCNPC_Behavior)
 
 [Frozen evaluation corpus and scoring](docs/LLM_EVALUATION.md): 56 cases, three scripted repetitions; real-model quality remains unmeasured.
+
+[Installation](docs/LLM_INSTALLATION.md) · [Endurance](docs/LLM_ENDURANCE.md) · [Release acceptance](docs/RELEASE_ACCEPTANCE.md) · [Artifacts](docs/ARTIFACTS.md) · [Manual skin test](docs/MANUAL_SKIN_TEST.md)

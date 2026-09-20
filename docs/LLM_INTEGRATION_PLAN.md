@@ -1,8 +1,8 @@
 # F02 / llm_integration — plan budowy
 
-Data: 2026-09-20. Status: **IN_PROGRESS, L0–L2, L3.1–L3.4, L4, L5 i L6 ukończone, 32/36 punktów zamkniętych**.
+Data: 2026-09-20. Status: **AUTOMATED_SCOPE_COMPLETE, 35/36 punktów; L3.5 USER_DEFERRED**.
 To osobny plan rozwoju istniejącego modułu samcnpc-llm, poza licznikiem P00–P12
-(104/112) i Acceptance Zoo (23/23). L0 domyka istniejące P11.1/P11.7, nie tworzy
+i Acceptance Zoo (23/23). L0 domyka istniejące P11.1/P11.7, nie tworzy
 konkurencyjnego katalogu ani drugiego wykonawcy. Pierwotne dopisanie planu nie uruchamiało implementacji. Użytkownik 2026-09-20
 zlecił autonomiczną realizację, monitoring i publikację przy 20% pozostałego limitu.
 Provider nadal pozostaje wyłączony. Test skórek dwóch kont pozostaje
@@ -460,9 +460,13 @@ pozostają USER_DEFERRED.
 - [x] L7.1 Zamrozić korpus ewaluacji i profile backend/model/prompt/schema; osobno raportować poprawność JSON, wybór operacji, bezpieczne odrzucenia i fizyczny sukces.
 Dowód L7.1: LLM_EVALUATION.md, korpus v1 (56 przypadków PL/EN, 3 powtórzenia), 168 odpowiedzi HTTP: 96 typowanych operacji i 72 pytań bez payloadu wykonawczego. Zamrożone hashe korpusu/promptu, oddzielne metryki; semantyka prawdziwego modelu USER_DEFERRED. Clean/static/distribution: 516 unit, 844 hashy; standalone 103 unit /116 zgodnych plików.
 
-- [ ] L7.2 Wykonać kampanię klient/serwer/restart/fault injection oraz >=3600 s aktywnego testu wielu NPC; zmierzyć tick cost, heap, queues, latency, tokens i calls.
-- [ ] L7.3 Przejść clean build/static/distribution i trzy konfiguracje: bez LLM, disabled LLM, provider offline/wolny; zero regresji Core/Behavior i żadnych testowych sterowników w JAR-ach.
-- [ ] L7.4 Zmapować wszystkie punkty na dowody, opisać instalację/config/sekrety/limity/znane profile i przygotować trzy artefakty z hashami; skórki zachować MANUAL_PENDING.
+- [x] L7.2 Wykonać kampanię klient/serwer/restart/fault injection oraz >=3600 s aktywnego testu wielu NPC; zmierzyć tick cost, heap, queues, latency, tokens i calls.
+Dowód L7.2: LLM_ENDURANCE.md i ENDURANCE_VALIDATION.json; sześć NPC przez >=3600 aktywnych sekund i >=72000 ticków, zakończone patrole, rzeczywiste melee, 20 minut wyłączonego endpointu, ograniczone kolejki/budżety i zero workerów po stop. Profil PATROL jest oddzielony od pełnej kampanii trybów klient/serwer/restart/fault w PLANNER_VALIDATION.json.
+
+- [x] L7.3 Przejść clean build/static/distribution i trzy konfiguracje: bez LLM, disabled LLM, provider offline/wolny; zero regresji Core/Behavior i żadnych testowych sterowników w JAR-ach.
+- [x] L7.4 Zmapować wszystkie punkty na dowody, opisać instalację/config/sekrety/limity/znane profile i przygotować trzy artefakty z hashami; skórki zachować MANUAL_PENDING.
+
+Dowód L7.3–L7.4: RELEASE_ACCEPTANCE.md i RELEASE_VALIDATION.json; clean/static/distribution, 518 unit i 7 Python guard tests, 105 standalone unit, świeży klient/serwer trzech modów, zachowane 146/215 native bez LLM, 122 zgodne źródła, trzy artefakty SHA-256 i instrukcja instalacji. Skórki MANUAL_PENDING, rzeczywisty backend/model USER_DEFERRED.
 
 Wyjście: konkretnie nazwane tryby i profile z dowodami. Nie ogłaszać uniwersalnej
 zgodności wszystkich lokalnych modeli ani gwarantowanej deterministyczności inference.
@@ -516,6 +520,7 @@ Sprawdzone 2026-09-20; uzasadniają projekt transportu, nie dowodzą zgodności 
 - Ollama opisuje własny /v1/chat/completions i wspierany podzbiór pól. [OpenAI compatibility](https://docs.ollama.com/api/openai-compatibility).
 - vLLM opisuje zgodność Chat API i dodatkowe parametry; zgodność zależy też od modelowego chat template. Odczytana dokumentacja v0.18.2 nie jest wyborem wersji wdrożenia. [OpenAI-Compatible Server](https://docs.vllm.ai/en/v0.18.2/serving/openai_compatible_server/).
 
-**Kolejny krok: L7 — akceptacja, aktywny test wielo-NPC i wydanie.**
-Katalog, kontekst, decyzje, provider, Translator i Supervisor mają dowody emulatora.
-Po zaliczeniu Plannera pozostaje L7: pełna kampania i co najmniej godzina aktywnego testu wielu NPC.
+**Pozostaje L3.5: rzeczywisty endpoint/model po udostępnieniu przez użytkownika.**
+Najpierw zweryfikować profil backend/model/tokenizer/template i limity kontekstu,
+potem uruchomić zamrożony korpus oraz fizyczne scenariusze. Emulator nie zastępuje
+oceny jakości modelu. Test skórek pozostaje w oddzielnej ręcznej kolejce.

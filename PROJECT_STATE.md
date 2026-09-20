@@ -1,3 +1,19 @@
+# Integration acceptance — 2026-09-20
+
+Automated LLM scope complete: **35/36**. Translator, explicit stock Supervisor and bounded Planner are implemented. L3.5 remains USER_DEFERRED until the user supplies a real endpoint/model; authenticated two-account skins remain MANUAL_PENDING and nonblocking. No actual model was installed. The default endpoint is http://127.0.0.1:1234/v1, editable with the model in Forge Mods Config.
+
+Clean canonical build: **518 units** (49 Core /364 Behavior /105 LLM), seven Python guard tests, source/Core/distribution checks and 850 unchanged frozen inputs. Standalone clean build: 105 LLM tests, 122 matching own sources; fresh standalone client and dedicated-server loading passed. Core 1834e5d and Behavior c6e0273 remain pinned.
+
+The frozen restricted PATROL/melee campaign passed **3600.046 active seconds /72001 ticks**, six NPCs, six completed tasks, twelve HTTP calls and twenty minutes with the actual endpoint stopped. Its scope differs from the separately accepted product-mode client/server/restart/fault campaign and historical mixed Behavior Zoo. Native stop retained zero workers. Cold costs and exclusions remain reported; no universal performance, model quality or power-loss atomicity claim is made.
+
+See docs/RELEASE_ACCEPTANCE.md, RELEASE_VALIDATION.json, ENDURANCE_VALIDATION.json, PLANNER_VALIDATION.json and LLM_INSTALLATION.md. The three retained validation artifacts have SHA-256 checksums in docs/ARTIFACT_SHA256SUMS. Full commands and known limitations are recorded there. Earlier dated sections below are historical milestones, not the current remaining-work list.
+
+# Verified LLM endurance — 2026-09-20
+
+L7.2 complete; plan 33/36. Six native NPCs completed 3600.046 active seconds /72001 ticks in the frozen PATROL/melee profile. Twelve HTTP calls, six completed tasks, twenty minutes of actual endpoint shutdown and zero retained workers. Client/server/restart/fault goal-mode evidence remains the separately accepted Planner campaign.
+
+Clean build/static/distribution: 518 units and seven Python guard tests; 850 frozen inputs unchanged. Standalone: 105 units /122 matching own sources. See LLM_ENDURANCE.md and ENDURANCE_VALIDATION.json. Final packaging/standalone loading and publication remain pending; real model USER_DEFERRED, skins MANUAL_PENDING/nonblocking.
+
 # Endurance preflight — 2026-09-20
 
 L7.2 remains IN_PROGRESS. Six real NPCs passed the short restricted patrol/melee

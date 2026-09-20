@@ -1,0 +1,96 @@
+# Installing the integration candidate
+
+Use Minecraft **1.20.1**, **Java 17**, Forge **47.4.21** and Kotlin for Forge
+**4.12.0**. These are the pinned, tested versions. Use the three SAMCNPC artifacts
+from the same recorded build:
+
+- `samcnpc-core-0.1.0.jar`
+- `samcnpc-behavior-0.1.0.jar`
+- `samcnpc-llm-0.1.0.jar`
+
+The LLM JAR is optional. Core and Behavior provide normal NPC operations without
+it. The complete tested client/server configuration includes all three mods plus
+Kotlin for Forge. The dependency is a separate runtime library, not a fourth
+first-party SAMCNPC mod.
+
+1. Stop the game/server and back up the world and configuration.
+2. Replace the SAMCNPC JARs as a matched set in `mods/`. Older development
+   snapshots also used version 0.1.0; the recorded hashes and repository pins
+   identify this candidate. Mixed old/new snapshots are not a validated set.
+3. Start normally. LLM integration defaults to disabled and does not contact a
+   provider at startup. NPC operations remain available through Behavior.
+4. When a model is available, configure its address and exact model ID under
+   **Mods → SAMCNPC LLM → Config**. Default: `http://127.0.0.1:1234/v1`.
+   A dedicated server uses its own `config/samcnpc-llm-common.toml`;
+   a remote client cannot redirect the server's provider.
+
+Endpoint/model selection alone is not a verified tokenizer profile. Follow
+[LLM_CONFIGURATION](LLM_CONFIGURATION.md) before enabling inference. Its conservative
+input bound must include the complete request/schema and fit the model's actual
+context window. Emulator profile declarations are test fixtures, not profiles
+approved for arbitrary local models. Real model selection/testing is currently
+deferred to the user; this mod installs no model and allocates no model VRAM.
+
+For authentication, set the API key in the configured environment variable of the
+server process. Configuration stores the variable's name, never the key. Do not
+put credentials in goals, behavior packs or source control.
+
+## Using an NPC
+
+Use a connected summoner or authorized operator in the same dimension, within
+256 blocks. Replace `<npc UUID>` with the NPC's full UUID.
+
+```text
+/samcnpc llm goal <npc UUID> <one concrete goal>
+/samcnpc llm maintain <npc UUID> <item ID> <low> <target> <x> <y> <z> <goal text>
+/samcnpc llm plan <npc UUID> <bounded multi-step goal>
+/samcnpc llm status <npc UUID>
+/samcnpc llm answer <npc UUID> <clarification>
+/samcnpc llm stop <npc UUID>
+/samcnpc llm resume <npc UUID>
+/samcnpc llm complete <npc UUID>
+```
+
+Translator selects one of sixteen operation families. Supervisor maintains a
+specific visible chest stock using Transport, Deliver or Lumberjack. Planner
+executes one current step from Food, Lumberjack, Inventory Work, Navigate,
+Transport or Deliver, with at most eight completed steps. After its recorded
+steps, the player explicitly confirms an open goal. Crafting/building and model
+commands or direct body controls are outside these modes.
+
+See [Translator](LLM_TRANSLATOR.md), [Supervisor](LLM_SUPERVISOR.md),
+[Planner](LLM_PLANNER.md) and [bounded memory](LLM_MEMORY.md) for precise controls.
+Healthy deterministic work continues without periodic model calls. A disabled or
+unavailable provider prevents a new decision; it does not turn a model summary
+into success or reset a task's budget.
+
+## Existing worlds and recovery
+
+Core retains its versioned entity, inventory, summoner and skin persistence.
+Behavior retains its own versioned task definitions and pack schemas. LLM goal
+SavedData is version 4: v1/v2 records gain empty memory, v3 retains bounded memory,
+and existing task identities and resource charges are preserved.
+
+Queued, in-flight or uncertain admission recovers held for review. It is never
+blindly submitted again. Known work can finish with the provider disabled.
+Unknown/corrupt goal data is preserved read-only with a diagnostic. Named places
+are user intent; they do not prove a chest or resource still exists.
+
+Normal Minecraft saves are not an atomic transaction across the three mods.
+Separate-JVM tests cover ordinary saves and controlled lost/stale receipts; they
+do not prove write-ahead-log guarantees during an abrupt power loss. Restore the
+world and matching mods together when rolling back; do not expect older binaries
+to understand new SavedData.
+
+## Building and reproducing evidence
+
+Clone SAMCNPC_LLM with its pinned recursive submodules, then run
+`gradlew.bat clean build` on Windows (`./gradlew clean build` elsewhere).
+The LLM artifact is under `build/libs/`; dependency artifacts are under
+`behavior/build/libs/` and `behavior/core/build/libs/`.
+
+[Evaluation](LLM_EVALUATION.md) describes the frozen bilingual corpus;
+[endurance](LLM_ENDURANCE.md) describes the explicit server benchmark tasks.
+The validation JSON documents separate scripted contracts, physical gameplay,
+restart and performance scopes. The two-authenticated-account skin comparison
+remains a manual, nonblocking test.

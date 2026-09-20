@@ -1,4 +1,4 @@
-# LLM endurance benchmark (preflight passed; full campaign pending)
+# LLM endurance benchmark — verified restricted profile
 
 This is a test-only, restricted PATROL profile around the production
 InferenceScheduler, NpcContextBuilder and DecisionAdmission. It does not replace
@@ -55,4 +55,31 @@ Six NPCs passed both PROBE and BASELINE, with completed native patrols and
 confirmed melee defeats. PROBE used 12 HTTP calls, kept the endpoint physically
 closed for 20 seconds and left zero workers after native stop. Full campaign
 is frozen at 14 rounds of a 16-waypoint route, with the thresholds above.
-The short run does not close L7.2. See ENDURANCE_PREFLIGHT.json.
+The short run is retained separately in ENDURANCE_PREFLIGHT.json. The full result below closes L7.2 together with the client/server/restart/fault Planner campaign.
+
+## Full campaign result — 2026-09-20
+
+PASS: 3600.046 active seconds / 72001 active ticks, six NPCs, 6 completed native patrols and 12 HTTP calls. The endpoint was physically closed for 1200.003 seconds. The second patrol of each NPC was still running at the hour boundary and was cancelled during cleanup; it is not counted as completed.
+
+Measured LLM/host work p95 0.0185 ms, p99 0.0277 ms; whole server tick p95 0.681 ms, p99 0.9069 ms. Cold snapshot maximum 30.0317 ms and admission maximum 17.4495 ms remain visible. These percentiles are not a claim that every tick costs less than two milliseconds. Native stop retained zero inference/emulator workers. Whole-JVM heap samples are observations, not a universal no-leak proof.
+
+Clean build: 518 units (49 Core/364 Behavior/105 LLM), seven Python guard tests, source/Core/distribution checks and 850 unchanged frozen inputs. Standalone clean build passed 105 LLM tests with 122 matching own sources. See [full measurements](ENDURANCE_VALIDATION.json).
+
+## Reproduce from the standalone repository
+
+After initializing recursive submodules, run `gradlew.bat clean build` first.
+Then freeze the checked-out source with Python 3 (standard library only):
+
+```text
+python scripts/freeze_endurance.py --manifest build/endurance-source-manifest.json
+gradlew.bat runServerLlmHour -PllmGoalRestartId=<fresh-id> -PllmHourRounds=14 -PllmHourSourceHash=<printed-sha256> --console=plain
+python scripts/freeze_endurance.py --manifest build/endurance-source-manifest.json --verify --report run-server-llm-hour-<fresh-id>/llm-hour-progress.json
+```
+
+Accept the Minecraft EULA for this development server. The manifest must remain
+unchanged between freeze and report verification. Use the hash printed for your
+checkout, not the canonical workspace hash quoted above. Do not run `clean`
+between freezing a manifest under `build/` and verifying it. Native server stop
+also writes `retainedWorkers=0` to `llm-hour-result.txt`; inspect that result.
+Run baseline/probe before FULL after changing the scenario, and freeze thresholds
+before measuring. No other server/client/build workload should overlap the run.
