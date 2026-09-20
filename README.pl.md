@@ -32,7 +32,7 @@ Core, Behavior i Kotlin for Forge 4.12.0. Forge: 47.4.21.
 `runClientLoadingSmoke` sprawdzają rzeczywisty Forge, HTTP oraz konfigurację.
 Serwer testowy wymaga zaakceptowania EULA Minecrafta.
 
-Główny workspace: 410 testów jednostkowych, clean build, granice/dystrybucja,
+Główny workspace: 412 testów jednostkowych, clean build, granice/dystrybucja,
 dedicated oraz klient z GUI i emulatorem — PASS.
 Wyniki osobnego repo: [PROJECT_STATE](PROJECT_STATE.md).
 Test wyglądu skórek dwóch zalogowanych kont pozostaje ręczny i nie blokuje prac.

@@ -1,3 +1,15 @@
+# Visual dependency update — 2026-09-20
+
+Core and Behavior now expose authorized bounded real-eye visual observations.
+The LLM executor/context is still in progress and no NPC goal execution is enabled.
+Canonical visual milestone passed clean build (412 units), 141 Core and 210
+Behavior native tests, 12 real client operations and both three-mod GUI/HTTP
+smokes. Independent LLM clean build passed all 19 units; module sources match canonical.
+Runtime evidence is the canonical visual campaign (standalone smokes were not
+repeated for this dependency-only update). See docs/VISUAL_DEPENDENCY_VALIDATION.json.
+Pinned Core 53e3f25069e404f60d7d8c3d08c6bcc4d4802283 and Behavior 64ad9eba0852bc7a7d4f58330264262809c00603.
+See docs/VISUAL_OBSERVATIONS.md. Earlier dated evidence follows.
+
 # Inspection dependency update — 2026-09-20
 
 Behavior now supplies an authorized immutable own-body/task inspection: actual

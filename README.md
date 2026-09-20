@@ -46,7 +46,7 @@ Minecraft test servers require EULA acceptance.
 
 ## Validation
 
-Canonical workspace: clean build, 410 units (45 Core/337 Behavior/19 LLM),
+Canonical workspace: clean build, 412 units (45 Core/337 Behavior/19 LLM),
 boundary/distribution checks, dedicated and client HTTP/configuration tests passed.
 This checkout's independent build/runtime results are recorded in [PROJECT_STATE](PROJECT_STATE.md).
 Authenticated skin appearance remains a manual, nonblocking test.
