@@ -54,6 +54,7 @@ internal class TranslatorRuntimeProbe(private val server: MinecraftServer, priva
     private val reasons = mutableSetOf<String>()
     private var final: String? = null
     private var authorityChecks = 0
+    private var stockReads = 0
 
     fun renderView(): Pair<java.util.UUID, String>? = current?.let { it.npcUuid to cases[index] }
 
@@ -76,8 +77,9 @@ internal class TranslatorRuntimeProbe(private val server: MinecraftServer, priva
             if (!restored) { configure(original); restored = true; return null }
             if (controller.settings != original) return null
             val calls = endpoint.received.size
+            check(stockReads == 5)
             close()
-            final = "translatorCases=8 translatorHttpCalls=$calls translatorMaxRequestBytes=${script.maxRequestBytes.get()} registeredGoalCommands=true goalAuthorityChecks=$authorityChecks physicalTransport=true physicalDeliver=true physicalLumberjack=true manualPauseHeld=true " +
+            final = "translatorCases=8 translatorHttpCalls=$calls translatorMaxRequestBytes=${script.maxRequestBytes.get()} registeredGoalCommands=true goalAuthorityChecks=$authorityChecks physicalStockReads=$stockReads physicalTransport=true physicalDeliver=true physicalLumberjack=true manualPauseHeld=true " +
                 "clarificationBudgetRetained=true offlineBehaviorContinues=true missingResourceFailed=true fullDestinationFailed=true userCancelNoLateAssign=true"
             return final
         }
@@ -157,6 +159,15 @@ internal class TranslatorRuntimeProbe(private val server: MinecraftServer, priva
         }
         check(endpoint.received.size - callsBefore == if (name == "clarify") 2 else 1)
         if (!canFinish(handle.npcUuid)) return null
+        if (record.phase == GoalPhase.COMPLETED) {
+            val itemId = if (name == "lumberjack") "minecraft:oak_log" else "minecraft:cobblestone"
+            val stock = OperationStockApi.inspect(server, actor, handle.npcUuid, level.dimension().location().toString(),
+                NpcStockQuery(NpcBlockPosition(destinationPos.x, destinationPos.y, destinationPos.z), itemId))
+            val value = stock.stock
+            check(stock.result.status == NpcActionStatus.SUCCEEDED && value is NpcStockRead.Observed) { "Physical stock unavailable: $stock" }
+            check(value.count == if (name == "lumberjack") 3 else 32)
+            stockReads++
+        }
         check(command("status", handle) == 1)
         check(command("forget", handle) == 1)
         check(service.dismiss(handle, NpcDismissMode.DROP_INVENTORY).status == NpcActionStatus.SUCCEEDED)

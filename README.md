@@ -29,6 +29,10 @@ Planner remain in progress; plan 23/36. CPU HTTP emulator tests verify integrati
 Actual model understanding and backend profiles remain unverified/user-deferred.
 See [the plan](docs/LLM_INTEGRATION_PLAN.md) and [boundary](docs/LLM_BOUNDARY.md).
 
+The stock-observation dependency is also verified: 493 total units, 146 Core /
+215 Behavior native cases and five physical stock reads on each client/server path.
+[Stock sensor scope and evidence](docs/STOCK_OBSERVATION.md). Supervisor remains in progress.
+
 ## Build
 
 Use Java 17. Forge 47.4.21, Kotlin 2.2.21 and Kotlin for Forge 4.12.0 are pinned.

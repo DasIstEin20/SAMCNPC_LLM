@@ -29,6 +29,10 @@ Supervisor i Planner pozostają w budowie. Plan: 23/36. Testy używają lekkiego
 HTTP; rozumienie języka i profile prawdziwego modelu pozostają niezweryfikowane.
 [Plan](docs/LLM_INTEGRATION_PLAN.md), [granice modułu](docs/LLM_BOUNDARY.md).
 
+Przygotowany jest też odczyt zapasu: 493 testy jednostkowe, 146 Core / 215 Behavior
+native oraz po pięć fizycznych odczytów w kliencie i na serwerze.
+[Zakres sensora i dowody](docs/STOCK_OBSERVATION.md). Supervisor pozostaje w budowie.
+
 ## Budowanie
 
 Java 17; przypięte Forge 47.4.21, Kotlin 2.2.21 i Kotlin for Forge 4.12.0.
