@@ -15,10 +15,13 @@ błędów, konfiguracja Forge Mods oraz autoryzowany kontekst NPC: wszystkie 36 
 zadanie/postęp, legalne sensory i dzienniki zdarzeń. Domyślny endpoint to
 **http://127.0.0.1:1234/v1**; adres i model można zmienić w konfiguracji.
 Integracja jest domyślnie wyłączona. Nie wysyła żądania na starcie i nie instaluje modelu.
-[Konfiguracja](docs/LLM_CONFIGURATION.md), [kontekst](docs/LLM_CONTEXT.md).
+Gotowy jest też ścisły kontrakt ośmiu decyzji, walidacja polityki/świeżości,
+odrzucanie ponownych odpowiedzi i odczyt potwierdzeń korekt przez API Behavior.
+[Konfiguracja](docs/LLM_CONFIGURATION.md), [kontekst](docs/LLM_CONTEXT.md),
+[kontrakt decyzji](docs/LLM_DECISIONS.md).
 
-**W budowie:** walidacja i wykonanie decyzji, kolejka oraz Translator → Supervisor →
-Planner. Ta wersja jeszcze nie zamienia poleceń gracza na pracę NPC. Plan: 12/36.
+**W budowie:** kolejka oraz Translator → Supervisor →
+Planner. Ta wersja jeszcze nie zamienia poleceń gracza na pracę NPC. Plan: 17/36.
 Testy używają lekkiego lokalnego emulatora HTTP; rzeczywisty model użytkownik poda później.
 [Plan](docs/LLM_INTEGRATION_PLAN.md), [granice modułu](docs/LLM_BOUNDARY.md).
 
@@ -39,9 +42,10 @@ NPC lub ekran Mods Config. Serwer wymaga zaakceptowania Minecraft EULA.
 
 ## Weryfikacja
 
-Pełny projekt: 436 testów jednostkowych (47 Core/364 Behavior/25 LLM), rzeczywisty
-serwer z kontekstem/HTTP, klient GUI/HTTP oraz granice i trzy JAR-y: PASS.
-To repo: clean build i 25 testów LLM; [dowody](docs/CONTEXT_VALIDATION.json).
+Pełny projekt: 449 testów jednostkowych (47 Core/364 Behavior/38 LLM), 214 natywnych
+testów Behavior, 12 scenariuszy klienta, 30 prób admission i 171 niezależnych sprawdzeń
+schema. Pełny kontekst przez HTTP, GUI oraz trzy JAR-y: PASS.
+Weryfikacja tego repo, zgodność źródeł i hashe artefaktów: [dowody](docs/DECISION_VALIDATION.json).
 [Stan projektu](PROJECT_STATE.md) rozróżnia bieżące testy od zachowanych dowodów
 rozgrywki Core/Behavior. Skórki dwóch kont pozostają testem ręcznym, bez blokowania prac.
 

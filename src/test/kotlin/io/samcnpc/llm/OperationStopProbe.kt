@@ -18,8 +18,12 @@ internal object OperationStopProbe {
     private var player: ServerPlayer? = null
     private var channel: EmbeddedChannel? = null
     private var npcUuid: UUID? = null
+    private var http: DecisionHttpProbe? = null
+    private var origin: NpcPosition? = null
     private var subscription: OperationSubscription? = null
     val started: Boolean get() = subscription != null
+    var admissionReport = ""
+        private set
     var stopped = false
         private set
 
@@ -42,10 +46,21 @@ internal object OperationStopProbe {
         subscription = checkNotNull(OperationEventApi.subscribe(server, actor, id) {
             error("idle shutdown probe must have no task event")
         }.subscription)
+        origin = position
         player = actor
         channel = embedded
         npcUuid = id
+        admissionReport = DecisionAdmissionProbe.verify(server, actor, position)
         ContextRuntimeProbe.start(server, actor, position)
+    }
+
+    fun pollDecisions(server: MinecraftServer): String? {
+        val current = http
+        if (current == null) {
+            http = DecisionHttpProbe(server, checkNotNull(player), checkNotNull(origin))
+            return null
+        }
+        return current.poll()
     }
 
     fun beforeStop() {
@@ -55,6 +70,9 @@ internal object OperationStopProbe {
     fun afterBehaviorStop(server: MinecraftServer) {
         check(checkNotNull(subscription).state == OperationSubscriptionState.SERVER_STOPPED)
         stopped = true
+        http?.close()
+        http = null
+        origin = null
         // Remove disposable fixtures after verifying Behavior closed its listeners, before world save.
         val id = checkNotNull(npcUuid)
         server.overworld().getEntity(id)?.discard()

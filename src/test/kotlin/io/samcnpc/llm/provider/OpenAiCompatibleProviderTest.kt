@@ -82,6 +82,11 @@ class OpenAiCompatibleProviderTest {
                 assertTrue(result(provider.complete(request())) is LlmResponse.Candidate)
                 val received = endpoint.received.single()
                 assertNull(received.authorization)
+                val payload = LlmJson.parse(received.body, 65_536)
+                val system = payload["messages"].asJsonArray[0].asJsonObject["content"].asString
+                assertTrue(system.contains("OUTPUT_CONTRACT_JSON_SCHEMA"))
+                assertEquals(LlmJson.parse(request().responseSchemaJson, 65_536),
+                    LlmJson.parse(system.substringAfter("OUTPUT_CONTRACT_JSON_SCHEMA\n"), 65_536))
                 assertEquals("""{"type":"json_object"}""", LlmJson.parse(received.body, 65_536)["response_format"].toString())
             }
         }

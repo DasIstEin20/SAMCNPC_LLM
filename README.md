@@ -15,11 +15,14 @@ error handling, Forge Mods configuration, and an authorized immutable NPC contex
 with all 36 inventory slots, task/progress, legal visual facts and bounded journals.
 The default endpoint is **http://127.0.0.1:1234/v1**, editable with the model ID.
 Integration is disabled by default: no startup request or automatic model loading.
-See [configuration](docs/LLM_CONFIGURATION.md) and [context](docs/LLM_CONTEXT.md).
+Strict eight-decision decoding, policy/freshness admission, replay rejection and
+read-only amendment reconciliation are implemented through public Behavior APIs.
+See [configuration](docs/LLM_CONFIGURATION.md), [context](docs/LLM_CONTEXT.md) and
+[decision contract](docs/LLM_DECISIONS.md).
 
-**Work in progress:** decision admission, scheduling and Translator → Supervisor →
+**Work in progress:** scheduling and Translator → Supervisor →
 Planner. This version does not yet turn player goals into NPC work. The plan is
-12/36 complete. Tests use a lightweight local HTTP emulator; actual model/backend
+17/36 complete. Tests use a lightweight local HTTP emulator; actual model/backend
 compatibility and planning quality remain unverified.
 See [the plan](docs/LLM_INTEGRATION_PLAN.md) and [boundary](docs/LLM_BOUNDARY.md).
 
@@ -41,10 +44,11 @@ NPC context capture or the actual Mods Config screen. Servers require EULA accep
 
 ## Validation
 
-Canonical clean build: 436 units (47 Core/364 Behavior/25 LLM), actual dedicated
-context/HTTP and client GUI/HTTP, boundaries and three-JAR distribution PASS.
-Standalone clean build: 25 LLM units; source match and artifact hashes in
-[evidence](docs/CONTEXT_VALIDATION.json). [Project state](PROJECT_STATE.md) separates
+Canonical clean build: 449 units (47 Core/364 Behavior/38 LLM), 214 native Behavior
+tests, 12 actual client scenarios, 30 dedicated admission checks and 171 independent
+schema checks. Full-context HTTP, client configuration and three-JAR distribution PASS.
+Standalone validation, source match and artifact hashes are recorded in
+[evidence](docs/DECISION_VALIDATION.json). [Project state](PROJECT_STATE.md) separates
 current checks from unchanged Core/Behavior gameplay evidence. Two-account skin
 appearance is a manual, nonblocking check.
 

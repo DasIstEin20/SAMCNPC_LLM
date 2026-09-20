@@ -1,6 +1,6 @@
 # F02 / llm_integration — plan budowy
 
-Data: 2026-09-20. Status: **IN_PROGRESS, L0, L1 oraz L3.1/.2/.4 ukończone, 12/36 punktów zamkniętych**.
+Data: 2026-09-20. Status: **IN_PROGRESS, L0, L1, L2 oraz L3.1/.2/.4 ukończone, 17/36 punktów zamkniętych**.
 To osobny plan rozwoju istniejącego modułu samcnpc-llm, poza licznikiem P00–P12
 (104/112) i Acceptance Zoo (23/23). L0 domyka istniejące P11.1/P11.7, nie tworzy
 konkurencyjnego katalogu ani drugiego wykonawcy. Pierwotne dopisanie planu nie uruchamiało implementacji. Użytkownik 2026-09-20
@@ -361,11 +361,13 @@ Wyjście: kontekst opisuje rzeczywisty stan bez providera; brakujące dane są j
 
 ### L2 — Kontrakt decyzji, walidacja i admission (po L1)
 
-- [ ] L2.1 Dodać wersjonowane DecisionDocument/schema dla ośmiu decyzji oraz statyczny prompt i granice pól.
-- [ ] L2.2 Zaimplementować mapowanie ASSIGN/AMEND/controls wyłącznie przez publiczne Behavior API; CONTINUE/WAIT/ASK_USER bez ukrytych mutacji.
-- [ ] L2.3 Powiązać kontekst z aktorem, goal/policy/catalog/world generations, task revisions i TTL; odrzucać stale/conflict bez przepisywania żądania.
-- [ ] L2.4 Obsłużyć receipt PENDING/APPLIED i uzgodnienie niepewnego assign/control; ręczny stop zawsze unieważnia późną decyzję.
-- [ ] L2.5 Sprawdzić malformed/oversized/duplicate JSON, nieznane operacje, prompt injection, brak uprawnień, replay, reload i nowe zadanie w czasie decyzji.
+- [x] L2.1 Dodać wersjonowane DecisionDocument/schema dla ośmiu decyzji oraz statyczny prompt i granice pól.
+- [x] L2.2 Zaimplementować mapowanie ASSIGN/AMEND/controls wyłącznie przez publiczne Behavior API; CONTINUE/WAIT/ASK_USER bez ukrytych mutacji.
+- [x] L2.3 Powiązać kontekst z aktorem, goal/policy/catalog/world generations, task revisions i TTL; odrzucać stale/conflict bez przepisywania żądania.
+- [x] L2.4 Obsłużyć receipt PENDING/APPLIED i uzgodnienie niepewnego assign/control; ręczny stop zawsze unieważnia późną decyzję.
+- [x] L2.5 Sprawdzić malformed/oversized/duplicate JSON, nieznane operacje, prompt injection, brak uprawnień, replay, reload i nowe zadanie w czasie decyzji.
+
+Dowody L2: [LLM_DECISIONS](LLM_DECISIONS.md), ADR 0095; 449 unit, 171 niezależnych sprawdzeń schema, 214 Forge, 12 client (9 receipt probes), 30 dedicated admission probes i dwa pełne requesty HTTP PASS. 774 zamrożone pliki zgodne. Kontroler poleceń gracza i trwały zapis celu nadal należą do L4.
 
 Wyjście: sterowany stub decyzji przechodzi te same granice i fizyczne testy co późniejszy LLM.
 

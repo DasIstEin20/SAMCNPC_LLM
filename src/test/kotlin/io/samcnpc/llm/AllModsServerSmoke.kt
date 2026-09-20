@@ -49,8 +49,9 @@ object AllModsServerSmoke {
         }
         val transport = ProviderRuntimeProbe.poll() ?: return
         check(ticks - started >= 10) { "Server did not tick while HTTP body was stalled" }
+        val decisions = OperationStopProbe.pollDecisions(event.server) ?: return
         OperationStopProbe.beforeStop()
-        finalReport = "dedicated=true ticks=$ticks coreApi=true $result $transport $context"
+        finalReport = "dedicated=true ticks=$ticks coreApi=true $result $transport $context $decisions ${OperationStopProbe.admissionReport}"
         Files.writeString(Path.of("server-loading-result.txt"), "PENDING_STOP $finalReport\n")
         event.server.halt(false)
     }

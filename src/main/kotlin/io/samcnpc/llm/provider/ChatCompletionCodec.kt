@@ -22,7 +22,10 @@ internal object ChatCompletionCodec {
         root.addProperty("temperature", settings.temperature)
         root.addProperty("max_tokens", settings.maxOutputTokens)
         val messages = JsonArray()
-        messages.add(message("system", request.systemPrompt))
+        val system = if (settings.responseFormat == ResponseFormat.JSON_OBJECT)
+            request.systemPrompt + "\nOUTPUT_CONTRACT_JSON_SCHEMA\n" + schema.toString()
+        else request.systemPrompt
+        messages.add(message("system", system))
         messages.add(message("user", context.toString()))
         root.add("messages", messages)
         val format = JsonObject()
