@@ -20,7 +20,7 @@ internal object LlmGoalCommands {
     @SubscribeEvent
     fun register(event: RegisterCommandsEvent) {
         val branch = Commands.literal("llm")
-        for (action in listOf("goal", "answer")) {
+        for (action in listOf("goal", "answer", "plan")) {
             branch.then(Commands.literal(action).then(Commands.argument("npc", StringArgumentType.word())
                 .then(Commands.argument("text", StringArgumentType.greedyString()).executes { context ->
                     execute(context.source, action, StringArgumentType.getString(context, "npc"),
@@ -60,7 +60,7 @@ internal object LlmGoalCommands {
                 execute(context.source, "maintain", StringArgumentType.getString(context, "npc"),
                     StringArgumentType.getString(context, "text"), target)
             })))))))))
-        for (action in listOf("status", "stop", "resume", "forget")) {
+        for (action in listOf("status", "stop", "resume", "forget", "complete")) {
             branch.then(Commands.literal(action).then(Commands.argument("npc", StringArgumentType.word()).executes { context ->
                 execute(context.source, action, StringArgumentType.getString(context, "npc"), "")
             }))
@@ -76,6 +76,8 @@ internal object LlmGoalCommands {
         val now = LlmServerEvents.nowMillis()
         val reply = when (action) {
             "goal" -> controller.start(actor, npc, text, now)
+            "plan" -> controller.start(actor, npc, text, now, planner = true)
+            "complete" -> controller.complete(actor, npc)
             "maintain" -> controller.start(actor, npc, text, now, checkNotNull(stock))
             "answer" -> controller.answer(actor, npc, text, now)
             "remember" -> controller.place(actor, npc, text, checkNotNull(position))
@@ -92,6 +94,7 @@ internal object LlmGoalCommands {
                 " rev " + record.revision + " | attempts " + record.budget.settledAttempts + "/" + record.limits.attempts +
                 " | places " + record.memory.aliases.joinToString(",") { it.name } +
                 " | confirmed results " + record.memory.results.size +
+                (if (record.mode == io.samcnpc.llm.context.LlmMode.PLANNER) " | steps " + record.planStepsCompleted + "/8" else "") +
                 (record.question?.let { "\n" + it } ?: "")
         if (reply.accepted) source.sendSuccess({ Component.literal(message) }, false)
         else source.sendFailure(Component.literal(message))

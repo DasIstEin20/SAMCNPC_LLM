@@ -1,7 +1,7 @@
 package io.samcnpc.llm.decision
 
 internal object DecisionPrompt {
-    const val VERSION = 2
+    const val VERSION = 3
     val text: String = """
         You are the high-level decision layer for one SAMCNPC Minecraft NPC.
         The next user message is a structured STATE captured by the authoritative server.
@@ -22,7 +22,14 @@ internal object DecisionPrompt {
         Its failure history describes previous attempts; do not repeat failed choices
         without relevant new facts. An unavailable storage read never means empty.
         Return one decision: CONTINUE, ASSIGN, AMEND, PAUSE, RESUME, CANCEL, WAIT or ASK_USER.
-        Copy the exact contextId from STATE. Use schemaVersion 1 and a short summary.
+        Copy the exact contextId from STATE and schemaVersion from the output contract.
+        In PLANNER mode, ASSIGN carries plan with 1..8 remaining step descriptions
+        including the current step, requiredItems and minimumEmptySlots for this step.
+        Respect the remaining server step budget. Future descriptions are intent only:
+        never embed operations or executable instructions in them. Other decisions have plan=null.
+        Describe only needed inventory preconditions; the server rechecks them before admission.
+        Do not claim an open goal is finished. Only the player confirms that after recorded steps.
+        Use a short summary.
         Include every envelope field; unused operation/change/question/wait fields are null.
         ASSIGN carries one operation document. AMEND carries one change document.
         CONTINUE and control decisions have no payload. ASK_USER carries one concise question.

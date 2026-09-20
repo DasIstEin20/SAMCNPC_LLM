@@ -8,6 +8,7 @@ import io.samcnpc.llm.provider.OpenAiCompatibleProvider
 import io.samcnpc.llm.scheduling.*
 import io.samcnpc.llm.supervision.*
 import io.samcnpc.llm.context.LlmMode
+import io.samcnpc.llm.planning.PlannerOutcomes
 import net.minecraft.network.chat.Component
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.level.ServerPlayer
@@ -26,9 +27,10 @@ internal class LlmGoalController(
     private val runtime = TranslatorRuntime(server, store, settings, provider, rates, ::notify)
     private var closed = false
 
-    fun start(actor: ServerPlayer, npc: UUID, text: String, now: Long, stockTarget: StockTarget? = null): GoalReply {
+    fun start(actor: ServerPlayer, npc: UUID, text: String, now: Long, stockTarget: StockTarget? = null, planner: Boolean = false): GoalReply {
         authorization(actor, npc)?.let { return it }
         readiness()?.let { return rejected(it) }
+        if (planner && stockTarget != null) return rejected("CONFLICTING_GOAL_MODES")
         if (!GoalRecord.validText(text, 1024)) return rejected("INVALID_GOAL_TEXT")
         val previous = store.get(npc)
         if (previous != null && previous.phase !in finished) return rejected("ACTIVE_GOAL_REQUIRES_STOP")
@@ -38,7 +40,7 @@ internal class LlmGoalController(
             it.supervision?.target?.sameStorage(stockTarget) == true }) return rejected("STOCK_ALREADY_SUPERVISED")
         val record = GoalRecord(npc, actor.uuid, UUID.randomUUID(), 1, text, limits = settings.inference.goalLimits(),
             phase = if (stockTarget == null) GoalPhase.QUEUED else GoalPhase.WAITING,
-            mode = if (stockTarget == null) LlmMode.TRANSLATOR else LlmMode.SUPERVISOR,
+            mode = if (planner) LlmMode.PLANNER else if (stockTarget == null) LlmMode.TRANSLATOR else LlmMode.SUPERVISOR,
             supervision = stockTarget?.let { StockSupervision(it) },
             memory = previous?.memory?.placesOnly() ?: GoalMemory())
         if (stockTarget != null) {
@@ -53,6 +55,7 @@ internal class LlmGoalController(
         readiness()?.let { return rejected(it) }
         val record = store.get(npc) ?: return rejected("GOAL_NOT_FOUND")
         if (record.phase != GoalPhase.ASK_USER || record.manualHold) return rejected("NO_ACTIVE_QUESTION")
+        if (record.mode == LlmMode.PLANNER && record.planStepsCompleted >= 8) return rejected("PLAN_STEP_BUDGET_EXHAUSTED")
         if (!GoalRecord.validText(text, 512)) return rejected("INVALID_ANSWER_TEXT")
         val answer = record.answer?.let { it + "\n" + text } ?: text
         if (!GoalRecord.validText(answer, 512)) return rejected("CLARIFICATION_LIMIT")
@@ -86,6 +89,15 @@ internal class LlmGoalController(
                     phase = GoalPhase.WAITING, manualHold = false, question = null,
                     supervision = terminal.supervision?.userIntervention())
                 return queue(actor, resumed, now, InferenceReason.USER_GOAL)
+            }
+            if (record.mode == LlmMode.PLANNER && task.state in setOf(OperationTaskState.COMPLETED, OperationTaskState.FAILED)) {
+                if (task.definitionRevision != known.definitionRevision ||
+                    !TranslatorOutcomes.controlMatches(known.controlRevision, task.controlRevision, task.state))
+                    return rejected("TASK_REVIEW_REQUIRED")
+                val current = runtime.observeKnown(record.copy(actorUuid = actor.uuid, revision = record.revision + 1,
+                    phase = GoalPhase.EXECUTING, manualHold = false, question = null), actor)
+                if (PlannerOutcomes.boundary(current)) runtime.attach(current, actor)?.let { return waiting(current, it) }
+                return GoalReply(true, current.code, current)
             }
             if (task.state in terminalTaskStates) {
                 val terminal = record.copy(phase = when (task.state) {
@@ -141,6 +153,22 @@ internal class LlmGoalController(
         return GoalReply(true, stopped.code, store.get(npc))
     }
 
+    /** Only the current authorized player can confirm an open goal after its recorded steps. */
+    fun complete(actor: ServerPlayer, npc: UUID): GoalReply {
+        authorization(actor, npc)?.let { return it }
+        val record = store.get(npc) ?: return rejected("GOAL_NOT_FOUND")
+        if (record.mode != LlmMode.PLANNER || record.phase != GoalPhase.ASK_USER ||
+            record.code != "PLAN_CONFIRMATION_REQUIRED" || record.manualHold ||
+            record.memory.plan.isNotEmpty() || record.task != null || record.planStepsCompleted == 0)
+            return rejected("PLAN_NOT_READY_FOR_CONFIRMATION")
+        if (record.budget.inFlight != null) return rejected("PREVIOUS_INFERENCE_DRAINING")
+        if (activeTask(actor, npc)) return rejected("ACTIVE_BEHAVIOR_TASK_REQUIRES_REVIEW")
+        val completed = record.copy(phase = GoalPhase.COMPLETED, code = "USER_CONFIRMED_GOAL", question = null)
+        store.put(completed)?.let { return rejected(it) }
+        runtime.cancel(npc)
+        return GoalReply(true, completed.code, completed)
+    }
+
     fun status(actor: ServerPlayer, npc: UUID): GoalReply {
         authorization(actor, npc)?.let { return it }
         val record = store.get(npc) ?: return rejected("GOAL_NOT_FOUND")
@@ -182,10 +210,11 @@ internal class LlmGoalController(
         check(server.isSameThread)
         if (closed || store.problem != null) return
         for (record in store.records().filter { it.actorUuid == actor.uuid && !it.manualHold &&
-            (it.phase == GoalPhase.EXECUTING || it.supervision != null && it.phase == GoalPhase.WAITING) }) {
+            (it.phase == GoalPhase.EXECUTING || it.supervision != null && it.phase == GoalPhase.WAITING || PlannerOutcomes.boundary(it)) }) {
             if (authorization(actor, record.npcUuid) != null) continue
             val current = runtime.observeKnown(record, actor)
-            if (current.phase == GoalPhase.EXECUTING || current.supervision != null && current.phase == GoalPhase.WAITING && !current.manualHold)
+            if (current.phase == GoalPhase.EXECUTING || PlannerOutcomes.boundary(current) ||
+                current.supervision != null && current.phase == GoalPhase.WAITING && !current.manualHold)
                 runtime.attach(current, actor)
         }
     }

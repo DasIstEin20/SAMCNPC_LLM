@@ -44,10 +44,12 @@ internal class ContextMemory(plan: List<String> = emptyList(), aliases: List<Con
 
 internal class ContextGoal(val id: UUID, val revision: Long, val text: String, val mode: LlmMode,
                            val deadlineTick: Long?, val remainingCalls: Int, val memory: ContextMemory = ContextMemory(),
-                           val supervision: io.samcnpc.llm.supervision.StockSupervision? = null) {
+                           val supervision: io.samcnpc.llm.supervision.StockSupervision? = null,
+                           val planStepsCompleted: Int = 0) {
     init {
         require(revision >= 0 && text.length in 1..2048 && remainingCalls in 0..24)
         require(deadlineTick == null || deadlineTick >= 0)
+        require(planStepsCompleted in 0..8 && (mode == LlmMode.PLANNER || planStepsCompleted == 0))
     }
 }
 

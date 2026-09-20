@@ -1,3 +1,28 @@
+# Verified bounded Planner — 2026-09-20
+
+L6.2–L6.4 complete; LLM plan 31/36. Planner admits one current operation through the
+same public Behavior gateway, retains at most eight descriptions/eight completed
+steps, rechecks inventory preconditions and waits for a fresh decision after each
+authoritative result. Open goals require explicit player confirmation. No model
+controls/amendments, crafting, building or stored operation sequences are admitted.
+Goal-store v4 retains old memory/charges and holds uncertain admission after restart.
+
+Evidence: planner-evidence.json; clean build, 514 units (Core 49 / Behavior 364 / LLM 101),
+841 frozen source/build hashes and boundary/three-JAR guards PASS. Dedicated/client
+each passed six Planner scenarios /nine HTTP, including real food/wood/inventory/
+return balances and zero extra inference during healthy tasks. Client rendered 6,
+walking 3. Full Translator/Supervisor regressions and all three restart suites passed;
+37 admission and 15 authority checks include mode/version/step-budget rejection.
+Three-NPC Planner restart retained identities and remaining intent, completed known
+work, held lost receipt and honored manual pause over a stale save. This is ordinary
+save fault injection, not a crash/WAL atomicity guarantee.
+
+Standalone clean build: 101 LLM units and 113 matching own source files. Pinned Core
+1834e5d and Behavior c6e0273 remain unchanged. Next: L7 frozen bilingual evaluation,
+active >=3600-second multi-NPC performance/fault campaign and final release checks.
+Actual model/backend semantics remain USER_DEFERRED; authenticated skins remain
+MANUAL_PENDING/nonblocking. Publication is still local until authorized closeout.
+
 # Verified bounded goal memory — 2026-09-20
 
 L6.1 complete; LLM plan 28/36. Goal-store v3 migrates v1/v2 without resetting charges

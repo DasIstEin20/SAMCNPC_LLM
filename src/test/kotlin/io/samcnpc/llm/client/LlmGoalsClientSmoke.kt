@@ -4,6 +4,7 @@ import io.samcnpc.core.api.NpcPosition
 import io.samcnpc.llm.SamcnpcLlm
 import io.samcnpc.llm.TranslatorRuntimeProbe
 import io.samcnpc.llm.SupervisorRuntimeProbe
+import io.samcnpc.llm.PlannerRuntimeProbe
 import io.samcnpc.llm.GoalRuntimeProbe
 import net.minecraft.client.Minecraft
 import net.minecraft.client.model.PlayerModel
@@ -35,9 +36,10 @@ import kotlin.math.hypot
 /** Actual integrated client/server gameplay; detached render counters are the only cross-thread test state. */
 @Mod.EventBusSubscriber(modid = SamcnpcLlm.MOD_ID, value = [Dist.CLIENT])
 internal object LlmGoalsClientSmoke {
+    private val planner = java.lang.Boolean.getBoolean("samcnpc.plannerClientSmoke")
     private val supervisor = java.lang.Boolean.getBoolean("samcnpc.supervisorClientSmoke")
-    private val enabled = supervisor || java.lang.Boolean.getBoolean("samcnpc.goalsClientSmoke")
-    private val report = if (supervisor) "client-supervisor-result.txt" else "client-goals-result.txt"
+    private val enabled = planner || supervisor || java.lang.Boolean.getBoolean("samcnpc.goalsClientSmoke")
+    private val report = if (planner) "client-planner-result.txt" else if (supervisor) "client-supervisor-result.txt" else "client-goals-result.txt"
     private data class View(val npc: UUID, val name: String)
     @Volatile private var worldId: String? = null
     @Volatile private var view: View? = null
@@ -77,7 +79,7 @@ internal object LlmGoalsClientSmoke {
             }
             val outcome = result ?: return
             check(outcome.startsWith("PASS")) { outcome }
-            check(names.size == (if (supervisor) SupervisorRuntimeProbe.CASES.size else 8) && frames.values.all { it.get() >= 2 })
+            check(names.size == (if (planner) PlannerRuntimeProbe.CASES.size else if (supervisor) SupervisorRuntimeProbe.CASES.size else 8) && frames.values.all { it.get() >= 2 })
             check(names.filterValues { it in movingCases }.keys.all { (walking[it]?.get() ?: 0) >= 2 })
             Files.writeString(Path.of(report), outcome + "\nrenderedCases=" + names.size +
                 " frames=" + names.entries.associate { it.value to frames[it.key]?.get() } +
@@ -110,7 +112,8 @@ internal object LlmGoalsClientSmoke {
                     (frames[npc]?.get() ?: 0) >= 2 &&
                         (name !in movingCases || (walking[npc]?.get() ?: 0) >= 2)
                 }
-                current = if (supervisor) SupervisorRuntimeProbe(server, actor, origin, canFinish)
+                current = if (planner) PlannerRuntimeProbe(server, actor, origin, canFinish)
+                    else if (supervisor) SupervisorRuntimeProbe(server, actor, origin, canFinish)
                     else TranslatorRuntimeProbe(server, actor, origin, canFinish)
                 probe = current
             }
@@ -141,5 +144,5 @@ internal object LlmGoalsClientSmoke {
             walking.computeIfAbsent(current.npc) { AtomicInteger() }.incrementAndGet()
     }
 
-    private val movingCases = if (supervisor) SupervisorRuntimeProbe.MOVING else setOf("clarify", "deliver", "lumberjack", "pause", "offline")
+    private val movingCases = if (planner) PlannerRuntimeProbe.MOVING else if (supervisor) SupervisorRuntimeProbe.MOVING else setOf("clarify", "deliver", "lumberjack", "pause", "offline")
 }

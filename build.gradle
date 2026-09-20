@@ -46,6 +46,8 @@ evaluationDependsOn(':samcnpc-behavior')
 def goalRestartId = providers.gradleProperty('llmGoalRestartId').orElse(rootProject.ext.fullVerificationId ?: 'manual').get()
 if (!(goalRestartId ==~ /[A-Za-z0-9_-]{1,64}/)) throw new GradleException('Invalid llmGoalRestartId')
 def goalRestartDirectory = "run-server-goals-restart-${goalRestartId}"
+def plannerRestartDirectory = "run-server-planner-restart-${goalRestartId}"
+def plannerDirectory = "run-server-planner-smoke-${goalRestartId}"
 def supervisorDirectory = "run-server-supervisor-smoke-${goalRestartId}"
 def supervisorFaultsDirectory = "run-server-supervisor-faults-${goalRestartId}"
 def supervisorRestartDirectory = "run-server-supervisor-restart-${goalRestartId}"
@@ -73,6 +75,18 @@ minecraft {
             parent runs.client
             workingDirectory project.file('run-client-loading-smoke')
             property 'samcnpc.clientLoadingSmoke', 'true'
+            mods { samcnpc_llm { source sourceSets.test } }
+        }
+        clientPlannerSmoke {
+            parent runs.client
+            workingDirectory project.file('run-client-planner-smoke')
+            property 'samcnpc.plannerClientSmoke', 'true'
+            mods { samcnpc_llm { source sourceSets.test } }
+        }
+        serverPlannerSmoke {
+            parent runs.server
+            workingDirectory project.file(plannerDirectory)
+            property 'samcnpc.plannerServerSmoke', 'true'
             mods { samcnpc_llm { source sourceSets.test } }
         }
         clientSupervisorSmoke {
@@ -117,6 +131,18 @@ minecraft {
             parent runs.server
             workingDirectory project.file(supervisorRestartDirectory)
             property 'samcnpc.supervisorRestartPhase', 'load'
+            mods { samcnpc_llm { source sourceSets.test } }
+        }
+        serverPlannerSaveSmoke {
+            parent runs.server
+            workingDirectory project.file(plannerRestartDirectory)
+            property 'samcnpc.plannerRestartPhase', 'save'
+            mods { samcnpc_llm { source sourceSets.test } }
+        }
+        serverPlannerLoadSmoke {
+            parent runs.server
+            workingDirectory project.file(plannerRestartDirectory)
+            property 'samcnpc.plannerRestartPhase', 'load'
             mods { samcnpc_llm { source sourceSets.test } }
         }
         serverGoalsSaveSmoke {
@@ -174,7 +200,7 @@ tasks.named('jar', Jar).configure {
 }
 
 // Command-line userdev needs the exact bundled Behavior data staged under its game directory.
-['Run': 'run', 'ClientLoadingSmoke': 'run-client-loading-smoke', 'ServerLoadingSmoke': 'run-server-loading-smoke', 'ClientGoalsSmoke': 'run-client-goals-smoke', 'ServerGoalsSaveSmoke': goalRestartDirectory, 'ServerGoalsLoadSmoke': goalRestartDirectory, 'ClientSupervisorSmoke': 'run-client-supervisor-smoke', 'ServerSupervisorSmoke': supervisorDirectory, 'ServerSupervisorSaveSmoke': supervisorRestartDirectory, 'ServerSupervisorLoadSmoke': supervisorRestartDirectory, 'ClientSupervisorFaultsSmoke': 'run-client-supervisor-faults-smoke', 'ServerSupervisorFaultsSmoke': supervisorFaultsDirectory].each { suffix, folder ->
+['Run': 'run', 'ClientLoadingSmoke': 'run-client-loading-smoke', 'ServerLoadingSmoke': 'run-server-loading-smoke', 'ClientGoalsSmoke': 'run-client-goals-smoke', 'ServerGoalsSaveSmoke': goalRestartDirectory, 'ServerGoalsLoadSmoke': goalRestartDirectory, 'ClientSupervisorSmoke': 'run-client-supervisor-smoke', 'ServerSupervisorSmoke': supervisorDirectory, 'ServerSupervisorSaveSmoke': supervisorRestartDirectory, 'ServerSupervisorLoadSmoke': supervisorRestartDirectory, 'ClientSupervisorFaultsSmoke': 'run-client-supervisor-faults-smoke', 'ServerSupervisorFaultsSmoke': supervisorFaultsDirectory, 'ClientPlannerSmoke': 'run-client-planner-smoke', 'ServerPlannerSmoke': plannerDirectory, 'ServerPlannerSaveSmoke': plannerRestartDirectory, 'ServerPlannerLoadSmoke': plannerRestartDirectory].each { suffix, folder ->
     def stage = tasks.register("stageBehaviorData${suffix}", Copy) {
         from project(':samcnpc-behavior').layout.projectDirectory.dir('src/main/resources/data')
         into layout.projectDirectory.dir("${folder}/data")
@@ -194,7 +220,7 @@ tasks.matching { it.name == 'runClientGoalsSmoke' }.configureEach {
 }
 
 
-[[name: 'Goals', directory: goalRestartDirectory, report: 'goals'], [name: 'Supervisor', directory: supervisorRestartDirectory, report: 'supervisor']].each { suite ->
+[[name: 'Goals', directory: goalRestartDirectory, report: 'goals'], [name: 'Supervisor', directory: supervisorRestartDirectory, report: 'supervisor'], [name: 'Planner', directory: plannerRestartDirectory, report: 'planner']].each { suite ->
 ['Save', 'Load'].each { stage ->
     tasks.matching { it.name == "runServer${suite.name}${stage}Smoke" }.configureEach {
         def report = layout.projectDirectory.file("${suite.directory}/server-${suite.report}-${stage.toLowerCase()}.txt").asFile
@@ -268,6 +294,37 @@ spawn-protection=0
 }
 
 }
+
+['Client', 'Server'].each { side ->
+    tasks.matching { it.name == "run"+side+"PlannerSmoke" }.configureEach {
+        def folder = side == 'Server' ? plannerDirectory : 'run-client-planner-smoke'
+        def report = layout.projectDirectory.file(folder+"/"+side.toLowerCase()+"-planner-result.txt").asFile
+        doFirst {
+            report.parentFile.mkdirs(); report.text = 'RUNNING\n'
+            if (side == 'Server') {
+                new File(report.parentFile, 'eula.txt').text = 'eula=true\n'
+                def settings = new File(report.parentFile, 'server.properties')
+                if (!settings.exists()) settings.text = """server-ip=127.0.0.1
+server-port=25576
+online-mode=true
+level-name=planner-world
+level-type=minecraft:flat
+generator-settings={"layers":[{"block":"minecraft:bedrock","height":1},{"block":"minecraft:dirt","height":2},{"block":"minecraft:grass_block","height":1}],"biome":"minecraft:plains"}
+level-seed=0
+generate-structures=false
+difficulty=peaceful
+view-distance=4
+simulation-distance=4
+max-players=1
+spawn-protection=0
+"""
+            }
+        }
+        doLast { if (!report.text.startsWith('PASS ')) throw new GradleException("Planner "+side+" failed: "+report) }
+    }
+}
+
+tasks.matching { it.name == "runServerPlannerLoadSmoke" }.configureEach { mustRunAfter "runServerPlannerSaveSmoke" }
 
 tasks.withType(Jar).configureEach {
     archiveBaseName = 'samcnpc-llm'

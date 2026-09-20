@@ -40,7 +40,7 @@ response before cancelling a known task; it never cancels a different/unknown ta
 
 ## Persistence and restart
 
-The version-3 `samcnpc_llm_goals` SavedData (v1/v2 migrate with empty memory and unchanged budgets/task bindings) contains at most 256 records, each
+The version-4 `samcnpc_llm_goals` SavedData (v1/v2 migrate with empty memory; v3 retains memory; budgets/task bindings stay unchanged) contains at most 256 records, each
 limited to 16 KiB encoded NBT. At most 32 goals have live sessions. Records retain
 goal/actor/NPC IDs, text, revision, question, manual hold, reserved resource charges
 and exact task identity/revisions. They contain no cached world, raw HTTP, secrets,

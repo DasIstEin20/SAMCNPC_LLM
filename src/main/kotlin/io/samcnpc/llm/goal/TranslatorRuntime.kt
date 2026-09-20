@@ -7,6 +7,7 @@ import io.samcnpc.llm.config.ProviderSettings
 import io.samcnpc.llm.context.*
 import io.samcnpc.llm.scheduling.*
 import io.samcnpc.llm.supervision.*
+import io.samcnpc.llm.planning.*
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.level.ServerPlayer
 import java.util.UUID
@@ -23,7 +24,12 @@ internal class TranslatorRuntime(
     private val sessions = linkedMapOf<UUID, GoalSession>()
     private val translatorPolicy = ContextPolicy(1, OperationType.entries.toSet(), emptySet(), emptySet(), 72000, 16, 0)
     private val supervisorPolicy = ContextPolicy(2, StockDecisionPolicy.operations, emptySet(), emptySet(), 72000, 16, 0)
-    private fun policy(record: GoalRecord) = if (record.supervision == null) translatorPolicy else supervisorPolicy
+    private val plannerPolicy = ContextPolicy(3, PlannerPolicy.operations, emptySet(), emptySet(), 72000, 16, 0)
+    private fun policy(record: GoalRecord) = when (record.mode) {
+        LlmMode.TRANSLATOR -> translatorPolicy
+        LlmMode.SUPERVISOR -> supervisorPolicy
+        LlmMode.PLANNER -> plannerPolicy
+    }
     private val scheduler = InferenceScheduler(provider, settings, settings.inference.profile(settings),
         settings.inference.allocation(settings), this, rates)
     private var closed = false
@@ -76,6 +82,11 @@ internal class TranslatorRuntime(
                 hold(id, "SUPERVISION_" + (state?.name ?: "UNAVAILABLE"))
             else {
                 val record = store.get(id)
+                if (PlannerOutcomes.boundary(record) && session.budget.snapshot().inFlight == null) {
+                    val queued = checkNotNull(record).copy(phase = GoalPhase.QUEUED, code = "PLAN_NEXT_DECISION")
+                    persist(queued)
+                    wake(queued, now, InferenceReason.TASK_TERMINAL)?.let { hold(id, it) }
+                }
                 if (record?.supervision != null && record.phase == GoalPhase.WAITING && !record.manualHold &&
                     session.budget.snapshot().inFlight == null && server.overworld().gameTime >= session.nextStockTick) {
                     session.nextStockTick = server.overworld().gameTime + 20
@@ -105,6 +116,8 @@ internal class TranslatorRuntime(
         check(captured is ContextCaptureResult.Captured)
         if (record.supervision != null && checkNotNull(captured.value.stock).count >= record.supervision.target.target)
             return InferencePreparation.Rejected("STOCK_TARGET_REACHED")
+        if (record.mode == LlmMode.PLANNER && record.planStepsCompleted >= 8)
+            return InferencePreparation.Rejected("PLAN_STEP_BUDGET_EXHAUSTED")
         if (!session.admission.bind(captured.value)) return InferencePreparation.Rejected("ADMISSION_REVIEW_REQUIRED")
         session.captured = captured.value
         return InferencePreparation.Ready(captured.value, session.budget)
@@ -140,8 +153,11 @@ internal class TranslatorRuntime(
         val dispatching = prepared.copy(phase = GoalPhase.ADMITTING, code = "ADMISSION_STARTED")
         persist(dispatching)
         val outcome = session.admission.admit(server, actor, result.decision, contextGoal(record, session), policy(record), record.manualHold)
-        val next = if (record.supervision == null) TranslatorOutcomes.admitted(dispatching, result.decision, outcome)
-        else StockSupervisor.admitted(dispatching, result.decision, outcome, server.overworld().gameTime)
+        val next = when (record.mode) {
+            LlmMode.TRANSLATOR -> TranslatorOutcomes.admitted(dispatching, result.decision, outcome)
+            LlmMode.SUPERVISOR -> StockSupervisor.admitted(dispatching, result.decision, outcome, server.overworld().gameTime)
+            LlmMode.PLANNER -> PlannerOutcomes.admitted(dispatching, result.decision, outcome)
+        }
         persist(next)
         if (next.phase != GoalPhase.EXECUTING) notify(next)
     }
@@ -151,7 +167,7 @@ internal class TranslatorRuntime(
         if (record != null && record.goalId == wake.goalId) {
             // Scheduler queues its one allowed retry before settling. Only a terminal inference failure holds the watch.
             val failedWithoutRetry = sessions[wake.npcUuid]?.failedInference == true &&
-                record.supervision != null && record.phase == GoalPhase.WAITING
+                record.mode != LlmMode.TRANSLATOR && record.phase == GoalPhase.WAITING
             val unfinished = record.phase in setOf(GoalPhase.INFERENCING, GoalPhase.ADMITTING)
             persist(record.copy(budget = budget, contextId = null,
                 phase = if (unfinished) GoalPhase.REVIEW_REQUIRED else record.phase,
@@ -175,7 +191,7 @@ internal class TranslatorRuntime(
             return
         }
         val next = record.copy(phase = if (retryAtMillis == null) GoalPhase.WAITING else GoalPhase.QUEUED,
-            code = code, question = null, manualHold = record.manualHold || retryAtMillis == null && record.supervision != null)
+            code = code, question = null, manualHold = record.manualHold || retryAtMillis == null && record.mode != LlmMode.TRANSLATOR)
         persist(next)
         if (retryAtMillis == null) {
             notify(next)
@@ -199,6 +215,8 @@ internal class TranslatorRuntime(
             next = if (stock == null) StockSupervisor.unavailable(record, checkNotNull(problem))
                 else StockSupervisor.terminal(next.copy(code = view?.task?.frames?.firstOrNull()?.reason ?: next.code), stock)
         }
+        if (record.mode == LlmMode.PLANNER && next.phase in setOf(GoalPhase.COMPLETED, GoalPhase.FAILED))
+            next = PlannerOutcomes.terminal(next)
         if (next != record) {
             persist(next); notify(next)
             if (next.phase != GoalPhase.EXECUTING && !isWatching(next)) cancel(record.npcUuid)
@@ -225,10 +243,11 @@ internal class TranslatorRuntime(
     }
 
     private fun contextGoal(record: GoalRecord, session: GoalSession) = ContextGoal(record.goalId,
-        record.revision, record.contextText(), record.mode, null, session.budget.contextRemainingCalls, memory = record.memory.context(), supervision = record.supervision)
+        record.revision, record.contextText(), record.mode, null, session.budget.contextRemainingCalls, memory = record.memory.context(), supervision = record.supervision,
+        planStepsCompleted = record.planStepsCompleted)
 
-    private fun isWatching(record: GoalRecord?): Boolean = record?.supervision != null &&
-        record.phase == GoalPhase.WAITING && !record.manualHold
+    private fun isWatching(record: GoalRecord?): Boolean = PlannerOutcomes.boundary(record) ||
+        record?.supervision != null && record.phase == GoalPhase.WAITING && !record.manualHold
 
     private fun sample(record: GoalRecord, now: Long) {
         val actor = server.playerList.getPlayer(record.actorUuid)

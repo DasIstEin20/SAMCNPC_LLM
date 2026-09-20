@@ -91,6 +91,26 @@ internal object DecisionAdmissionProbe {
                 ContextMemory(aliases = listOf(ContextPlaceAlias("base", dimension, NpcBlockPosition(0, 64, 0))))))
             reject(idle, "GOAL_MEMORY_CHANGED", ContextGoal(goal.id, goal.revision, goal.text, goal.mode, null, 24,
                 ContextMemory(confirmedResults = listOf("New confirmed result"))))
+            val wrongEnvelope = slot(idle).admit(server, actor,
+                candidate(idle, DecisionAction.Continue).copy(schemaVersion = 2), goal, policy, false)
+            check(wrongEnvelope.code == "PLANNER_ENVELOPE_NOT_ALLOWED"); checks++
+            val plannerGoal = ContextGoal(goal.id, goal.revision, goal.text, LlmMode.PLANNER, null, 24)
+            val plannerCapture = NpcContextBuilder.capture(server, actor, handle.npcUuid, plannerGoal, policy)
+            check(plannerCapture is ContextCaptureResult.Captured)
+            val plannerSource = plannerCapture.value
+            check(slot(plannerSource).admit(server, actor, candidate(plannerSource, DecisionAction.Continue),
+                plannerGoal, policy, false).code == "PLANNER_ENVELOPE_REQUIRED"); checks++
+            reject(plannerSource, "GOAL_PLAN_CHANGED", ContextGoal(goal.id, goal.revision, goal.text,
+                LlmMode.PLANNER, null, 24, planStepsCompleted = 1))
+            val exhausted = ContextGoal(goal.id, goal.revision, goal.text, LlmMode.PLANNER, null, 24, planStepsCompleted = 8)
+            val exhaustedCapture = NpcContextBuilder.capture(server, actor, handle.npcUuid, exhausted, policy)
+            check(exhaustedCapture is ContextCaptureResult.Captured)
+            val capped = exhaustedCapture.value
+            val extraStep = LlmDecision(capped.binding.contextId, DecisionKind.ASSIGN,
+                DecisionAction.Assign(OperationOrder.Navigate(dimension, spawn)), "extra step", 2,
+                io.samcnpc.llm.planning.PlanProposal(listOf("one more"), emptyList(), 0))
+            check(slot(capped).admit(server, actor, extraStep, exhausted, policy, false).code == "PLAN_STEP_BUDGET_EXCEEDED"); checks++
+            check(observe().task == null)
             reject(idle, "MANUAL_HOLD", hold = true)
             reject(idle, "GOAL_BUDGET_EXHAUSTED", ContextGoal(goal.id, 1, goal.text, goal.mode, null, 0))
             reject(idle, "POLICY_CHANGED", currentPolicy = ContextPolicy(1, emptySet(), emptySet(),

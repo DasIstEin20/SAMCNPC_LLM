@@ -59,6 +59,7 @@ internal class DecisionAdmission(private val gateway: DecisionGateway = Decision
             return DecisionOutcome.rejected(it)
         }
         DecisionPolicy.problem(decision, source)?.let { return DecisionOutcome.rejected(it) }
+        decision.plan?.preconditionProblem(current.body)?.let { return DecisionOutcome.rejected(it) }
         val stockTarget = goal.supervision?.target
         if (stockTarget != null) {
             val stockReply = OperationStockApi.inspect(server, actor, source.binding.npcUuid,

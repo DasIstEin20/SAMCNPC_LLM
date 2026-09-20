@@ -7,35 +7,24 @@
 [English](README.md) | Polski
 
 Opcjonalna integracja decyzji wysokiego poziomu dla Minecraft Forge 1.20.1.
-LLM wybiera operację, Behavior wykonuje zadanie i recovery, Core obsługuje mechanikę.
-Core i Behavior działają samodzielnie bez tego moda.
+LLM wybiera ograniczone operacje, Behavior wykonuje zadania i recovery, Core
+obsługuje mechanikę. Core i Behavior działają samodzielnie bez tego moda.
 
-Gotowe: ograniczony transport HTTP zgodny z OpenAI, timeout/anulowanie i obsługa
-błędów, konfiguracja Forge Mods oraz autoryzowany kontekst NPC: wszystkie 36 slotów,
-zadanie/postęp, legalne sensory i dzienniki zdarzeń. Domyślny endpoint to
-**http://127.0.0.1:1234/v1**; adres i model można zmienić w konfiguracji.
-Integracja jest domyślnie wyłączona. Nie wysyła żądania na starcie i nie instaluje modelu.
-Gotowy jest też ścisły kontrakt ośmiu decyzji, walidacja polityki/świeżości,
-odrzucanie ponownych odpowiedzi i odczyt potwierdzeń korekt przez API Behavior.
-[Konfiguracja](docs/LLM_CONFIGURATION.md), [kontekst](docs/LLM_CONTEXT.md),
-[kontrakt decyzji](docs/LLM_DECISIONS.md), [harmonogram wywołań](docs/LLM_SCHEDULING.md).
+Gotowe tryby: **Translator**, **Supervisor zapasu** i **ograniczony Planner**.
+Translator wybiera jedną operację z katalogu 16 rodzin. Supervisor utrzymuje wskazany
+zapas w widocznej skrzyni, z histerezą i ochroną przed pętlami. Planner wykonuje
+jeden zwalidowany krok naraz, sprawdza świeże inventory i zapisuje ograniczoną
+pamięć. Otwarty cel po zakończeniu kroków potwierdza gracz.
+Plan: 31/36; końcowa akceptacja i aktywny test godzinny pozostają do wykonania.
 
-Gotowa jest kolejka zdarzeń, anulowanie workerów, ograniczone retry i budżety zasobów.
+Domyślny endpoint to **http://127.0.0.1:1234/v1**. Adres i model zmienisz w Forge Mods
+Config. Integracja jest domyślnie wyłączona; nie instaluje ani nie ładuje modelu.
+Testy używają lekkiego emulatora HTTP. Rozumienie języka przez rzeczywisty model
+oraz profile backendu/tokenizera pozostają niezweryfikowane i odłożone przez gracza.
 
-**Translator i ograniczony Supervisor zapasu są gotowe w zakresie emulatora.**
-Translator zamienia jeden cel gracza na walidowaną operację Behavior. Supervisor
-utrzymuje wskazany zapas z histerezą, świeżymi odczytami i ograniczoną historią awarii.
-Komendy, budżety i odtwarzanie stanu opisują [Translator](docs/LLM_TRANSLATOR.md)
-oraz [Supervisor](docs/LLM_SUPERVISOR.md). Plan: 28/36; następne są Planner i akceptacja.
-Testy używają lekkiego emulatora HTTP. Rozumienie języka i profile prawdziwego modelu
-pozostają niezweryfikowane. [Plan](docs/LLM_INTEGRATION_PLAN.md).
-
-Odczyt zapasu wymaga widocznej, osiągalnej skrzyni vanilla i aktualnych uprawnień.
-[Zakres sensora](docs/STOCK_OBSERVATION.md) opisuje ograniczenia.
-
-Trwała [pamięć](docs/LLM_MEMORY.md) przechowuje nazwy miejsc gracza i potwierdzone
-wyniki. `remember` / `forget_place` działają dla bezczynnego celu; zapamiętane
-miejsce nie potwierdza aktualnej zawartości świata. Zapis v3 migruje starsze wersje.
+[Konfiguracja](docs/LLM_CONFIGURATION.md) · [Komendy Translatora](docs/LLM_TRANSLATOR.md) ·
+[Supervisor](docs/LLM_SUPERVISOR.md) · [Planner](docs/LLM_PLANNER.md) ·
+[Pamięć](docs/LLM_MEMORY.md) · [Plan](docs/LLM_INTEGRATION_PLAN.md)
 
 ## Budowanie
 
@@ -48,34 +37,30 @@ git submodule update --init --recursive
 
 Windows: `gradlew.bat clean build`. Wynik: `build/libs/samcnpc-llm-0.1.0.jar`.
 Wymagane odpowiadające wersje Core, Behavior i Kotlin for Forge.
-`test` nie uruchamia modelu ani klienta gry. `runServerLoadingSmoke` i
-`runClientLoadingSmoke` sprawdzają rzeczywiste Forge, HTTP, konfigurację oraz kontekst
-NPC lub ekran Mods Config. `runClientGoalsSmoke` sprawdza fizyczne zadania, a para
-`runServerGoalsSaveSmoke` / `runServerGoalsLoadSmoke` restart z nowym
-`-PllmGoalRestartId=<id>`. Supervisor ma osobne zadania
-`runServerSupervisorSmoke`, `runClientSupervisorSmoke`, serwerowe/klienckie
-`SupervisorFaultsSmoke` oraz `runServerSupervisorSaveSmoke` / `runServerSupervisorLoadSmoke`.
-Każda kampania wymaga nowego ID restartu. Serwer wymaga zaakceptowania Minecraft EULA.
+Zależności są przypiętymi submodułami. Unit testy nie uruchamiają Minecrafta ani modelu.
+
+Próby Forge: `runServerLoadingSmoke`, `runClientLoadingSmoke`,
+`runClientGoalsSmoke`, serwerowe/klienckie `SupervisorSmoke`,
+`SupervisorFaultsSmoke` i `PlannerSmoke`. Pary serwerowych zadań
+`GoalsSaveSmoke`/`GoalsLoadSmoke`, `SupervisorSaveSmoke`/`SupervisorLoadSmoke`,
+`PlannerSaveSmoke`/`PlannerLoadSmoke` wymagają nowego `-PllmGoalRestartId=<id>`.
+Uruchomienie serwera wymaga zaakceptowania Minecraft EULA.
 
 ## Weryfikacja
 
-Pełny projekt: 509 testów jednostkowych (49 Core/364 Behavior/96 LLM), 833 zgodnych
-hashy źródeł/buildów i kontrola trzech JAR-ów. Dedicated i klient zaliczyły po
-14 scenariuszy Supervisora / 22 HTTP oraz osiem scenariuszy Translatora / dziewięć HTTP.
-Supervisor przeszedł uzupełnianie i histerezę, nieaktualny stan skrzyni, pełny magazyn,
-brak zasobu, pętle A/B i WAIT, ręczne sterowanie, wyłączenie providera, uszkodzony JSON
-oraz powtarzane HTTP 503. Zdrowe zadanie nie powodowało dodatkowych wywołań modelu.
-Klient wyrenderował 14 przypadków Supervisora i potwierdził chodzenie w pięciu.
-Komendy pamięci, jej kontekst i 13 kontroli uprawnień także przeszły.
-Restart dwóch JVM zachował nazwy miejsc i ID zadań, dokończył fizyczną dostawę, zatrzymał niepewne
-przyjęcie operacji i ponownie odczytał zapas bez powielania zadań.
+Pełny clean build: 514 testów (49 Core/364 Behavior/101 LLM), 841 zgodnych hashy i
+kontrola trzech JAR-ów. Dedicated i klient zaliczyły odpowiednio po: Translator 8
+scenariuszy/9 HTTP, Supervisor 14/22, Planner 6/9. Sprawdzone fizyczne bilanse,
+nieaktualne zasoby, awarie providera, ręczne sterowanie i opóźnione anulowanie.
+Trzy zestawy restartów zachowały tożsamość/intencję, bez powielania operacji.
+Serwer: 37 kontroli admission; komendy: 15 kontroli uprawnień/danych.
 
-Build tego repo: 96 testów LLM, 105 zgodnych plików źródłowych.
-[Aktualne dowody i hashe](docs/MEMORY_VALIDATION.json) oddzielają testy integracji od jakości
-prawdziwego modelu. Niezmienione Core146/Behavior215 native i Core52 animacji zachowują
-wcześniejsze dowody. [Stan projektu](PROJECT_STATE.md) opisuje ograniczenia.
-Skórki dwóch kont pozostają ręczne i nieblokujące. Modele, Planner i aktywny godzinny
-soak nadal czekają na testy.
+Build tego repo: 101 testów LLM, 113 zgodnych plików źródłowych.
+[Dowody i hashe](docs/PLANNER_VALIDATION.json) oddzielają weryfikację integracji
+od jakości rzeczywistego modelu. Niezmienione Core 146/Behavior 215 native i Core 52
+animacji zachowują wcześniejsze dowody. [Stan projektu](PROJECT_STATE.md) opisuje
+ograniczenia. Aktywny godzinny test wielu NPC pozostaje do wykonania.
+Skórki dwóch zalogowanych kont są testem ręcznym i nie blokują prac.
 
 [Core](https://github.com/DasIstEin20/SAMCNPC_Core) ·
 [Behavior](https://github.com/DasIstEin20/SAMCNPC_Behavior)

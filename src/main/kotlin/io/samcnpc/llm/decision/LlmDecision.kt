@@ -19,7 +19,9 @@ internal sealed interface DecisionAction {
 
 /** Parsed candidate only. It is not an admission receipt or evidence of any world effect. */
 internal data class LlmDecision(val contextId: UUID, val kind: DecisionKind,
-                                val action: DecisionAction, val summary: String) {
+                                val action: DecisionAction, val summary: String,
+                                val schemaVersion: Int = 1,
+                                val plan: io.samcnpc.llm.planning.PlanProposal? = null) {
     init {
         val expected = when (action) {
             DecisionAction.Continue -> DecisionKind.CONTINUE
@@ -30,6 +32,8 @@ internal data class LlmDecision(val contextId: UUID, val kind: DecisionKind,
             is DecisionAction.AskUser -> DecisionKind.ASK_USER
         }
         require(kind == expected && summary.length <= 256)
+        require(schemaVersion in 1..2 && (schemaVersion == 2 || plan == null))
+        require(plan == null || action is DecisionAction.Assign)
     }
 }
 internal sealed interface DecisionDecodeResult {

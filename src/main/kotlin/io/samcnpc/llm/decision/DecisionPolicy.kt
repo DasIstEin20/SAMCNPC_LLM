@@ -8,6 +8,7 @@ import io.samcnpc.llm.context.ContextPolicy
 /** Pure policy checks, in addition to Behavior semantics and later current-world authorization. */
 internal object DecisionPolicy {
     fun problem(decision: LlmDecision, captured: CapturedContext): String? {
+        io.samcnpc.llm.planning.PlannerPolicy.problem(decision, captured)?.let { return it }
         val stockTarget = captured.goal.supervision?.target
         if (stockTarget != null) {
             val stock = captured.stock ?: return "STOCK_OBSERVATION_MISSING"

@@ -25,6 +25,7 @@ internal class GoalMemory(
 
     fun context() = ContextMemory(plan, aliases, results)
     fun placesOnly() = GoalMemory(aliases = aliases)
+    fun withPlan(steps: List<String>) = GoalMemory(steps, aliases, results)
     fun withPlace(alias: ContextPlaceAlias) = GoalMemory(plan,
         (aliases.filter { it.name != alias.name } + alias).sortedBy { it.name }, results)
     fun withoutPlace(name: String) = GoalMemory(plan, aliases.filter { it.name != name }, results)

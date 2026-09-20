@@ -79,9 +79,10 @@ class GoalMemoryTest {
         val store = LlmGoalStore.empty(); assertNull(store.put(value))
         val file = store.save(CompoundTag()); file.putInt("version", 2)
         file.getList("goals", 10).getCompound(0).remove("memory")
+        file.getList("goals", 10).getCompound(0).remove("planSteps")
         val loaded = LlmGoalStore.load(file)
         assertNull(loaded.problem); assertEquals(value, loaded.get(value.npcUuid))
-        assertEquals(3, loaded.save(CompoundTag()).getInt("version"))
+        assertEquals(4, loaded.save(CompoundTag()).getInt("version"))
         val disguised = file.copy(); disguised.getList("goals", 10).getCompound(0).put("memory", CompoundTag())
         assertEquals("INVALID_GOAL_RECORD", LlmGoalStore.load(disguised).problem)
     }

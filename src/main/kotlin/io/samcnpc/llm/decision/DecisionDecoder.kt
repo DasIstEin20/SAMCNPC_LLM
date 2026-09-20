@@ -18,8 +18,10 @@ internal object DecisionDecoder {
         return try {
             if (LlmJson.utf8(json).size > MAX_BYTES) return DecisionDecodeResult.Rejected("DECISION_TOO_LARGE")
             val root = LlmJson.parse(json, MAX_BYTES)
-            require(root.keySet() == fields)
-            require(integer(root["schemaVersion"]) == VERSION)
+            require(root.keySet() == fields || root.keySet() == fields + "plan")
+            val version = integer(root["schemaVersion"])
+            require(version in 1..2)
+            require(root.keySet() == if (version == 1) fields else fields + "plan")
             val contextText = text(root["contextId"], 36)
             val contextId = UUID.fromString(contextText)
             require(contextText.length == 36 && contextId.toString() == contextText)
@@ -63,7 +65,13 @@ internal object DecisionDecoder {
                     DecisionAction.AskUser(value)
                 }
             }
-            DecisionDecodeResult.Accepted(LlmDecision(contextId, kind, action, summary))
+            val plan = if (version == 2 && kind == DecisionKind.ASSIGN) {
+                io.samcnpc.llm.planning.PlanProposalCodec.decode(root["plan"])
+            } else {
+                require(version == 1 || root["plan"].isJsonNull)
+                null
+            }
+            DecisionDecodeResult.Accepted(LlmDecision(contextId, kind, action, summary, version, plan))
         } catch (_: IllegalArgumentException) {
             DecisionDecodeResult.Rejected("INVALID_DECISION")
         } catch (_: IOException) {

@@ -38,10 +38,13 @@ internal data class GoalRecord(
     val mode: LlmMode = LlmMode.TRANSLATOR,
     val supervision: StockSupervision? = null,
     val memory: GoalMemory = GoalMemory(),
+    val planStepsCompleted: Int = 0,
 ) {
     init {
         require(revision >= 0)
-        require(mode in setOf(LlmMode.TRANSLATOR, LlmMode.SUPERVISOR))
+        require(planStepsCompleted in 0..8 && (mode == LlmMode.PLANNER || planStepsCompleted == 0))
+        require(mode != LlmMode.PLANNER || memory.plan.size <= 8 - planStepsCompleted)
+        require(mode != LlmMode.PLANNER || phase != GoalPhase.EXECUTING || memory.plan.isNotEmpty())
         require((mode == LlmMode.SUPERVISOR) == (supervision != null))
         require(mode != LlmMode.SUPERVISOR || phase != GoalPhase.EXECUTING || supervision?.pendingDecision != null)
         require(validText(text, 1024) && (answer == null || validText(answer, 512)))

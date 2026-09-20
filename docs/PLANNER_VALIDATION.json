@@ -1,0 +1,97 @@
+{
+  "status": "PASS",
+  "utc": "2026-09-20T10:13:29.169501+00:00",
+  "memory": "bounded immutable v4 SavedData; aliases, authoritative outcomes and completed-step counter",
+  "plannerScope": "Food/Lumberjack/Inventory/Navigate/Transport/Deliver; <=8 completed steps; one operation per fresh decision; explicit player completion of open goals",
+  "plannerCasesPerSide": 6,
+  "plannerHttpCallsPerSide": 9,
+  "plannerClientRendered": 6,
+  "plannerClientWalking": 3,
+  "plannerPerRequestReservedInput": 40960,
+  "plannerRestartAssignments": 3,
+  "versions": {
+    "goalStore": 4,
+    "context": 3,
+    "prompt": 3,
+    "translatorSupervisorDecision": 1,
+    "plannerDecision": 2
+  },
+  "units": {
+    "samcnpc-core": 49,
+    "samcnpc-behavior": 364,
+    "samcnpc-llm": 101
+  },
+  "frozenSourceFiles": 841,
+  "cleanBuild": true,
+  "boundaryDistributionGuards": true,
+  "supervisorScope": "visible stock; transport/deliver/lumberjack exact deficit; no model controls/amendments",
+  "supervisorCasesPerSide": 14,
+  "supervisorHttpCallsPerSide": 22,
+  "campaignLifetimes": "physical and faults use separate real JVM/server lifetimes; unchanged goal/server resource caps",
+  "perRequestReservedInput": 32768,
+  "clientRenderedCases": 14,
+  "clientWalkingCases": 5,
+  "restart": "separate JVMs; ordinary save with explicit lost-receipt injection; not an abrupt-crash/WAL proof",
+  "reports": {
+    "clientConfig": "PASS titleScreen=true frames=231 configGui=true configSave=true staleDraft=true logo=true mods=[samcnpc_behavior, samcnpc_core, samcnpc_llm] behaviorValidation=true componentCatalog=14/23 registeredSchema=true typedOrders=true configLoaded=true defaultDisabled=true emulatedHttp=true boundedBodyTimeout=true http503=true recovery=true calls=4",
+    "dedicatedTranslator": "PASS dedicated=true ticks=581 coreApi=true mods=[samcnpc_behavior, samcnpc_core, samcnpc_llm] behaviorValidation=true componentCatalog=14/23 registeredSchema=true typedOrders=true configLoaded=true defaultDisabled=true emulatedHttp=true boundedBodyTimeout=true http503=true recovery=true calls=4 contextWorker=true detachedAfterDismiss=true inventorySlots=36 hiddenBlockOmitted=true contextBytes=9798 contextBounds=true captureAuthority=true decisionHttpCalls=2 fullSchemaBytes=47448 jsonObjectBytes=52704 lateHttpRejected=true httpResumeApplied=true schedulerCases=15 schedulerHttpCalls=15 schedulerWorkerCalls=15 schedulerThreadChecks=true schedulerVirtualClock=true lastGoalCallAdmitted=true schedulerLateReplySuppressed=true translatorCases=8 translatorHttpCalls=9 translatorMaxRequestBytes=40990 registeredGoalCommands=true goalAuthorityChecks=15 physicalStockReads=5 physicalTransport=true physicalDeliver=true physicalLumberjack=true manualPauseHeld=true memoryCommands=true memoryContext=true confirmedResults=true clarificationBudgetRetained=true offlineBehaviorContinues=true missingResourceFailed=true fullDestinationFailed=true userCancelNoLateAssign=true admissionChecks=37 admissionReplay=true lateManualControlRejected=true exactReceiptReadOnly=true lostReplyNoRetry=true subscriptionsStopped=true",
+    "clientTranslator": "PASS integratedServer=true actualCommands=true translatorCases=8 translatorHttpCalls=9 translatorMaxRequestBytes=40982 registeredGoalCommands=true goalAuthorityChecks=15 physicalStockReads=5 physicalTransport=true physicalDeliver=true physicalLumberjack=true manualPauseHeld=true memoryCommands=true memoryContext=true confirmedResults=true clarificationBudgetRetained=true offlineBehaviorContinues=true missingResourceFailed=true fullDestinationFailed=true userCancelNoLateAssign=true\nrenderedCases=8 frames={offline=96, missing=24, deliver=89, pause=134, full=29, lumberjack=284, cancel=36, clarify=692} walking={offline=63, missing=null, deliver=62, pause=62, full=null, lumberjack=52, cancel=null, clarify=63}",
+    "translatorRestartSave": "PASS savePid=5908 httpCalls=2 realAssignments=2 lostReceiptInjection=true",
+    "translatorRestartLoad": "PASS newJvm=true knownTaskPhysicallyCompleted=true exactTaskIdsRetained=true uncertainAdmissionHeld=true heldBudgetSettledOnce=true providerDisabled=true replayAssignments=0 memoryRetained=true authoritativeResultRecorded=true",
+    "supervisorServerPhysical": "PASS dedicated=true supervisorGroup=physical supervisorCases=10 supervisorHttpCalls=10 supervisorMaxRequestBytes=21053 scenarios=maintain,stale,offline,authority,manual,removed,queue_filled,repair,provider_down,dismiss healthyTaskExtraCalls=0 stockAdmissionRechecked=true",
+    "supervisorServerFaults": "PASS dedicated=true supervisorGroup=faults supervisorCases=4 supervisorHttpCalls=12 supervisorMaxRequestBytes=32047 scenarios=full,missing,alternate,wait healthyTaskExtraCalls=0 stockAdmissionRechecked=true",
+    "supervisorClientPhysical": "PASS integratedServer=true actualCommands=true supervisorGroup=physical supervisorCases=10 supervisorHttpCalls=10 supervisorMaxRequestBytes=21058 scenarios=maintain,stale,offline,authority,manual,removed,queue_filled,repair,provider_down,dismiss healthyTaskExtraCalls=0 stockAdmissionRechecked=true\nrenderedCases=10 frames={dismiss=3, provider_down=728, removed=62, repair=1210, stale=1207, queue_filled=6, offline=608, manual=685, maintain=1049, authority=5} walking={dismiss=null, provider_down=null, removed=null, repair=518, stale=519, queue_filled=null, offline=518, manual=514, maintain=769, authority=null}",
+    "supervisorClientFaults": "PASS integratedServer=true actualCommands=true supervisorGroup=faults supervisorCases=4 supervisorHttpCalls=12 supervisorMaxRequestBytes=32054 scenarios=full,missing,alternate,wait healthyTaskExtraCalls=0 stockAdmissionRechecked=true\nrenderedCases=4 frames={alternate=1221, missing=1208, wait=1203, full=1230} walking={alternate=null, missing=null, wait=null, full=null}",
+    "supervisorRestartSave": "PASS savePid=22236 httpCalls=2 realAssignments=2 waitingWatch=true lostReceiptInjection=true",
+    "supervisorRestartLoad": "PASS newJvm=true knownTaskPhysicallyDelivered32=true exactTaskIdsRetained=true waitingWatchFreshRead=true removed80Detected=true uncertainAdmissionHeld=true heldBudgetSettledOnce=true providerDisabled=true replayAssignments=0",
+    "plannerServer": "PASS dedicated=true plannerCases=6 plannerHttpCalls=9 plannerMaxRequestBytes=35023 physicalFoodWoodInventoryReturn=true freshInventoryRejected=true failedStepAsked=true providerOfflineHeld=true manualPauseResumed=true cancelNoLateAssign=true healthyTaskExtraCalls=0 userConfirmationRequired=true",
+    "plannerClient": "PASS integratedServer=true actualCommands=true plannerCases=6 plannerHttpCalls=9 plannerMaxRequestBytes=35025 physicalFoodWoodInventoryReturn=true freshInventoryRejected=true failedStepAsked=true providerOfflineHeld=true manualPauseResumed=true cancelNoLateAssign=true healthyTaskExtraCalls=0 userConfirmationRequired=true\nrenderedCases=6 frames={manual=161, stale=9, offline=603, supplies=1893, failed=20, cancel=63} walking={manual=73, stale=null, offline=125, supplies=411, failed=null, cancel=null}",
+    "plannerRestartSave": "PASS savePid=25800 httpCalls=3 realAssignments=3 lostReceiptInjection=true staleManualSnapshotInjection=true",
+    "plannerRestartLoad": "PASS newJvm=true knownTaskPhysicallyCompleted=true exactTaskIdsRetained=true uncertainAdmissionHeld=true heldBudgetSettledOnce=true providerDisabled=true replayAssignments=0 memoryRetained=true authoritativeResultRecorded=true remainingPlanRetained=true nextStepNotReplayed=true manualPauseWins=true"
+  },
+  "artifacts": {
+    "samcnpc-core/build/libs/samcnpc-core-0.1.0.jar": "ef8e972d03efb8077d7facc592c6845af324d0163540a20e5be9c84ba7caf3bb",
+    "samcnpc-behavior/build/libs/samcnpc-behavior-0.1.0.jar": "e8da5f90b110ef0f36fb3f74768c41dcfe4a3505e93f9179d6ef7387cfe73a9f",
+    "samcnpc-llm/build/libs/samcnpc-llm-0.1.0.jar": "e1f6609ebe53de89357f017346ee73a2ef0f0da2843b0733a660cc9e6380fab0"
+  },
+  "coreBehaviorSourcesAndBuildsUnchanged": true,
+  "retainedEvidence": {
+    "coreNative": {
+      "cases": 146,
+      "source": "stock-evidence.json"
+    },
+    "behaviorNative": {
+      "cases": 215,
+      "source": "stock-evidence.json"
+    },
+    "coreAnimationClient": {
+      "cases": 52,
+      "source": "stock-evidence.json"
+    }
+  },
+  "realModels": "USER_DEFERRED_NOT_VERIFIED",
+  "authenticatedSkinAccounts": "MANUAL_PENDING_NONBLOCKING",
+  "modes": {
+    "translator": "IMPLEMENTED_EMULATOR_VALIDATED",
+    "supervisor": "IMPLEMENTED_BOUNDED_STOCK_EMULATOR_VALIDATED",
+    "planner": "IMPLEMENTED_BOUNDED_STEPS_EMULATOR_VALIDATED"
+  },
+  "tokenMeter": "operator-declared byte-level upper bound; no actual real tokenizer verification",
+  "historicalSupervisorFixtureFailures": [
+    "supervisor-physical-first.log",
+    "supervisor-physical-second.log",
+    "supervisor-physical-third.log",
+    "supervisor-physical-fourth.log",
+    "supervisor-physical-fifth.log",
+    "supervisor-physical-sixth.log",
+    "supervisor-physical-seventh.log"
+  ],
+  "standalone": {
+    "cleanBuild": true,
+    "units": 101,
+    "sourceFilesMatched": 113,
+    "coreCommit": "1834e5db8e7c7606f418b06b5e5f9da64837ebfb",
+    "behaviorCommit": "c6e0273bbbe583cebd20cdd17175aa868686e172",
+    "jarSha256": "230deb2fcd9a44d570a4ce802932aff1194e6009fab058fb0448292804bd393b"
+  }
+}

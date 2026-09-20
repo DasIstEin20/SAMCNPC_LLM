@@ -47,7 +47,7 @@ internal class LlmGoalStore private constructor() : SavedData() {
 
     companion object {
         const val MAX_RECORDS = 256
-        const val VERSION = 3
+        const val VERSION = 4
         private const val NAME = "samcnpc_llm_goals"
         private val LOGGER = LogUtils.getLogger()
 

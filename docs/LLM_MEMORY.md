@@ -1,15 +1,16 @@
 # Bounded goal memory
 
-Goal SavedData v3 adds at most eight unverified plan descriptions, sixteen named
+Goal SavedData v4 adds at most eight unverified plan descriptions, sixteen named
 places and sixteen authoritative historical task results. Intent/alias UTF-8
 accounting is capped at 4096 bytes; results at 2048 with oldest-result eviction.
 The existing 16 KiB encoded record and 256-record server limits remain unchanged.
 Versions 1 and 2 migrate with empty memory and unchanged budgets/task identity.
+Version 3 retains existing memory. Version 4 also records the Planner step counter.
 Malformed saves are retained read-only.
 
 The current slice wires named places and task history into Translator and stock
-Supervisor contexts. Planner step selection is the next slice; descriptions are
-never executable orders or proof of current world state.
+Supervisor contexts. Planner execution is verified in the emulator scope (LLM_PLANNER.md); descriptions
+are never executable orders or proof of current world state.
 
 For an existing idle, waiting, asking, stopped or finished goal:
 

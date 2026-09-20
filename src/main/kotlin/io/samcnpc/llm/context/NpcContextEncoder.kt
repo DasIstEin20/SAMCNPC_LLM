@@ -13,7 +13,7 @@ import java.nio.charset.CharacterCodingException
 
 /** Pure worker-side encoding. No world reads, reflection, secrets or raw human diagnostics. */
 internal object NpcContextEncoder {
-    const val VERSION = 2
+    const val VERSION = 3
     const val MAX_STATE_BYTES = 24 * 1024
 
     fun encode(captured: CapturedContext, maxBytes: Int = MAX_STATE_BYTES): ContextEncodingResult {
@@ -52,7 +52,9 @@ internal object NpcContextEncoder {
             "resources" to WorldContext.reservations(inspection.reservations),
             "stockSupervision" to StockContext.encode(goal.supervision, captured.stock),
             "goal" to obj("id" to text(goal.id.toString()), "revision" to number(goal.revision), "text" to text(goal.text),
-                "mode" to text(goal.mode.name), "deadlineTick" to number(goal.deadlineTick)),
+                "mode" to text(goal.mode.name), "deadlineTick" to number(goal.deadlineTick),
+                "planStepsCompleted" to number(goal.planStepsCompleted),
+                "remainingPlanSteps" to number(if (goal.mode == LlmMode.PLANNER) 8 - goal.planStepsCompleted else null)),
             "memory" to memory(goal.memory), "policy" to policy(captured.policy),
             "capabilities" to capabilities(captured),
             "authority" to obj("actorUuid" to text(binding.actorUuid.toString()),

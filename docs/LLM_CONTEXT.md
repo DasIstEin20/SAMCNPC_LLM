@@ -1,4 +1,4 @@
-# NpcLlmContext v2
+# NpcLlmContext v3
 
 NpcContextBuilder captures one authorized immutable Behavior inspection on the
 server thread. NpcContextEncoder accepts that detached capture on an inference
@@ -44,3 +44,6 @@ passed with 760 frozen sources. Evidence is in PROJECT_STATE.md.
 Durable goal memory is now projected into the existing v2 memory section; see
 [LLM_MEMORY](LLM_MEMORY.md). Named places remain intent with UNKNOWN contents.
 Confirmed results come from authoritative task observations, not model summaries.
+
+Version 3 adds server-completed and remaining Planner step counts. Only Planner
+uses decision envelope v2; Translator/Supervisor retain v1. See LLM_PLANNER.md.

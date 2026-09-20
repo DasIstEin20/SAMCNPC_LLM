@@ -16,7 +16,7 @@ internal object DecisionSchema {
         compact(exported.getAsJsonObject(DEFS)).toString()
     }
 
-    fun forContext(contextId: UUID, policy: ContextPolicy): String {
+    fun forContext(contextId: UUID, policy: ContextPolicy, planner: Boolean = false): String {
         val defs = JsonParser.parseString(definitions).asJsonObject
         val operations = policy.operations.sortedBy { it.ordinal }
         if (operations.isNotEmpty()) {
@@ -24,7 +24,7 @@ internal object DecisionSchema {
         }
         val changes = policy.changes.sorted().filter { it != "REPLACE" || operations.isNotEmpty() }
         val props = JsonObject()
-        props.add("schemaVersion", typed("integer").also { it.addProperty("const", DecisionDecoder.VERSION) })
+        props.add("schemaVersion", typed("integer").also { it.addProperty("const", if (planner) 2 else DecisionDecoder.VERSION) })
         props.add("contextId", typed("string").also { it.add("enum", strings(listOf(contextId.toString()))) })
         props.add("decision", typed("string").also { it.add("enum", strings(DecisionKind.entries.map { kind -> kind.name })) })
         props.add("summary", boundedText(256))
@@ -37,6 +37,7 @@ internal object DecisionSchema {
             it.addProperty("minimum", 20); it.addProperty("maximum", 1200)
         }))
         props.add("wait", nullable(record(waitProperties)))
+        if (planner) props.add("plan", nullable(planSchema()))
         val root = record(props)
 
         val pending = ArrayDeque<String>()
@@ -82,6 +83,24 @@ internal object DecisionSchema {
         }
         visit(value)
         return result
+    }
+
+    private fun planSchema(): JsonObject {
+        val props = JsonObject()
+        props.add("steps", typed("array").also {
+            it.addProperty("minItems", 1); it.addProperty("maxItems", 8)
+            it.add("items", boundedText(256).also { text -> text.addProperty("minLength", 1) })
+        })
+        val item = JsonObject()
+        item.add("itemId", boundedText(256).also { it.addProperty("minLength", 1) })
+        item.add("minimum", typed("integer").also { it.addProperty("minimum", 1); it.addProperty("maximum", 2304) })
+        props.add("requiredItems", typed("array").also {
+            it.addProperty("maxItems", 8); it.add("items", record(item))
+        })
+        props.add("minimumEmptySlots", typed("integer").also {
+            it.addProperty("minimum", 0); it.addProperty("maximum", 36)
+        })
+        return record(props)
     }
 
     private fun typed(type: String) = JsonObject().also { it.addProperty("type", type) }

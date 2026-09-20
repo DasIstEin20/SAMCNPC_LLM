@@ -27,7 +27,9 @@ internal object GoalAuthorityProbe {
                 controller.status(stranger, npc), controller.answer(stranger, npc, "32", 0),
                 controller.stop(stranger, npc), controller.resume(stranger, npc, 0), controller.forget(stranger, npc),
                 controller.place(stranger, npc, "base", io.samcnpc.core.api.NpcBlockPosition(0, 64, 0)),
-                controller.place(stranger, npc, "base", null))) {
+                controller.place(stranger, npc, "base", null),
+                controller.start(stranger, npc, "Take over the plan", 0, planner = true),
+                controller.complete(stranger, npc))) {
                 check(!reply.accepted && reply.record == null)
                 checks++
             }
