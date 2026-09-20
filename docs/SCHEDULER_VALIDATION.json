@@ -1,0 +1,61 @@
+{
+  "status": "PASS",
+  "utc": "2026-09-20T06:00:34.077270+00:00",
+  "units": {
+    "samcnpc-core": 47,
+    "samcnpc-behavior": 364,
+    "samcnpc-llm": 62
+  },
+  "frozenSourceFiles": 789,
+  "cleanBuild": true,
+  "boundaryDistributionGuards": true,
+  "schedulerRuntimeCases": 15,
+  "schedulerLoopbackHttpCalls": 15,
+  "schedulerTime": "virtual monotonic clock; real Forge game ticks",
+  "reports": {
+    "client": "PASS titleScreen=true frames=235 configGui=true configSave=true staleDraft=true logo=true mods=[samcnpc_behavior, samcnpc_core, samcnpc_llm] behaviorValidation=true componentCatalog=14/23 registeredSchema=true typedOrders=true configLoaded=true defaultDisabled=true emulatedHttp=true boundedBodyTimeout=true http503=true recovery=true calls=4",
+    "server": "PASS dedicated=true ticks=102 coreApi=true mods=[samcnpc_behavior, samcnpc_core, samcnpc_llm] behaviorValidation=true componentCatalog=14/23 registeredSchema=true typedOrders=true configLoaded=true defaultDisabled=true emulatedHttp=true boundedBodyTimeout=true http503=true recovery=true calls=4 contextWorker=true detachedAfterDismiss=true inventorySlots=36 hiddenBlockOmitted=true contextBytes=9725 contextBounds=true captureAuthority=true decisionHttpCalls=2 fullSchemaBytes=47149 jsonObjectBytes=52405 lateHttpRejected=true httpResumeApplied=true schedulerCases=15 schedulerHttpCalls=15 schedulerWorkerCalls=15 schedulerThreadChecks=true schedulerVirtualClock=true lastGoalCallAdmitted=true schedulerLateReplySuppressed=true admissionChecks=30 admissionReplay=true lateManualControlRejected=true exactReceiptReadOnly=true lostReplyNoRetry=true subscriptionsStopped=true"
+  },
+  "coreBehaviorSourcesAndBuildsUnchanged": true,
+  "retainedEvidence": {
+    "coreNative": {
+      "cases": 141,
+      "source": "visual-evidence.json"
+    },
+    "behaviorNative": {
+      "cases": 214,
+      "source": "decision-evidence.json"
+    },
+    "behaviorClient": {
+      "cases": 12,
+      "source": "decision-evidence.json"
+    }
+  },
+  "realModels": "USER_DEFERRED_NOT_VERIFIED",
+  "authenticatedSkinAccounts": "MANUAL_PENDING_NONBLOCKING",
+  "goalController": "L4_NOT_IMPLEMENTED",
+  "tokenMeter": "verified-profile upper bound; no actual real tokenizer verification",
+  "standalone": {
+    "cleanBuild": true,
+    "llmUnits": 62,
+    "matchingOwnFiles": 68,
+    "runtimeRerun": false,
+    "artifacts": {
+      "llm": {
+        "name": "samcnpc-llm-0.1.0.jar",
+        "bytes": 1061443,
+        "sha256": "2d212be19fb3ecc391da108415e51e1ae09b2abbf020821c81cb15a1d7fe88b0"
+      },
+      "behavior": {
+        "name": "samcnpc-behavior-0.1.0.jar",
+        "bytes": 3637634,
+        "sha256": "63b65deadf1f7b90ad20aa70acf2798fb3e8ca5aa2d2fe3d492a2b5be4227c93"
+      },
+      "core": {
+        "name": "samcnpc-core-0.1.0.jar",
+        "bytes": 1746209,
+        "sha256": "3c51da034f3a82e8ae1dd48e282801abb9f5d1ec5a04c17299f5edc5502b2bdc"
+      }
+    }
+  }
+}

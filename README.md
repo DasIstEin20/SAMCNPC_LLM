@@ -18,11 +18,13 @@ Integration is disabled by default: no startup request or automatic model loadin
 Strict eight-decision decoding, policy/freshness admission, replay rejection and
 read-only amendment reconciliation are implemented through public Behavior APIs.
 See [configuration](docs/LLM_CONFIGURATION.md), [context](docs/LLM_CONTEXT.md) and
-[decision contract](docs/LLM_DECISIONS.md).
+[decision contract](docs/LLM_DECISIONS.md) and [bounded scheduling](docs/LLM_SCHEDULING.md).
 
-**Work in progress:** scheduling and Translator → Supervisor →
+Bounded event scheduling, worker cancellation, retry/circuit and resource budgets are implemented.
+
+**Work in progress:** Translator → Supervisor →
 Planner. This version does not yet turn player goals into NPC work. The plan is
-17/36 complete. Tests use a lightweight local HTTP emulator; actual model/backend
+18/36 complete. Tests use a lightweight local HTTP emulator; actual model/backend
 compatibility and planning quality remain unverified.
 See [the plan](docs/LLM_INTEGRATION_PLAN.md) and [boundary](docs/LLM_BOUNDARY.md).
 
@@ -44,13 +46,14 @@ NPC context capture or the actual Mods Config screen. Servers require EULA accep
 
 ## Validation
 
-Canonical clean build: 449 units (47 Core/364 Behavior/38 LLM), 214 native Behavior
-tests, 12 actual client scenarios, 30 dedicated admission checks and 171 independent
-schema checks. Full-context HTTP, client configuration and three-JAR distribution PASS.
-Standalone validation, source match and artifact hashes are recorded in
-[evidence](docs/DECISION_VALIDATION.json). [Project state](PROJECT_STATE.md) separates
-current checks from unchanged Core/Behavior gameplay evidence. Two-account skin
-appearance is a manual, nonblocking check.
+Canonical clean build: 473 units (47 Core/364 Behavior/62 LLM), 15 actual dedicated
+scheduler scenarios / 15 HTTP calls, plus 30 admission checks and full-context HTTP.
+Client configuration/logo and three-JAR distribution PASS. Rate time in the scheduler
+probe is virtual. Unchanged Core141/Behavior214 native and 12 client gameplay cases
+retain the preceding milestone evidence; they were not rerun for this LLM-only slice.
+Standalone source matching/build and artifact hashes: [evidence](docs/SCHEDULER_VALIDATION.json).
+[Project state](PROJECT_STATE.md) records limits. Two-account skins are a manual,
+nonblocking check. Real model profiles and the one-hour soak remain unverified.
 
 [Core](https://github.com/DasIstEin20/SAMCNPC_Core) ·
 [Behavior](https://github.com/DasIstEin20/SAMCNPC_Behavior)

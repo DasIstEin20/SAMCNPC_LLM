@@ -10,7 +10,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 /** CPU-only OpenAI-compatible protocol emulator; never loads or impersonates a real model. */
-internal class FakeOpenAiEndpoint : AutoCloseable {
+internal class FakeOpenAiEndpoint(private val responder: ((Received) -> Reply)? = null) : AutoCloseable {
     data class Reply(
         val body: ByteArray = success().toByteArray(),
         val status: Int = 200,
@@ -33,10 +33,11 @@ internal class FakeOpenAiEndpoint : AutoCloseable {
         server.createContext("/") { exchange ->
             try {
                 val requestBytes = exchange.requestBody.readNBytes(65_537)
-                received.add(Received(exchange.requestURI.path, exchange.requestMethod,
-                    exchange.requestHeaders.getFirst("Authorization"), requestBytes.toString(Charsets.UTF_8)))
+                val request = Received(exchange.requestURI.path, exchange.requestMethod,
+                    exchange.requestHeaders.getFirst("Authorization"), requestBytes.toString(Charsets.UTF_8))
+                received.add(request)
                 arrivals.release()
-                val reply = checkNotNull(replies.poll()) { "Unexpected emulator request" }
+                val reply = checkNotNull(responder?.invoke(request) ?: replies.poll()) { "Unexpected emulator request" }
                 reply.waitBeforeHeaders?.await(5, TimeUnit.SECONDS)
                 exchange.responseHeaders.set("Content-Type", "application/json")
                 reply.headers.forEach { (key, value) -> exchange.responseHeaders.set(key, value) }

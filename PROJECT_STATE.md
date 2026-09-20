@@ -1,29 +1,27 @@
 # Project state — 2026-09-20
 
-LLM plan: 17/36 complete (L0, L1, L2, L3.1/.2/.4).
-Implemented: Forge configuration/logo, bounded HTTP/emulator, authorized NpcLlmContext,
-strict eight-decision schema/decoder/policy, current-authority/generation/revision/TTL
-admission, one-use context slots and read-only exact amendment reconciliation.
-Default disabled; no player goal controller, scheduler or persistent planner enabled.
+LLM plan: 18/36 complete (L0, L1, L2, L3.1–L3.4). Configuration/logo, bounded HTTP,
+authorized context, strict decisions/admission and bounded inference scheduling
+are implemented. Default disabled; player goal commands/controller and SavedData
+remain L4, followed by Supervisor/Planner. No actual model is installed or verified.
 
-Canonical clean build: 449 units (Core47/Behavior364/LLM38), 214 native Behavior tests,
-12 actual client scenarios with 9 receipt consumers, 30 dedicated admission probes,
-171 independent schema checks and two full-context HTTP decisions PASS.
-A late response after manual pause is rejected; a fresh authorized RESUME is applied
-once. JSON_SCHEMA/JSON_OBJECT complete requests measured 47149/52405 bytes.
-All 774 frozen source/build hashes, client GUI/server shutdown, boundaries and
-exactly three Java 17 mod artifacts PASS. Core retains unchanged 141 native tests.
+Canonical clean build: 473 units (Core47/Behavior364/LLM62), 15 actual dedicated
+scheduler scenarios / 15 HTTP calls, 30 admission probes and full-context HTTP;
+client Mods configuration/logo and dedicated shutdown PASS. All 789 frozen source/
+build hashes and boundary/exactly-three-JAR guards PASS. Core/Behavior sources and
+builds remain unchanged, retaining Core141/Behavior214 native and 12 client gameplay
+cases from earlier milestones. Those native tests were not rerun for this LLM slice.
+The scheduler rate clock is virtual in the runtime probe, not an L7 one-hour soak.
 
-Standalone clean build: 38 LLM units; all 53 source/resource/test files match the
-canonical milestone. Behavior is pinned to d03d3de07f166c838b78d922bb64ef7d7330867d;
-Core is pinned transitively to 53e3f25069e404f60d7d8c3d08c6bcc4d4802283.
-Runtime evidence is the canonical campaign; standalone runtime was not repeated.
-See docs/DECISION_VALIDATION.json, docs/LLM_DECISIONS.md and ADR0095. Earlier validation
-JSON files retain historical evidence for their specifically dated source snapshots.
+Standalone clean build: 62 LLM units; all 68 own source/resource/test files match
+the canonical snapshot. Behavior d03d3de07f166c838b78d922bb64ef7d7330867d and transitive
+Core 53e3f25069e404f60d7d8c3d08c6bcc4d4802283 are pinned. Standalone runtime was not
+rerun; canonical runtime evidence and artifact hashes are in docs/SCHEDULER_VALIDATION.json.
+See docs/LLM_SCHEDULING.md and ADR0096; previous validation files are historical.
 
-Next: bounded scheduler, then Translator commands and durable goal/admission state,
-Supervisor and Planner. The goal controller must retain manual hold until explicit
-user resume; the transient admission slot alone is not restart persistence.
-Real model/backend profiles remain USER_DEFERRED, with no model installed.
-Authenticated skins remain MANUAL_PENDING/nonblocking. Existing LICENSE is preserved;
-generated worlds/configs/EULA/screenshots/private logs stay out of published source.
+Real backend/model/tokenizer profiles remain USER_DEFERRED. The unverified profile
+cannot dispatch inference; the byte-level bound requires an explicitly verified
+backend/model/tokenizer/template tuple. Actual model quality is not established.
+Player manual hold and durable admission recovery remain goal-controller work.
+Authenticated two-account skins remain MANUAL_PENDING/nonblocking. Generated worlds,
+configs/EULA, logs and private monitoring data are excluded from source publication.

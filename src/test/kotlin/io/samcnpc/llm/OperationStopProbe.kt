@@ -19,6 +19,7 @@ internal object OperationStopProbe {
     private var channel: EmbeddedChannel? = null
     private var npcUuid: UUID? = null
     private var http: DecisionHttpProbe? = null
+    private var scheduler: SchedulerRuntimeProbe? = null
     private var origin: NpcPosition? = null
     private var subscription: OperationSubscription? = null
     val started: Boolean get() = subscription != null
@@ -63,6 +64,15 @@ internal object OperationStopProbe {
         return current.poll()
     }
 
+    fun pollScheduler(server: MinecraftServer): String? {
+        val current = scheduler
+        if (current == null) {
+            scheduler = SchedulerRuntimeProbe(server, checkNotNull(player), checkNotNull(origin))
+            return null
+        }
+        return current.poll()
+    }
+
     fun beforeStop() {
         check(checkNotNull(subscription).state == OperationSubscriptionState.ACTIVE)
     }
@@ -70,6 +80,8 @@ internal object OperationStopProbe {
     fun afterBehaviorStop(server: MinecraftServer) {
         check(checkNotNull(subscription).state == OperationSubscriptionState.SERVER_STOPPED)
         stopped = true
+        scheduler?.close()
+        scheduler = null
         http?.close()
         http = null
         origin = null

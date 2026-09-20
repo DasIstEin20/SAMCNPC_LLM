@@ -18,10 +18,12 @@ Integracja jest domyślnie wyłączona. Nie wysyła żądania na starcie i nie i
 Gotowy jest też ścisły kontrakt ośmiu decyzji, walidacja polityki/świeżości,
 odrzucanie ponownych odpowiedzi i odczyt potwierdzeń korekt przez API Behavior.
 [Konfiguracja](docs/LLM_CONFIGURATION.md), [kontekst](docs/LLM_CONTEXT.md),
-[kontrakt decyzji](docs/LLM_DECISIONS.md).
+[kontrakt decyzji](docs/LLM_DECISIONS.md), [harmonogram wywołań](docs/LLM_SCHEDULING.md).
 
-**W budowie:** kolejka oraz Translator → Supervisor →
-Planner. Ta wersja jeszcze nie zamienia poleceń gracza na pracę NPC. Plan: 17/36.
+Gotowa jest kolejka zdarzeń, anulowanie workerów, ograniczone retry i budżety zasobów.
+
+**W budowie:** Translator → Supervisor →
+Planner. Ta wersja jeszcze nie zamienia poleceń gracza na pracę NPC. Plan: 18/36.
 Testy używają lekkiego lokalnego emulatora HTTP; rzeczywisty model użytkownik poda później.
 [Plan](docs/LLM_INTEGRATION_PLAN.md), [granice modułu](docs/LLM_BOUNDARY.md).
 
@@ -42,12 +44,14 @@ NPC lub ekran Mods Config. Serwer wymaga zaakceptowania Minecraft EULA.
 
 ## Weryfikacja
 
-Pełny projekt: 449 testów jednostkowych (47 Core/364 Behavior/38 LLM), 214 natywnych
-testów Behavior, 12 scenariuszy klienta, 30 prób admission i 171 niezależnych sprawdzeń
-schema. Pełny kontekst przez HTTP, GUI oraz trzy JAR-y: PASS.
-Weryfikacja tego repo, zgodność źródeł i hashe artefaktów: [dowody](docs/DECISION_VALIDATION.json).
-[Stan projektu](PROJECT_STATE.md) rozróżnia bieżące testy od zachowanych dowodów
-rozgrywki Core/Behavior. Skórki dwóch kont pozostają testem ręcznym, bez blokowania prac.
+Pełny projekt: 473 testy jednostkowe (47 Core/364 Behavior/62 LLM), 15 scenariuszy
+harmonogramu na rzeczywistym serwerze / 15 HTTP, 30 prób admission i pełny kontekst
+przez HTTP. GUI/logo oraz trzy JAR-y: PASS. Zegar limitów w próbach jest wirtualny.
+Niezmienione Core141/Behavior214 native i 12 scenariuszy klienta zachowują wcześniejsze
+dowody; nie powtarzano ich dla tego etapu dotyczącego wyłącznie LLM.
+Build tego repo, zgodność źródeł i hashe: [dowody](docs/SCHEDULER_VALIDATION.json).
+[Stan projektu](PROJECT_STATE.md) opisuje ograniczenia. Skórki dwóch kont pozostają
+ręczne i nieblokujące. Rzeczywiste modele oraz godzinny soak nadal czekają na testy.
 
 [Core](https://github.com/DasIstEin20/SAMCNPC_Core) ·
 [Behavior](https://github.com/DasIstEin20/SAMCNPC_Behavior)
