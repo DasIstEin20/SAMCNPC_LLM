@@ -53,3 +53,5 @@ Authenticated skin appearance remains a manual, nonblocking test.
 
 [Core](https://github.com/DasIstEin20/SAMCNPC_Core) ·
 [Behavior](https://github.com/DasIstEin20/SAMCNPC_Behavior)
+
+2026-09-20: Behavior observation generations verified; canonical 423 units, 211 native Behavior tests, 12 client cases (9 generation probes), three-mod smokes. Standalone LLM clean build/19 units passed; [dependency evidence](docs/LIFETIME_DEPENDENCY_VALIDATION.json). On-demand events and ContextBuilder remain unfinished.
