@@ -1,6 +1,6 @@
 # F02 / llm_integration — plan budowy
 
-Data: 2026-09-20. Status: **IN_PROGRESS, L0–L2, L3.1–L3.4, L4 i L5 ukończone, 27/36 punktów zamkniętych**.
+Data: 2026-09-20. Status: **IN_PROGRESS, L0–L2, L3.1–L3.4, L4, L5 i L6.1 ukończone, 28/36 punktów zamkniętych**.
 To osobny plan rozwoju istniejącego modułu samcnpc-llm, poza licznikiem P00–P12
 (104/112) i Acceptance Zoo (23/23). L0 domyka istniejące P11.1/P11.7, nie tworzy
 konkurencyjnego katalogu ani drugiego wykonawcy. Pierwotne dopisanie planu nie uruchamiało implementacji. Użytkownik 2026-09-20
@@ -434,10 +434,15 @@ USER_DEFERRED, skórki MANUAL_PENDING.
 
 ### L6 — Planner i ograniczona pamięć (po zaliczeniu Supervisora)
 
-- [ ] L6.1 Rozszerzyć SavedData o wersjonowany plan/aliasy/wyniki oraz globalne limity, migrację, cleanup po usunięciu NPC i walidację uszkodzonego zapisu.
+- [x] L6.1 Rozszerzyć SavedData o wersjonowany plan/aliasy/wyniki oraz globalne limity, migrację, cleanup po usunięciu NPC i walidację uszkodzonego zapisu.
 - [ ] L6.2 Przyjmować najwyżej 8 opisów kroków i dopuszczać tylko bieżący krok po świeżej obserwacji; weryfikować jego preconditions i wynik.
 - [ ] L6.3 Uzgadniać memory, task i receipts po restartach/awariach admission; cel użytkownika i ręczna zmiana mają pierwszeństwo nad starym planem.
 - [ ] L6.4 Przejść „zapasy na wyprawę”: food → wood → dozwolona obsługa inventory → powrót; zmiana świata/niemożliwy krok kończą się przeplanowaniem lub pytaniem, bez craftingu i fikcyjnego sukcesu.
+
+Dowód L6.1: LLM_MEMORY.md i ADR0100; 509 unit (96 LLM), 833 zgodne hashe,
+komendy i pamięć w rzeczywistym kliencie/serwerze, 13 kontroli uprawnień,
+33 próby admission oraz restart osobnych JVM PASS. Zapis v3 migruje v1/v2.
+Wykonywanie wieloetapowego Plannera pozostaje L6.2–L6.4.
 
 Wyjście: plan wielu etapów jest odporny na zmianę świata; każdy efekt ma osobny,
 sprawdzalny wynik i nie wynika z automatycznego odtwarzania zapisanej listy.
@@ -501,6 +506,6 @@ Sprawdzone 2026-09-20; uzasadniają projekt transportu, nie dowodzą zgodności 
 - Ollama opisuje własny /v1/chat/completions i wspierany podzbiór pól. [OpenAI compatibility](https://docs.ollama.com/api/openai-compatibility).
 - vLLM opisuje zgodność Chat API i dodatkowe parametry; zgodność zależy też od modelowego chat template. Odczytana dokumentacja v0.18.2 nie jest wyborem wersji wdrożenia. [OpenAI-Compatible Server](https://docs.vllm.ai/en/v0.18.2/serving/openai_compatible_server/).
 
-**Kolejny krok: L6 — ograniczony Planner.**
+**Kolejny krok: L6.2–L6.4 — wykonywanie ograniczonego Plannera.**
 Katalog, kontekst, decyzje, provider, Translator i Supervisor mają dowody emulatora.
 Po Plannerze pozostaje L7: pełna kampania i co najmniej godzina aktywnego testu wielu NPC.

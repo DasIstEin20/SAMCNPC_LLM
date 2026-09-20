@@ -27,6 +27,21 @@ internal object LlmGoalCommands {
                         StringArgumentType.getString(context, "text"))
                 })))
         }
+        branch.then(Commands.literal("remember").then(Commands.argument("npc", StringArgumentType.word())
+            .then(Commands.argument("name", StringArgumentType.word())
+            .then(Commands.argument("x", IntegerArgumentType.integer(-29999984, 29999984))
+            .then(Commands.argument("y", IntegerArgumentType.integer(-2048, 2048))
+            .then(Commands.argument("z", IntegerArgumentType.integer(-29999984, 29999984)).executes { context ->
+                execute(context.source, "remember", StringArgumentType.getString(context, "npc"),
+                    StringArgumentType.getString(context, "name"), position = NpcBlockPosition(
+                        IntegerArgumentType.getInteger(context, "x"), IntegerArgumentType.getInteger(context, "y"),
+                        IntegerArgumentType.getInteger(context, "z")))
+            }))))))
+        branch.then(Commands.literal("forget_place").then(Commands.argument("npc", StringArgumentType.word())
+            .then(Commands.argument("name", StringArgumentType.word()).executes { context ->
+                execute(context.source, "forget_place", StringArgumentType.getString(context, "npc"),
+                    StringArgumentType.getString(context, "name"))
+            })))
         branch.then(Commands.literal("maintain")
             .then(Commands.argument("npc", StringArgumentType.word())
             .then(Commands.argument("item", ResourceLocationArgument.id())
@@ -53,7 +68,7 @@ internal object LlmGoalCommands {
         event.dispatcher.register(Commands.literal("samcnpc").then(branch))
     }
 
-    private fun execute(source: CommandSourceStack, action: String, rawNpc: String, text: String, stock: StockTarget? = null): Int {
+    private fun execute(source: CommandSourceStack, action: String, rawNpc: String, text: String, stock: StockTarget? = null, position: NpcBlockPosition? = null): Int {
         val actor = source.entity as? ServerPlayer ?: return fail(source, "PLAYER_REQUIRED")
         val npc = try { UUID.fromString(rawNpc) } catch (_: IllegalArgumentException) { return fail(source, "INVALID_NPC_UUID") }
         if (!npc.toString().equals(rawNpc, ignoreCase = true)) return fail(source, "INVALID_NPC_UUID")
@@ -63,6 +78,8 @@ internal object LlmGoalCommands {
             "goal" -> controller.start(actor, npc, text, now)
             "maintain" -> controller.start(actor, npc, text, now, checkNotNull(stock))
             "answer" -> controller.answer(actor, npc, text, now)
+            "remember" -> controller.place(actor, npc, text, checkNotNull(position))
+            "forget_place" -> controller.place(actor, npc, text, null)
             "status" -> controller.status(actor, npc)
             "stop" -> controller.stop(actor, npc)
             "resume" -> controller.resume(actor, npc, now)
@@ -73,6 +90,8 @@ internal object LlmGoalCommands {
         val message = "SAMCNPC LLM: " + reply.code + if (record == null) "" else
             "\nNPC " + record.npcUuid + " | " + record.phase.name + " | goal " + record.goalId +
                 " rev " + record.revision + " | attempts " + record.budget.settledAttempts + "/" + record.limits.attempts +
+                " | places " + record.memory.aliases.joinToString(",") { it.name } +
+                " | confirmed results " + record.memory.results.size +
                 (record.question?.let { "\n" + it } ?: "")
         if (reply.accepted) source.sendSuccess({ Component.literal(message) }, false)
         else source.sendFailure(Component.literal(message))

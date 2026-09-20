@@ -85,6 +85,12 @@ internal object DecisionAdmissionProbe {
             }
             val idle = capture()
             reject(idle, "GOAL_CHANGED", ContextGoal(goal.id, 2, goal.text, goal.mode, null, 24))
+            reject(idle, "GOAL_MEMORY_CHANGED", ContextGoal(goal.id, goal.revision, goal.text, goal.mode, null, 24,
+                ContextMemory(plan = listOf("Changed intent"))))
+            reject(idle, "GOAL_MEMORY_CHANGED", ContextGoal(goal.id, goal.revision, goal.text, goal.mode, null, 24,
+                ContextMemory(aliases = listOf(ContextPlaceAlias("base", dimension, NpcBlockPosition(0, 64, 0))))))
+            reject(idle, "GOAL_MEMORY_CHANGED", ContextGoal(goal.id, goal.revision, goal.text, goal.mode, null, 24,
+                ContextMemory(confirmedResults = listOf("New confirmed result"))))
             reject(idle, "MANUAL_HOLD", hold = true)
             reject(idle, "GOAL_BUDGET_EXHAUSTED", ContextGoal(goal.id, 1, goal.text, goal.mode, null, 0))
             reject(idle, "POLICY_CHANGED", currentPolicy = ContextPolicy(1, emptySet(), emptySet(),

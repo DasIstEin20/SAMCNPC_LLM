@@ -37,6 +37,7 @@ internal data class GoalRecord(
     val budget: InferenceBudgetView = InferenceBudgetView(0, 0, 0, 0, null),
     val mode: LlmMode = LlmMode.TRANSLATOR,
     val supervision: StockSupervision? = null,
+    val memory: GoalMemory = GoalMemory(),
 ) {
     init {
         require(revision >= 0)

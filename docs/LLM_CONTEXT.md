@@ -40,3 +40,7 @@ the permitted range, omits a real out-of-range ore, removes the NPC, and encodes
 a worker. It checks UTF-8 length, 36 slots, aliases, malformed Unicode and an
 oversized mandatory context. Final clean build, 436 units, dedicated/client and boundary/distribution checks
 passed with 760 frozen sources. Evidence is in PROJECT_STATE.md.
+
+Durable goal memory is now projected into the existing v2 memory section; see
+[LLM_MEMORY](LLM_MEMORY.md). Named places remain intent with UNKNOWN contents.
+Confirmed results come from authoritative task observations, not model summaries.

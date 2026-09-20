@@ -26,12 +26,16 @@ Gotowa jest kolejka zdarzeń, anulowanie workerów, ograniczone retry i budżety
 Translator zamienia jeden cel gracza na walidowaną operację Behavior. Supervisor
 utrzymuje wskazany zapas z histerezą, świeżymi odczytami i ograniczoną historią awarii.
 Komendy, budżety i odtwarzanie stanu opisują [Translator](docs/LLM_TRANSLATOR.md)
-oraz [Supervisor](docs/LLM_SUPERVISOR.md). Plan: 27/36; następne są Planner i akceptacja.
+oraz [Supervisor](docs/LLM_SUPERVISOR.md). Plan: 28/36; następne są Planner i akceptacja.
 Testy używają lekkiego emulatora HTTP. Rozumienie języka i profile prawdziwego modelu
 pozostają niezweryfikowane. [Plan](docs/LLM_INTEGRATION_PLAN.md).
 
 Odczyt zapasu wymaga widocznej, osiągalnej skrzyni vanilla i aktualnych uprawnień.
 [Zakres sensora](docs/STOCK_OBSERVATION.md) opisuje ograniczenia.
+
+Trwała [pamięć](docs/LLM_MEMORY.md) przechowuje nazwy miejsc gracza i potwierdzone
+wyniki. `remember` / `forget_place` działają dla bezczynnego celu; zapamiętane
+miejsce nie potwierdza aktualnej zawartości świata. Zapis v3 migruje starsze wersje.
 
 ## Budowanie
 
@@ -55,18 +59,19 @@ Każda kampania wymaga nowego ID restartu. Serwer wymaga zaakceptowania Minecraf
 
 ## Weryfikacja
 
-Pełny projekt: 504 testy jednostkowe (49 Core/364 Behavior/91 LLM), 830 zgodnych
+Pełny projekt: 509 testów jednostkowych (49 Core/364 Behavior/96 LLM), 833 zgodnych
 hashy źródeł/buildów i kontrola trzech JAR-ów. Dedicated i klient zaliczyły po
 14 scenariuszy Supervisora / 22 HTTP oraz osiem scenariuszy Translatora / dziewięć HTTP.
 Supervisor przeszedł uzupełnianie i histerezę, nieaktualny stan skrzyni, pełny magazyn,
 brak zasobu, pętle A/B i WAIT, ręczne sterowanie, wyłączenie providera, uszkodzony JSON
 oraz powtarzane HTTP 503. Zdrowe zadanie nie powodowało dodatkowych wywołań modelu.
 Klient wyrenderował 14 przypadków Supervisora i potwierdził chodzenie w pięciu.
-Restart dwóch JVM zachował ID zadań, dokończył fizyczną dostawę, zatrzymał niepewne
+Komendy pamięci, jej kontekst i 13 kontroli uprawnień także przeszły.
+Restart dwóch JVM zachował nazwy miejsc i ID zadań, dokończył fizyczną dostawę, zatrzymał niepewne
 przyjęcie operacji i ponownie odczytał zapas bez powielania zadań.
 
-Build tego repo: 91 testów LLM, 102 zgodne pliki źródłowe.
-[Dowody i hashe](docs/SUPERVISOR_VALIDATION.json) oddzielają testy integracji od jakości
+Build tego repo: 96 testów LLM, 105 zgodnych plików źródłowych.
+[Aktualne dowody i hashe](docs/MEMORY_VALIDATION.json) oddzielają testy integracji od jakości
 prawdziwego modelu. Niezmienione Core146/Behavior215 native i Core52 animacji zachowują
 wcześniejsze dowody. [Stan projektu](PROJECT_STATE.md) opisuje ograniczenia.
 Skórki dwóch kont pozostają ręczne i nieblokujące. Modele, Planner i aktywny godzinny

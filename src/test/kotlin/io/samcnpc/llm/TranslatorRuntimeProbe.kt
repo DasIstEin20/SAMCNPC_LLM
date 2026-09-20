@@ -44,6 +44,7 @@ internal class TranslatorRuntimeProbe(private val server: MinecraftServer, priva
     private var ticks = 0
     private var caseTicks = 0
     private var answered = false
+    private var busyMemoryChecked = false
     private var offline = false
     private var cancelled = false
     private var pausedAt: Int? = null
@@ -80,7 +81,7 @@ internal class TranslatorRuntimeProbe(private val server: MinecraftServer, priva
             check(stockReads == 5)
             close()
             final = "translatorCases=8 translatorHttpCalls=$calls translatorMaxRequestBytes=${script.maxRequestBytes.get()} registeredGoalCommands=true goalAuthorityChecks=$authorityChecks physicalStockReads=$stockReads physicalTransport=true physicalDeliver=true physicalLumberjack=true manualPauseHeld=true " +
-                "clarificationBudgetRetained=true offlineBehaviorContinues=true missingResourceFailed=true fullDestinationFailed=true userCancelNoLateAssign=true"
+                "memoryCommands=true memoryContext=true confirmedResults=true clarificationBudgetRetained=true offlineBehaviorContinues=true missingResourceFailed=true fullDestinationFailed=true userCancelNoLateAssign=true"
             return final
         }
         if (current == null) {
@@ -101,10 +102,23 @@ internal class TranslatorRuntimeProbe(private val server: MinecraftServer, priva
             check(record.question == "Ile bloków przetransportować?")
             check(record.budget.settledAttempts == 1 && record.budget.inFlight == null)
             check(count(source(), Items.COBBLESTONE) == 64 && count(destination(), Items.COBBLESTONE) == 0)
+            check(command("remember", handle, "main_storage " + destinationPos.x + " " + destinationPos.y + " " + destinationPos.z) == 1)
+            val remembered = checkNotNull(controller.store.get(handle.npcUuid))
+            check(remembered.revision == record.revision + 1 && remembered.budget == record.budget)
+            check(remembered.memory.aliases.single().name == "main_storage")
+            check(command("remember", handle, "temporary 0 64 0") == 1)
+            check(command("forget_place", handle, "temporary") == 1)
+            check(controller.store.get(handle.npcUuid)?.memory?.aliases?.size == 1)
             check(command("answer", handle, "32") == 1)
             check(controller.store.get(handle.npcUuid)?.goalId == record.goalId)
             check(controller.store.get(handle.npcUuid)?.budget == record.budget)
             answered = true
+        }
+        if (name == "clarify" && record.phase == GoalPhase.EXECUTING && !busyMemoryChecked) {
+            val reply = controller.place(actor, handle.npcUuid, "main_storage", NpcBlockPosition(0, 64, 0))
+            check(!reply.accepted && reply.code == "MEMORY_EDIT_REQUIRES_IDLE_GOAL")
+            check(controller.store.get(handle.npcUuid) == record)
+            busyMemoryChecked = true
         }
         if (name == "pause" && record.phase == GoalPhase.EXECUTING && pausedAt == null) {
             val view = checkNotNull(observed); val task = checkNotNull(view.task)
@@ -157,6 +171,12 @@ internal class TranslatorRuntimeProbe(private val server: MinecraftServer, priva
                 if (name == "full") check(count(source(), Items.COBBLESTONE) + carried(handle) == 64)
             }
         }
+        if (name != "cancel") {
+            check(record.memory.results.size == 1)
+            val expected = checkNotNull(record.task).id.toString() + " " + record.task.operationId + " " + record.code
+            check(record.memory.results.single() == expected)
+        } else check(record.memory.results.isEmpty())
+        if (name == "clarify") check(busyMemoryChecked && record.memory.aliases.single().name == "main_storage")
         check(endpoint.received.size - callsBefore == if (name == "clarify") 2 else 1)
         if (!canFinish(handle.npcUuid)) return null
         if (record.phase == GoalPhase.COMPLETED) {
@@ -170,6 +190,7 @@ internal class TranslatorRuntimeProbe(private val server: MinecraftServer, priva
         }
         check(command("status", handle) == 1)
         check(command("forget", handle) == 1)
+        check(controller.store.get(handle.npcUuid) == null)
         check(service.dismiss(handle, NpcDismissMode.DROP_INVENTORY).status == NpcActionStatus.SUCCEEDED)
         for (item in level.getEntitiesOfClass(ItemEntity::class.java, bounds())) item.discard()
         current = null
@@ -304,6 +325,13 @@ internal class TranslatorRuntimeProbe(private val server: MinecraftServer, priva
             val http = LlmJson.parse(request.body, 65536)
             val state = LlmJson.parse(http["messages"].asJsonArray[1].asJsonObject["content"].asString, 24576)
             val ask = caseName == "clarify" && !state["goal"].asJsonObject["text"].asString.contains("Latest user clarification:")
+            if (caseName == "clarify" && !ask) {
+                val memory = state["memory"].asJsonObject
+                val alias = memory["aliases"].asJsonArray.single().asJsonObject
+                check(alias["name"].asString == "main_storage")
+                check(alias["source"].asString == "USER_LABEL" && alias["currentWorldContents"].asString == "UNKNOWN")
+                check(memory["confirmedResults"].asJsonArray.isEmpty)
+            }
             val result = JsonObject()
             result.addProperty("schemaVersion", 1); result.addProperty("contextId", state["contextId"].asString)
             result.addProperty("decision", if (ask) "ASK_USER" else "ASSIGN")

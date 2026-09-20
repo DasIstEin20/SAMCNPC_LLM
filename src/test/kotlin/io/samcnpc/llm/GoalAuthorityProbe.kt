@@ -25,7 +25,9 @@ internal object GoalAuthorityProbe {
             check(!stranger.hasPermissions(2))
             for (reply in listOf(controller.start(stranger, npc, "Steal this NPC", 0),
                 controller.status(stranger, npc), controller.answer(stranger, npc, "32", 0),
-                controller.stop(stranger, npc), controller.resume(stranger, npc, 0), controller.forget(stranger, npc))) {
+                controller.stop(stranger, npc), controller.resume(stranger, npc, 0), controller.forget(stranger, npc),
+                controller.place(stranger, npc, "base", io.samcnpc.core.api.NpcBlockPosition(0, 64, 0)),
+                controller.place(stranger, npc, "base", null))) {
                 check(!reply.accepted && reply.record == null)
                 checks++
             }

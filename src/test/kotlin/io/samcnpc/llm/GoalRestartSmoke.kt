@@ -127,7 +127,11 @@ internal object GoalRestartSmoke {
             for (index in 1..2) {
                 val id = marker.getUUID("npc$index")
                 val text = "Idź do " + marker.getDouble("x$index") + "," + marker.getDouble("y$index") + "," + marker.getDouble("z$index")
+                val previous = GoalRecord(id, player.uuid, UUID.randomUUID(), 1, "Previous goal", phase = GoalPhase.STOPPED)
+                check(controller.store.put(previous) == null)
+                check(server.commands.dispatcher.execute("samcnpc llm remember $id home 0 64 0", player.createCommandSourceStack()) == 1)
                 check(server.commands.dispatcher.execute("samcnpc llm goal $id $text", player.createCommandSourceStack()) == 1)
+                check(controller.store.get(id)?.memory?.aliases?.single()?.name == "home")
             }
             assigned = true
             return
@@ -167,6 +171,11 @@ internal object GoalRestartSmoke {
         val first = marker.getUUID("npc1"); val second = marker.getUUID("npc2")
         val service = CoreNpcApi.service(server)
         if (service.find(first)?.let(service::runtime) == null || service.find(second)?.let(service::runtime) == null) return
+        for (id in listOf(first, second)) {
+            val remembered = checkNotNull(controller.store.get(id))
+            check(remembered.memory.aliases.single().name == "home")
+            check(remembered.memory.aliases.single().position == NpcBlockPosition(0, 64, 0))
+        }
         if (!assigned) {
             val uncertain = checkNotNull(controller.store.get(second))
             check(uncertain.phase == GoalPhase.REVIEW_REQUIRED && uncertain.manualHold)
@@ -190,13 +199,16 @@ internal object GoalRestartSmoke {
         val dx = body.position.x - marker.getDouble("x1"); val dz = body.position.z - marker.getDouble("z1")
         check(dx * dx + dz * dz <= 0.75 * 0.75)
         check(controller.store.get(second)?.phase == GoalPhase.REVIEW_REQUIRED)
+        check(healthy.memory.results.single().startsWith(marker.getUUID("task1").toString()))
+        check(healthy.memory.results.single().endsWith("TASK_COMPLETED"))
+        check(controller.store.get(second)?.memory?.results?.isEmpty() == true)
         for (index in 1..2) {
             val npc = marker.getUUID("npc$index")
             check(controller.store.remove(npc) == null)
             check(service.dismiss(checkNotNull(service.find(npc)), NpcDismissMode.ONLY_IF_EMPTY).status == NpcActionStatus.SUCCEEDED)
         }
         expectedReport = "PASS newJvm=true knownTaskPhysicallyCompleted=true exactTaskIdsRetained=true " +
-            "uncertainAdmissionHeld=true heldBudgetSettledOnce=true providerDisabled=true replayAssignments=0"
+            "uncertainAdmissionHeld=true heldBudgetSettledOnce=true providerDisabled=true replayAssignments=0 memoryRetained=true authoritativeResultRecorded=true"
         done = true
         server.halt(false)
     }
@@ -230,6 +242,8 @@ internal object GoalRestartSmoke {
         counter.incrementAndGet()
         val body = LlmJson.parse(received.body, 65536)
         val state = LlmJson.parse(body["messages"].asJsonArray[1].asJsonObject["content"].asString, 24576)
+        val place = state["memory"].asJsonObject["aliases"].asJsonArray.single().asJsonObject
+        check(place["name"].asString == "home" && place["currentWorldContents"].asString == "UNKNOWN")
         val result = JsonObject()
         result.addProperty("schemaVersion", 1); result.addProperty("contextId", state["contextId"].asString)
         result.addProperty("decision", "ASSIGN"); result.addProperty("summary", "Test-only navigation")

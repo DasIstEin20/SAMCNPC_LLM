@@ -27,12 +27,16 @@ player goal into one validated Behavior operation. Supervisor maintains an expli
 stock target with hysteresis, fresh observations and bounded failure history.
 Commands, budgets and conservative restart recovery are documented in
 [Translator](docs/LLM_TRANSLATOR.md) and [Supervisor](docs/LLM_SUPERVISOR.md).
-Plan: 27/36; Planner and final endurance acceptance remain next.
+Plan: 28/36; Planner and final endurance acceptance remain next.
 CPU HTTP emulator tests verify integration; actual model understanding and backend
 profiles remain unverified/user-deferred. See [the plan](docs/LLM_INTEGRATION_PLAN.md).
 
 Stock reads use visible reachable vanilla chests and current player authorization.
 [Stock sensor scope](docs/STOCK_OBSERVATION.md) describes visibility and limitations.
+
+Bounded durable [memory](docs/LLM_MEMORY.md) stores user place labels and
+server-confirmed history. `remember` / `forget_place` edit idle goals; labels
+always retain UNKNOWN world contents. SavedData v3 migrates older records.
 
 ## Build
 
@@ -57,17 +61,18 @@ tasks. Use a fresh restart ID for each campaign. Servers require EULA acceptance
 
 ## Validation
 
-Canonical clean build: 504 units (49 Core/364 Behavior/91 LLM), 830 matching frozen
+Canonical clean build: 509 units (49 Core/364 Behavior/96 LLM), 833 matching frozen
 source/build files and three-JAR guards. Dedicated and client each passed 14
 Supervisor cases / 22 HTTP calls, plus all eight Translator cases / nine HTTP calls.
 Supervisor exercised refill/hysteresis, stale stock, full/missing storage, A/B and
 WAIT loops, manual control, provider disable, malformed JSON and repeated HTTP 503.
 Healthy tasks caused no extra inference. Client rendered 14 Supervisor cases and
-observed walking in five. Two-JVM restart retained task IDs, completed physical
+observed walking in five. Memory commands/context and 13 authority checks also passed.
+Two-JVM restart retained named places and task IDs, completed physical
 delivery, held uncertain admission and reobserved stock without replay.
 
-Standalone build: 91 LLM units, 102 matching source files.
-[Evidence and hashes](docs/SUPERVISOR_VALIDATION.json) distinguish emulator/runtime
+Standalone build: 96 LLM units, 105 matching source files.
+[Current evidence and hashes](docs/MEMORY_VALIDATION.json) distinguish emulator/runtime
 proof from real-model quality. Unchanged Core146/Behavior215 native and Core52
 animation cases retain their earlier evidence. [Project state](PROJECT_STATE.md)
 records limits. Two-account skins remain manual/nonblocking; real model profiles,

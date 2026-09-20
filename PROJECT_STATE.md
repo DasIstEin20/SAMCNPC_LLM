@@ -1,3 +1,21 @@
+# Verified bounded goal memory — 2026-09-20
+
+L6.1 complete; LLM plan 28/36. Goal-store v3 migrates v1/v2 without resetting charges
+or task identity. Immutable plan/place/result memory has explicit byte/list caps;
+remember/forget_place require current authorization, reject busy goals, retain
+budgets and never scan the named location. Only exact observed task outcomes enter
+history. New goals inherit place labels only; forget/dismiss removes memory.
+
+Evidence: memory-evidence.json; 509 unit tests (49 Core/364 Behavior/96 LLM),
+833 frozen source/build hashes, clean/static/distribution and full Translator/
+Supervisor client/server/restart regressions PASS. Actual memory commands and HTTP
+projection passed on both sides; 13 authority checks and 33 dedicated admission
+checks include rejected memory changes. Two JVMs retained named places and recorded
+physical known-task completion while leaving uncertain admission unclaimed.
+Standalone: 96 LLM tests, 105 matching source files; dependencies remain Core1834e5d
+and Behaviorc6e0273. No real model was loaded. Planner execution remains next
+(L6.2–L6.4), followed by L7 active endurance/release. Skins remain manual/nonblocking.
+
 # Verified stock Supervisor — 2026-09-20
 
 L5 complete in the CPU HTTP emulator scope; LLM plan 27/36. The explicit maintain

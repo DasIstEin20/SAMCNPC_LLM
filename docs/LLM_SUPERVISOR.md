@@ -44,8 +44,8 @@ ticks and incidental movement cannot disguise the same candidate. Only observed
 stock progress or an explicit user answer/resume resets the nonprogress streak.
 All inference charges remain for the whole goal.
 
-Goal SavedData v2 migrates v1 records as Translator without resetting task identities
-or budgets. An explicit Core dismissal removes the watch; an unload never deletes
+Goal SavedData v3 includes bounded memory; v1/v2 migrate without resetting task
+identities or budgets (v1 records remain Translator). An explicit Core dismissal removes the watch; an unload never deletes
 it. It persists target policy, hysteresis, failure hashes and historical
 attempt accounting. It does not persist stock as current world truth. On reconnect,
 known execution and waiting watches require current authorization and observations.

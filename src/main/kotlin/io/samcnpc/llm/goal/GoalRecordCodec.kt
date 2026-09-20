@@ -25,6 +25,7 @@ internal object GoalRecordCodec {
         tag.putString("phase", record.phase.name); tag.putString("code", record.code)
         tag.putBoolean("hold", record.manualHold)
         tag.putString("mode", record.mode.name)
+        tag.put("memory", GoalMemoryCodec.encode(record.memory))
         record.supervision?.let { tag.put("supervisor", StockSupervisionCodec.encode(it)) }
         record.answer?.let { tag.putString("answer", it) }; record.question?.let { tag.putString("question", it) }
         record.contextId?.let { tag.putUUID("context", it) }
@@ -45,14 +46,19 @@ internal object GoalRecordCodec {
         return tag
     }
 
-    fun decode(tag: CompoundTag, version: Int = 2): GoalRecord? {
-        if (version !in 1..2) return null
-        val requiredFields = if (version == 1) required else required + "mode"
+    fun decode(tag: CompoundTag, version: Int = 3): GoalRecord? {
+        if (version !in 1..3) return null
+        val requiredFields = required + (if (version >= 2) setOf("mode") else emptySet()) +
+            (if (version >= 3) setOf("memory") else emptySet())
         val optionalFields = if (version == 1) optional else optional + "supervisor"
         if (!tag.allKeys.containsAll(requiredFields) || tag.allKeys.any { it !in requiredFields && it !in optionalFields }) return null
         val mode = if (version == 1) LlmMode.TRANSLATOR else {
             if (!tag.contains("mode", Tag.TAG_STRING.toInt())) return null
             LlmMode.entries.firstOrNull { it.name == tag.getString("mode") } ?: return null
+        }
+        val memory = if (version < 3) GoalMemory() else {
+            if (!tag.contains("memory", Tag.TAG_COMPOUND.toInt())) return null
+            GoalMemoryCodec.decode(tag.getCompound("memory")) ?: return null
         }
         val supervision = if (tag.contains("supervisor")) {
             if (!tag.contains("supervisor", Tag.TAG_COMPOUND.toInt())) return null
@@ -84,7 +90,7 @@ internal object GoalRecordCodec {
                 InferenceBudgetLimits(tag.getInt("attemptLimit"), tag.getLong("inputLimit"),
                     tag.getLong("outputLimit"), tag.getLong("costLimit")),
                 InferenceBudgetView(tag.getInt("attempts"), tag.getLong("input"), tag.getLong("output"),
-                    tag.getLong("cost"), if (tag.hasUUID("inFlight")) tag.getUUID("inFlight") else null), mode, supervision)
+                    tag.getLong("cost"), if (tag.hasUUID("inFlight")) tag.getUUID("inFlight") else null), mode, supervision, memory)
             if (fits(tag)) result else null
         } catch (_: IllegalArgumentException) { null }
     }

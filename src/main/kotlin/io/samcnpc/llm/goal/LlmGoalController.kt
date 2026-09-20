@@ -39,7 +39,8 @@ internal class LlmGoalController(
         val record = GoalRecord(npc, actor.uuid, UUID.randomUUID(), 1, text, limits = settings.inference.goalLimits(),
             phase = if (stockTarget == null) GoalPhase.QUEUED else GoalPhase.WAITING,
             mode = if (stockTarget == null) LlmMode.TRANSLATOR else LlmMode.SUPERVISOR,
-            supervision = stockTarget?.let { StockSupervision(it) })
+            supervision = stockTarget?.let { StockSupervision(it) },
+            memory = previous?.memory?.placesOnly() ?: GoalMemory())
         if (stockTarget != null) {
             val (_, problem) = StockSupervisor.read(server, actor, record)
             if (problem != null) return rejected(problem)
@@ -145,6 +146,26 @@ internal class LlmGoalController(
         val record = store.get(npc) ?: return rejected("GOAL_NOT_FOUND")
         val current = runtime.observeKnown(record, actor)
         return GoalReply(true, current.code, current)
+    }
+
+    /** Editing a label is intent only and never observes or loads the named world position. */
+    fun place(actor: ServerPlayer, npc: UUID, name: String,
+              position: io.samcnpc.core.api.NpcBlockPosition?): GoalReply {
+        authorization(actor, npc)?.let { return it }
+        val record = store.get(npc) ?: return rejected("GOAL_NOT_FOUND")
+        if (!GoalMemory.validName(name)) return rejected("INVALID_PLACE_NAME")
+        if (record.phase in setOf(GoalPhase.QUEUED, GoalPhase.INFERENCING, GoalPhase.ADMITTING, GoalPhase.EXECUTING) ||
+            record.budget.inFlight != null) return rejected("MEMORY_EDIT_REQUIRES_IDLE_GOAL")
+        if (record.revision == Long.MAX_VALUE) return rejected("GOAL_REVISION_EXHAUSTED")
+        val memory = try {
+            if (position == null) record.memory.withoutPlace(name)
+            else record.memory.withPlace(io.samcnpc.llm.context.ContextPlaceAlias(name,
+                actor.serverLevel().dimension().location().toString(), position))
+        } catch (_: IllegalArgumentException) { return rejected("MEMORY_LIMIT_OR_INVALID_PLACE") }
+        if (memory == record.memory) return GoalReply(true, "MEMORY_UNCHANGED", record)
+        val updated = record.copy(revision = record.revision + 1, memory = memory)
+        store.put(updated)?.let { return rejected(it) }
+        return GoalReply(true, if (position == null) "PLACE_FORGOTTEN" else "PLACE_REMEMBERED", updated)
     }
 
     fun forget(actor: ServerPlayer, npc: UUID): GoalReply {

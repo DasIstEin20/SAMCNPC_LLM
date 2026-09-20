@@ -190,6 +190,10 @@ internal class TranslatorRuntime(
         var next = if (view == null || reply.result.status != NpcActionStatus.SUCCEEDED)
             record.copy(phase = GoalPhase.WAITING, code = "OBSERVATION_" + reply.result.code.name, manualHold = true)
         else TranslatorOutcomes.observed(record, view)
+        if (next.phase in setOf(GoalPhase.COMPLETED, GoalPhase.FAILED, GoalPhase.STOPPED) &&
+            next.code in setOf("TASK_COMPLETED", "TASK_FAILED", "TASK_CANCELLED")) {
+            next = next.copy(memory = next.memory.withOutcome(checkNotNull(next.task), next.code))
+        }
         if (record.supervision != null && next.phase in setOf(GoalPhase.COMPLETED, GoalPhase.FAILED)) {
             val (stock, problem) = StockSupervisor.read(server, actor, record)
             next = if (stock == null) StockSupervisor.unavailable(record, checkNotNull(problem))
@@ -221,7 +225,7 @@ internal class TranslatorRuntime(
     }
 
     private fun contextGoal(record: GoalRecord, session: GoalSession) = ContextGoal(record.goalId,
-        record.revision, record.contextText(), record.mode, null, session.budget.contextRemainingCalls, supervision = record.supervision)
+        record.revision, record.contextText(), record.mode, null, session.budget.contextRemainingCalls, memory = record.memory.context(), supervision = record.supervision)
 
     private fun isWatching(record: GoalRecord?): Boolean = record?.supervision != null &&
         record.phase == GoalPhase.WAITING && !record.manualHold
