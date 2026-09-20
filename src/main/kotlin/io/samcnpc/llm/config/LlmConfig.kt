@@ -24,6 +24,7 @@ internal object LlmConfig {
     private val maxResponseBytes = builder.defineInRange("maxResponseBytes", 262_144, 1024, 262_144)
     private val responseFormat = builder.comment("Explicit backend capability. Local validation is mandatory in both modes.")
         .defineEnum("responseFormat", ResponseFormat.JSON_SCHEMA)
+    private val inference = InferenceConfigFields(builder)
     val spec: ForgeConfigSpec = builder.build()
     @Volatile private var current = ConfigSnapshot(0, ProviderSettings())
 
@@ -62,7 +63,7 @@ internal object LlmConfig {
         if (!spec.isLoaded) return ProviderSettings()
         return ProviderSettings(enabled.get(), baseUrl.get(), model.get(), apiKeyEnvironment.get(),
             connectTimeout.get(), requestTimeout.get(), temperature.get(), maxOutputTokens.get(),
-            maxContextBytes.get(), maxResponseBytes.get(), responseFormat.get())
+            maxContextBytes.get(), maxResponseBytes.get(), responseFormat.get(), inference.read())
     }
 
     private fun write(values: ProviderSettings) {
@@ -77,6 +78,7 @@ internal object LlmConfig {
         maxContextBytes.set(values.maxContextBytes)
         maxResponseBytes.set(values.maxResponseBytes)
         responseFormat.set(values.responseFormat)
+        inference.write(values.inference)
     }
 
     private fun publish(values: ProviderSettings, lifecycle: Boolean) {

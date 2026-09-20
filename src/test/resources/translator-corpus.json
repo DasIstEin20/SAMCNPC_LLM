@@ -1,0 +1,531 @@
+{
+  "version": 1,
+  "scope": "SCRIPTED_WIRE_CONTRACT_NOT_MODEL_QUALITY",
+  "cases": [
+    {
+      "goal": "Zaatakuj wskazany cel 12345678-1234-5678-1234-567812345678, wracając do punktu 0,64,0. Wymiar: minecraft:overworld.",
+      "operation": {
+        "documentVersion": 1,
+        "type": "samcnpc:attack",
+        "definitionVersion": 2,
+        "parameters": {
+          "dimensionId": "minecraft:overworld",
+          "targetUuid": "12345678-1234-5678-1234-567812345678",
+          "anchor": {
+            "x": 0,
+            "y": 64,
+            "z": 0
+          }
+        }
+      },
+      "ambiguousGoal": "Wykonaj attack w magazynie głównym.",
+      "question": "Podaj pozycję magazynu oraz brakujące parametry zadania attack."
+    },
+    {
+      "goal": "Pokonaj jednego zombie w promieniu 16 od 0,64,0. Wymiar: minecraft:overworld.",
+      "operation": {
+        "documentVersion": 1,
+        "type": "samcnpc:attack_area",
+        "definitionVersion": 1,
+        "parameters": {
+          "dimensionId": "minecraft:overworld",
+          "anchor": {
+            "x": 0,
+            "y": 64,
+            "z": 0
+          },
+          "leash": 16,
+          "filter": {
+            "typeIds": [
+              "minecraft:zombie"
+            ]
+          },
+          "quota": 1
+        }
+      },
+      "ambiguousGoal": "Wykonaj attack_area w magazynie głównym.",
+      "question": "Podaj pozycję magazynu oraz brakujące parametry zadania attack_area."
+    },
+    {
+      "goal": "Broń obszaru do 16 bloków od 0,64,0 przed zombie, z domyślnym ograniczonym czasem. Wymiar: minecraft:overworld.",
+      "operation": {
+        "documentVersion": 1,
+        "type": "samcnpc:defend",
+        "definitionVersion": 1,
+        "parameters": {
+          "dimensionId": "minecraft:overworld",
+          "anchor": {
+            "x": 0,
+            "y": 64,
+            "z": 0
+          },
+          "leash": 16,
+          "filter": {
+            "typeIds": [
+              "minecraft:zombie"
+            ]
+          }
+        }
+      },
+      "ambiguousGoal": "Wykonaj defend w magazynie głównym.",
+      "question": "Podaj pozycję magazynu oraz brakujące parametry zadania defend."
+    },
+    {
+      "goal": "Dostarcz 32 niesione cobblestone do skrzyni 3,64,0; punkt bazowy 0,64,0. Wymiar: minecraft:overworld.",
+      "operation": {
+        "documentVersion": 1,
+        "type": "samcnpc:deliver",
+        "definitionVersion": 2,
+        "parameters": {
+          "dimensionId": "minecraft:overworld",
+          "destination": {
+            "x": 3,
+            "y": 64,
+            "z": 0
+          },
+          "itemId": "minecraft:cobblestone",
+          "quantity": 32,
+          "anchor": {
+            "x": 0,
+            "y": 64,
+            "z": 0
+          }
+        }
+      },
+      "ambiguousGoal": "Wykonaj deliver w magazynie głównym.",
+      "question": "Podaj pozycję magazynu oraz brakujące parametry zadania deliver."
+    },
+    {
+      "goal": "Zbadaj dozwolone otoczenie punktu 0,64,0 z domyślnym ograniczonym budżetem. Wymiar: minecraft:overworld.",
+      "operation": {
+        "documentVersion": 1,
+        "type": "samcnpc:explore",
+        "definitionVersion": 1,
+        "parameters": {
+          "dimensionId": "minecraft:overworld",
+          "anchor": {
+            "x": 0,
+            "y": 64,
+            "z": 0
+          }
+        }
+      },
+      "ambiguousGoal": "Wykonaj explore w magazynie głównym.",
+      "question": "Podaj pozycję magazynu oraz brakujące parametry zadania explore."
+    },
+    {
+      "goal": "Zbierz 16 pszenicy z obszaru 0,64,0 do 1,64,1 i dostarcz do skrzyni 3,64,0; baza 0,64,0. Wymiar: minecraft:overworld.",
+      "operation": {
+        "documentVersion": 1,
+        "type": "samcnpc:farm",
+        "definitionVersion": 1,
+        "parameters": {
+          "dimensionId": "minecraft:overworld",
+          "work": {
+            "area": {
+              "bounds": {
+                "min": {
+                  "x": 0,
+                  "y": 64,
+                  "z": 0
+                },
+                "max": {
+                  "x": 1,
+                  "y": 64,
+                  "z": 1
+                }
+              }
+            },
+            "crop": "WHEAT",
+            "mode": "HARVEST"
+          },
+          "destinations": {
+            "positions": [
+              {
+                "x": 3,
+                "y": 64,
+                "z": 0
+              }
+            ]
+          },
+          "quantity": 16,
+          "anchor": {
+            "x": 0,
+            "y": 64,
+            "z": 0
+          }
+        }
+      },
+      "ambiguousGoal": "Wykonaj farm w magazynie głównym.",
+      "question": "Podaj pozycję magazynu oraz brakujące parametry zadania farm."
+    },
+    {
+      "goal": "Złów jedną rybę: woda 3,64,0, stanowisko i baza 0,64,0. Wymiar: minecraft:overworld.",
+      "operation": {
+        "documentVersion": 1,
+        "type": "samcnpc:fish",
+        "definitionVersion": 1,
+        "parameters": {
+          "dimensionId": "minecraft:overworld",
+          "water": {
+            "x": 3,
+            "y": 64,
+            "z": 0
+          },
+          "standing": {
+            "x": 0,
+            "y": 64,
+            "z": 0
+          },
+          "catches": 1,
+          "anchor": {
+            "x": 0,
+            "y": 64,
+            "z": 0
+          }
+        }
+      },
+      "ambiguousGoal": "Wykonaj fish w magazynie głównym.",
+      "question": "Podaj pozycję magazynu oraz brakujące parametry zadania fish."
+    },
+    {
+      "goal": "Przenieś 16 jabłek z -3,64,0 do 3,64,0, zachowując 4 sztuki żywności; baza 0,64,0. Wymiar: minecraft:overworld.",
+      "operation": {
+        "documentVersion": 1,
+        "type": "samcnpc:food",
+        "definitionVersion": 1,
+        "parameters": {
+          "dimensionId": "minecraft:overworld",
+          "work": {
+            "kind": "STORED",
+            "sources": {
+              "positions": [
+                {
+                  "x": -3,
+                  "y": 64,
+                  "z": 0
+                }
+              ]
+            }
+          },
+          "outputs": [
+            "minecraft:apple"
+          ],
+          "destinations": {
+            "positions": [
+              {
+                "x": 3,
+                "y": 64,
+                "z": 0
+              }
+            ]
+          },
+          "quantity": 16,
+          "keepFood": 4,
+          "anchor": {
+            "x": 0,
+            "y": 64,
+            "z": 0
+          }
+        }
+      },
+      "ambiguousGoal": "Wykonaj food w magazynie głównym.",
+      "question": "Podaj pozycję magazynu oraz brakujące parametry zadania food."
+    },
+    {
+      "goal": "Uzupełnij cobblestone ze skrzyni -3,64,0 do 16 sztuk, próg minimalny 1; baza 0,64,0. Wymiar: minecraft:overworld.",
+      "operation": {
+        "documentVersion": 1,
+        "type": "samcnpc:inventory_work",
+        "definitionVersion": 1,
+        "parameters": {
+          "dimensionId": "minecraft:overworld",
+          "work": {
+            "kind": "SUPPLY",
+            "needs": [
+              {
+                "itemId": "minecraft:cobblestone",
+                "minimum": 1,
+                "target": 16
+              }
+            ],
+            "sources": {
+              "positions": [
+                {
+                  "x": -3,
+                  "y": 64,
+                  "z": 0
+                }
+              ]
+            }
+          },
+          "anchor": {
+            "x": 0,
+            "y": 64,
+            "z": 0
+          }
+        }
+      },
+      "ambiguousGoal": "Wykonaj inventory_work w magazynie głównym.",
+      "question": "Podaj pozycję magazynu oraz brakujące parametry zadania inventory_work."
+    },
+    {
+      "goal": "Dostarcz 16 kłód dębu z obszaru 0,64,0 do 1,64,1 do skrzyni 3,64,0. Wymiar: minecraft:overworld.",
+      "operation": {
+        "documentVersion": 1,
+        "type": "samcnpc:lumberjack",
+        "definitionVersion": 2,
+        "parameters": {
+          "dimensionId": "minecraft:overworld",
+          "area": {
+            "bounds": {
+              "min": {
+                "x": 0,
+                "y": 64,
+                "z": 0
+              },
+              "max": {
+                "x": 1,
+                "y": 64,
+                "z": 1
+              }
+            }
+          },
+          "wood": [
+            "samcnpc:oak"
+          ],
+          "destination": {
+            "x": 3,
+            "y": 64,
+            "z": 0
+          },
+          "quantity": 16
+        }
+      },
+      "ambiguousGoal": "Wykonaj lumberjack w magazynie głównym.",
+      "question": "Podaj pozycję magazynu oraz brakujące parametry zadania lumberjack."
+    },
+    {
+      "goal": "Podaj jedną rudę żelaza do slotu 0 urządzenia 3,64,0 i odbierz jedną sztabkę ze slotu 2; baza 0,64,0. Wymiar: minecraft:overworld.",
+      "operation": {
+        "documentVersion": 1,
+        "type": "samcnpc:machine",
+        "definitionVersion": 1,
+        "parameters": {
+          "dimensionId": "minecraft:overworld",
+          "feeds": [
+            {
+              "endpoint": {
+                "dimensionId": "minecraft:overworld",
+                "position": {
+                  "x": 3,
+                  "y": 64,
+                  "z": 0
+                }
+              },
+              "slot": 0,
+              "itemId": "minecraft:iron_ore",
+              "quantity": 1
+            }
+          ],
+          "output": {
+            "endpoint": {
+              "dimensionId": "minecraft:overworld",
+              "position": {
+                "x": 3,
+                "y": 64,
+                "z": 0
+              }
+            },
+            "slot": 2,
+            "itemId": "minecraft:iron_ingot",
+            "quantity": 1
+          },
+          "anchor": {
+            "x": 0,
+            "y": 64,
+            "z": 0
+          }
+        }
+      },
+      "ambiguousGoal": "Wykonaj machine w magazynie głównym.",
+      "question": "Podaj pozycję magazynu oraz brakujące parametry zadania machine."
+    },
+    {
+      "goal": "Wykop odsłoniętą rudę żelaza z obszaru 0,64,0 do 1,64,1 i dostarcz 16 raw iron do 3,64,0; baza 0,64,0. Wymiar: minecraft:overworld.",
+      "operation": {
+        "documentVersion": 1,
+        "type": "samcnpc:mine",
+        "definitionVersion": 1,
+        "parameters": {
+          "dimensionId": "minecraft:overworld",
+          "work": {
+            "area": {
+              "bounds": {
+                "min": {
+                  "x": 0,
+                  "y": 64,
+                  "z": 0
+                },
+                "max": {
+                  "x": 1,
+                  "y": 64,
+                  "z": 1
+                }
+              }
+            },
+            "method": "EXPOSED",
+            "resources": [
+              "minecraft:iron_ore"
+            ]
+          },
+          "outputs": [
+            "minecraft:raw_iron"
+          ],
+          "destinations": {
+            "positions": [
+              {
+                "x": 3,
+                "y": 64,
+                "z": 0
+              }
+            ]
+          },
+          "quantity": 16,
+          "counting": "DELIVERED_ITEMS",
+          "anchor": {
+            "x": 0,
+            "y": 64,
+            "z": 0
+          }
+        }
+      },
+      "ambiguousGoal": "Wykonaj mine w magazynie głównym.",
+      "question": "Podaj pozycję magazynu oraz brakujące parametry zadania mine."
+    },
+    {
+      "goal": "Idź do 5,64,0. Wymiar: minecraft:overworld.",
+      "operation": {
+        "documentVersion": 1,
+        "type": "samcnpc:navigate",
+        "definitionVersion": 1,
+        "parameters": {
+          "dimensionId": "minecraft:overworld",
+          "destination": {
+            "x": 5,
+            "y": 64,
+            "z": 0
+          }
+        }
+      },
+      "ambiguousGoal": "Wykonaj navigate w magazynie głównym.",
+      "question": "Podaj pozycję magazynu oraz brakujące parametry zadania navigate."
+    },
+    {
+      "goal": "Patroluj trasę 0,64,0 do 4,64,0; kotwica 0,64,0 i granica 16 bloków. Wymiar: minecraft:overworld.",
+      "operation": {
+        "documentVersion": 1,
+        "type": "samcnpc:patrol",
+        "definitionVersion": 1,
+        "parameters": {
+          "dimensionId": "minecraft:overworld",
+          "anchor": {
+            "x": 0,
+            "y": 64,
+            "z": 0
+          },
+          "leash": 16,
+          "route": [
+            {
+              "x": 0,
+              "y": 64,
+              "z": 0
+            },
+            {
+              "x": 4,
+              "y": 64,
+              "z": 0
+            }
+          ]
+        }
+      },
+      "ambiguousGoal": "Wykonaj patrol w magazynie głównym.",
+      "question": "Podaj pozycję magazynu oraz brakujące parametry zadania patrol."
+    },
+    {
+      "goal": "Posadź jedną sadzonkę dębu metodą PATCH w obszarze 0,64,0 do 1,64,1; baza 0,64,0. Wymiar: minecraft:overworld.",
+      "operation": {
+        "documentVersion": 1,
+        "type": "samcnpc:plant_trees",
+        "definitionVersion": 1,
+        "parameters": {
+          "dimensionId": "minecraft:overworld",
+          "work": {
+            "area": {
+              "bounds": {
+                "min": {
+                  "x": 0,
+                  "y": 64,
+                  "z": 0
+                },
+                "max": {
+                  "x": 1,
+                  "y": 64,
+                  "z": 1
+                }
+              }
+            },
+            "species": "OAK",
+            "mode": "PATCH"
+          },
+          "quantity": 1,
+          "anchor": {
+            "x": 0,
+            "y": 64,
+            "z": 0
+          }
+        }
+      },
+      "ambiguousGoal": "Wykonaj plant_trees w magazynie głównym.",
+      "question": "Podaj pozycję magazynu oraz brakujące parametry zadania plant_trees."
+    },
+    {
+      "goal": "Przenieś 32 cobblestone ze skrzyni -3,64,0 do 3,64,0; baza 0,64,0. Wymiar: minecraft:overworld.",
+      "operation": {
+        "documentVersion": 1,
+        "type": "samcnpc:transport",
+        "definitionVersion": 1,
+        "parameters": {
+          "dimensionId": "minecraft:overworld",
+          "sources": {
+            "positions": [
+              {
+                "x": -3,
+                "y": 64,
+                "z": 0
+              }
+            ]
+          },
+          "destinations": {
+            "positions": [
+              {
+                "x": 3,
+                "y": 64,
+                "z": 0
+              }
+            ]
+          },
+          "itemId": "minecraft:cobblestone",
+          "quantity": 32,
+          "anchor": {
+            "x": 0,
+            "y": 64,
+            "z": 0
+          }
+        }
+      },
+      "ambiguousGoal": "Wykonaj transport w magazynie głównym.",
+      "question": "Podaj pozycję magazynu oraz brakujące parametry zadania transport."
+    }
+  ]
+}

@@ -22,9 +22,11 @@ odrzucanie ponownych odpowiedzi i odczyt potwierdzeń korekt przez API Behavior.
 
 Gotowa jest kolejka zdarzeń, anulowanie workerów, ograniczone retry i budżety zasobów.
 
-**W budowie:** Translator → Supervisor →
-Planner. Ta wersja jeszcze nie zamienia poleceń gracza na pracę NPC. Plan: 18/36.
-Testy używają lekkiego lokalnego emulatora HTTP; rzeczywisty model użytkownik poda później.
+**Translator gotowy w zakresie emulatora:** komendy celu/statusu/odpowiedzi/stop/resume
+łączą jedno polecenie gracza z walidowaną operacją Behavior, zachowują budżety i
+bezpiecznie odtwarzają stan po restarcie. [Komendy](docs/LLM_TRANSLATOR.md).
+Supervisor i Planner pozostają w budowie. Plan: 23/36. Testy używają lekkiego emulatora
+HTTP; rozumienie języka i profile prawdziwego modelu pozostają niezweryfikowane.
 [Plan](docs/LLM_INTEGRATION_PLAN.md), [granice modułu](docs/LLM_BOUNDARY.md).
 
 ## Budowanie
@@ -40,16 +42,21 @@ Windows: `gradlew.bat clean build`. Wynik: `build/libs/samcnpc-llm-0.1.0.jar`.
 Wymagane odpowiadające wersje Core, Behavior i Kotlin for Forge.
 `test` nie uruchamia modelu ani klienta gry. `runServerLoadingSmoke` i
 `runClientLoadingSmoke` sprawdzają rzeczywiste Forge, HTTP, konfigurację oraz kontekst
-NPC lub ekran Mods Config. Serwer wymaga zaakceptowania Minecraft EULA.
+NPC lub ekran Mods Config. `runClientGoalsSmoke` sprawdza fizyczne zadania, a para
+`runServerGoalsSaveSmoke` / `runServerGoalsLoadSmoke` restart z nowym
+`-PllmGoalRestartId=<id>`. Serwer wymaga zaakceptowania Minecraft EULA.
 
 ## Weryfikacja
 
-Pełny projekt: 473 testy jednostkowe (47 Core/364 Behavior/62 LLM), 15 scenariuszy
-harmonogramu na rzeczywistym serwerze / 15 HTTP, 30 prób admission i pełny kontekst
-przez HTTP. GUI/logo oraz trzy JAR-y: PASS. Zegar limitów w próbach jest wirtualny.
-Niezmienione Core141/Behavior214 native i 12 scenariuszy klienta zachowują wcześniejsze
-dowody; nie powtarzano ich dla tego etapu dotyczącego wyłącznie LLM.
-Build tego repo, zgodność źródeł i hashe: [dowody](docs/SCHEDULER_VALIDATION.json).
+Pełny projekt: 491 testów jednostkowych (47 Core/364 Behavior/80 LLM). Dedicated i
+klient zaliczyły po osiem fizycznych scenariuszy Translatora / dziewięć HTTP; klient
+również 11 kontroli uprawnień/danych. Dostawa, transport, ścinka, brak zasobu, pełny
+magazyn, pauza, wyłączenie providera i anulowanie: PASS. Restart dwóch JVM zachował
+ID zadań, dokończył znane zadanie i zatrzymał niepewne potwierdzenie bez ponownego
+assignmentu. Zgodne 809 hashy źródeł/buildów i trzy JAR-y. Korpus 16 rodzin sprawdza
+kontrakty ze stałymi odpowiedziami emulatora, nie jakość językową modelu. Niezmienione
+Core141/Behavior214 native i 12 scenariuszy klienta zachowują wcześniejsze dowody.
+Build tego repo: 80 testów LLM, 88 zgodnych plików źródłowych; [dowody i hashe](docs/TRANSLATOR_VALIDATION.json).
 [Stan projektu](PROJECT_STATE.md) opisuje ograniczenia. Skórki dwóch kont pozostają
 ręczne i nieblokujące. Rzeczywiste modele oraz godzinny soak nadal czekają na testy.
 

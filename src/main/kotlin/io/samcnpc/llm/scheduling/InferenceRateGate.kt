@@ -13,11 +13,14 @@ internal data class ServerInferenceResources(val inputTokens: Long = 491520, val
 }
 
 /** Server-thread attempt reservations, independent of wall clock/game ticks. No automatic refund. */
-internal class InferenceRateGate(private val limits: ServerInferenceResources = ServerInferenceResources()) {
+internal class InferenceRateGate(private var limits: ServerInferenceResources = ServerInferenceResources()) {
     private data class Entry(val atMillis: Long, val charge: InferenceCharge)
     private val global = ArrayDeque<Entry>()
     private val byNpc = linkedMapOf<UUID, ArrayDeque<Long>>()
     private var lastObservedMillis = 0L
+
+    /** Retain all reservations when configuration changes; a smaller limit blocks until they expire. */
+    fun reconfigure(resources: ServerInferenceResources) { limits = resources }
 
     /** Cheap bounded preflight before capturing another context; expiry is the only mutation. */
     fun preview(npcUuid: UUID, nowMillis: Long, charge: InferenceCharge = ZERO): RatePermit =

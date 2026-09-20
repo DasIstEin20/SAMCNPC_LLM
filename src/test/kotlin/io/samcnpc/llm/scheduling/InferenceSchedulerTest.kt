@@ -26,6 +26,7 @@ class InferenceSchedulerTest {
         }
         override fun started(wake: InferenceWake, captured: CapturedContext, requestId: UUID) = error("unexpected")
         override fun completed(wake: InferenceWake, captured: CapturedContext, result: InferenceResult) = error("unexpected")
+        override fun settled(wake: InferenceWake, requestId: UUID, budget: InferenceBudgetView) = error("unexpected")
         override fun deferred(wake: InferenceWake, code: String, retryAtMillis: Long?) { deferred.add(code) }
     }
     private fun wake(id: UUID = UUID.randomUUID()) =

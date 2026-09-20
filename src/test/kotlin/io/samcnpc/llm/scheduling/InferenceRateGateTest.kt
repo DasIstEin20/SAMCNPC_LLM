@@ -64,4 +64,17 @@ class InferenceRateGateTest {
         assertEquals(1, gate.reservedInCurrentWindow())
     }
 
+    @Test fun configurationChangesRetainServerChargesAndNpcCooldowns() {
+        val gate = InferenceRateGate(ServerInferenceResources(costMicros = 10))
+        val npc = UUID.randomUUID()
+        assertEquals(RatePermit.Granted, gate.reserve(npc, 0, InferenceCharge(100, 10, 8)))
+        gate.reconfigure(ServerInferenceResources(costMicros = 5))
+        assertEquals(RatePermit.Deferred("SERVER_COST_BUDGET", 3600000),
+            gate.preview(UUID.randomUUID(), 9998, InferenceCharge(1, 1, 1)))
+        gate.reconfigure(ServerInferenceResources(costMicros = 10))
+        assertEquals(RatePermit.Deferred("NPC_COOLDOWN", 10000), gate.preview(npc, 10000 - 1))
+        assertEquals(1, gate.reservedInCurrentWindow())
+        assertEquals(RatePermit.Granted, gate.reserve(npc, 3600000, InferenceCharge(100, 10, 8)))
+        assertEquals(1, gate.reservedInCurrentWindow())
+    }
 }

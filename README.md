@@ -22,10 +22,11 @@ See [configuration](docs/LLM_CONFIGURATION.md), [context](docs/LLM_CONTEXT.md) a
 
 Bounded event scheduling, worker cancellation, retry/circuit and resource budgets are implemented.
 
-**Work in progress:** Translator → Supervisor →
-Planner. This version does not yet turn player goals into NPC work. The plan is
-18/36 complete. Tests use a lightweight local HTTP emulator; actual model/backend
-compatibility and planning quality remain unverified.
+**Translator implemented:** registered goal/status/answer/stop/resume commands turn
+one player goal into one validated Behavior operation, retain budgets and recover
+conservatively after restart. See [commands](docs/LLM_TRANSLATOR.md). Supervisor and
+Planner remain in progress; plan 23/36. CPU HTTP emulator tests verify integration.
+Actual model understanding and backend profiles remain unverified/user-deferred.
 See [the plan](docs/LLM_INTEGRATION_PLAN.md) and [boundary](docs/LLM_BOUNDARY.md).
 
 ## Build
@@ -42,16 +43,21 @@ Windows: `gradlew.bat clean build`. Artifact: `build/libs/samcnpc-llm-0.1.0.jar`
 Install it with corresponding Core, Behavior and Kotlin for Forge.
 `test` uses no Minecraft client or model. `runServerLoadingSmoke` and
 `runClientLoadingSmoke` launch real Forge, exercise HTTP/configuration, and verify
-NPC context capture or the actual Mods Config screen. Servers require EULA acceptance.
+NPC context capture or the actual Mods Config screen. `runClientGoalsSmoke` exercises
+physical commands/tasks; `runServerGoalsSaveSmoke` + `runServerGoalsLoadSmoke` use a
+fresh `-PllmGoalRestartId=<id>` for restart recovery. Servers require EULA acceptance.
 
 ## Validation
 
-Canonical clean build: 473 units (47 Core/364 Behavior/62 LLM), 15 actual dedicated
-scheduler scenarios / 15 HTTP calls, plus 30 admission checks and full-context HTTP.
-Client configuration/logo and three-JAR distribution PASS. Rate time in the scheduler
-probe is virtual. Unchanged Core141/Behavior214 native and 12 client gameplay cases
-retain the preceding milestone evidence; they were not rerun for this LLM-only slice.
-Standalone source matching/build and artifact hashes: [evidence](docs/SCHEDULER_VALIDATION.json).
+Canonical clean build: 491 units (47 Core/364 Behavior/80 LLM). Dedicated and client
+each passed eight physical Translator cases / nine HTTP requests; client passed
+11 authority/input checks. Transport, delivery, lumberjack, missing/full storage,
+manual pause, provider disable and cancellation passed. Two JVMs retained task IDs,
+completed known work and held a simulated lost receipt without replay. All 809 frozen
+source/build files and three-JAR guards match. The 16-family scripted corpus checks
+wire/typed contracts, not real-model semantic quality. Prior unchanged Core141/
+Behavior214 native and 12 client cases retain their evidence.
+Standalone build: 80 LLM units, 88 matching source files. [Evidence and hashes](docs/TRANSLATOR_VALIDATION.json).
 [Project state](PROJECT_STATE.md) records limits. Two-account skins are a manual,
 nonblocking check. Real model profiles and the one-hour soak remain unverified.
 

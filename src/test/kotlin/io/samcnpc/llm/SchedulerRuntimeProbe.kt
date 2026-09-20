@@ -179,6 +179,11 @@ internal class SchedulerRuntimeProbe(private val server: MinecraftServer, privat
             }
         }
 
+        override fun settled(wake: InferenceWake, requestId: UUID, budget: InferenceBudgetView) {
+            assertServer()
+            check(budget.inFlight == null && budget == budgets.getValue(wake.npcUuid).snapshot())
+        }
+
         override fun deferred(wake: InferenceWake, code: String, retryAtMillis: Long?) {
             assertServer()
             deferrals.add(code)

@@ -37,7 +37,7 @@ object AllModsServerSmoke {
     fun tick(event: TickEvent.ServerTickEvent) {
         if (!enabled || event.phase != TickEvent.Phase.END) return
         val result = loading ?: return
-        check(++ticks < 1200) { "Provider runtime smoke timed out" }
+        check(++ticks < 6000) { "Provider runtime smoke timed out" }
         if (ticks == 20) OperationStopProbe.start(event.server)
         if (ticks <= 20) return
         val context = ContextRuntimeProbe.poll() ?: return
@@ -51,8 +51,9 @@ object AllModsServerSmoke {
         check(ticks - started >= 10) { "Server did not tick while HTTP body was stalled" }
         val decisions = OperationStopProbe.pollDecisions(event.server) ?: return
         val scheduling = OperationStopProbe.pollScheduler(event.server) ?: return
+        val translator = OperationStopProbe.pollTranslator(event.server) ?: return
         OperationStopProbe.beforeStop()
-        finalReport = "dedicated=true ticks=$ticks coreApi=true $result $transport $context $decisions $scheduling ${OperationStopProbe.admissionReport}"
+        finalReport = "dedicated=true ticks=$ticks coreApi=true $result $transport $context $decisions $scheduling $translator ${OperationStopProbe.admissionReport}"
         Files.writeString(Path.of("server-loading-result.txt"), "PENDING_STOP $finalReport\n")
         event.server.halt(false)
     }

@@ -16,6 +16,7 @@ internal data class ProviderSettings(
     val maxContextBytes: Int = 65_536,
     val maxResponseBytes: Int = 262_144,
     val responseFormat: ResponseFormat = ResponseFormat.JSON_SCHEMA,
+    val inference: InferenceSettings = InferenceSettings(),
 ) {
     fun problem(): String? = when {
         !validBaseUrl(baseUrl) -> "baseUrl"
@@ -27,6 +28,7 @@ internal data class ProviderSettings(
         maxOutputTokens !in 64..4096 -> "maxOutputTokens"
         maxContextBytes !in 1024..65_536 -> "maxContextBytes"
         maxResponseBytes !in 1024..262_144 -> "maxResponseBytes"
+        inference.problem() != null -> "inference." + inference.problem()
         else -> null
     }
 

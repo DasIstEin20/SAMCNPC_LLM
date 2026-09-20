@@ -1,0 +1,76 @@
+{
+  "status": "PASS",
+  "utc": "2026-09-20T07:12:54.147624+00:00",
+  "units": {
+    "samcnpc-core": 47,
+    "samcnpc-behavior": 364,
+    "samcnpc-llm": 80
+  },
+  "frozenSourceFiles": 809,
+  "cleanBuild": true,
+  "boundaryDistributionGuards": true,
+  "translatorDedicatedCases": 8,
+  "translatorClientCases": 8,
+  "translatorHttpCallsPerCampaign": 9,
+  "clientAuthorityChecks": 11,
+  "clientRenderedCases": 8,
+  "clientWalkingCases": 5,
+  "restart": "two JVMs; saved lost-receipt snapshot injected after real assignments; not an abrupt-crash/WAL proof",
+  "corpus": {
+    "families": 16,
+    "completePolishGoals": 16,
+    "ambiguousGoals": 16,
+    "scriptedHttpExchanges": 32,
+    "scope": "wire/typed policy/question contract only; no model understanding claim"
+  },
+  "reports": {
+    "clientConfig": "PASS titleScreen=true frames=233 configGui=true configSave=true staleDraft=true logo=true mods=[samcnpc_behavior, samcnpc_core, samcnpc_llm] behaviorValidation=true componentCatalog=14/23 registeredSchema=true typedOrders=true configLoaded=true defaultDisabled=true emulatedHttp=true boundedBodyTimeout=true http503=true recovery=true calls=4",
+    "dedicated": "PASS dedicated=true ticks=574 coreApi=true mods=[samcnpc_behavior, samcnpc_core, samcnpc_llm] behaviorValidation=true componentCatalog=14/23 registeredSchema=true typedOrders=true configLoaded=true defaultDisabled=true emulatedHttp=true boundedBodyTimeout=true http503=true recovery=true calls=4 contextWorker=true detachedAfterDismiss=true inventorySlots=36 hiddenBlockOmitted=true contextBytes=9725 contextBounds=true captureAuthority=true decisionHttpCalls=2 fullSchemaBytes=46528 jsonObjectBytes=51784 lateHttpRejected=true httpResumeApplied=true schedulerCases=15 schedulerHttpCalls=15 schedulerWorkerCalls=15 schedulerThreadChecks=true schedulerVirtualClock=true lastGoalCallAdmitted=true schedulerLateReplySuppressed=true translatorCases=8 translatorHttpCalls=9 translatorMaxRequestBytes=40070 registeredGoalCommands=true goalAuthorityChecks=11 physicalTransport=true physicalDeliver=true physicalLumberjack=true manualPauseHeld=true clarificationBudgetRetained=true offlineBehaviorContinues=true missingResourceFailed=true fullDestinationFailed=true userCancelNoLateAssign=true admissionChecks=30 admissionReplay=true lateManualControlRejected=true exactReceiptReadOnly=true lostReplyNoRetry=true subscriptionsStopped=true",
+    "clientGoals": "PASS integratedServer=true actualCommands=true translatorCases=8 translatorHttpCalls=9 translatorMaxRequestBytes=40065 registeredGoalCommands=true goalAuthorityChecks=11 physicalTransport=true physicalDeliver=true physicalLumberjack=true manualPauseHeld=true clarificationBudgetRetained=true offlineBehaviorContinues=true missingResourceFailed=true fullDestinationFailed=true userCancelNoLateAssign=true\nrenderedCases=8 frames={clarify=691, lumberjack=328, deliver=90, pause=134, offline=96, full=30, cancel=36, missing=24} walking={clarify=62, lumberjack=73, deliver=61, pause=62, offline=61, full=null, cancel=null, missing=null}",
+    "restartSave": "PASS savePid=26012 httpCalls=2 realAssignments=2 lostReceiptInjection=true",
+    "restartLoad": "PASS newJvm=true knownTaskPhysicallyCompleted=true exactTaskIdsRetained=true uncertainAdmissionHeld=true heldBudgetSettledOnce=true providerDisabled=true replayAssignments=0"
+  },
+  "artifacts": {
+    "R:/Codex-workspace-misc/samcnpc/samcnpc-core/build/libs/samcnpc-core-0.1.0.jar": "c6cdc8eb7b89e679671bbc9b7830219a005d27344e2343c9caabded5b8f676f9",
+    "R:/Codex-workspace-misc/samcnpc/samcnpc-behavior/build/libs/samcnpc-behavior-0.1.0.jar": "598176155dadf6dc754def093489de558f33385abdff6a0eb0bb94ca5d58f039",
+    "R:/Codex-workspace-misc/samcnpc/samcnpc-llm/build/libs/samcnpc-llm-0.1.0.jar": "188fd12faccf85afade2c0633a1c1347944b185737b418f8cc6647613647d7a4"
+  },
+  "coreBehaviorSourcesAndBuildsUnchanged": true,
+  "retainedEvidence": {
+    "coreNative": {
+      "cases": 141,
+      "source": "visual-evidence.json"
+    },
+    "behaviorNative": {
+      "cases": 214,
+      "source": "decision-evidence.json"
+    },
+    "behaviorClient": {
+      "cases": 12,
+      "source": "decision-evidence.json"
+    }
+  },
+  "realModels": "USER_DEFERRED_NOT_VERIFIED",
+  "authenticatedSkinAccounts": "MANUAL_PENDING_NONBLOCKING",
+  "modes": {
+    "translator": "IMPLEMENTED_EMULATOR_VALIDATED",
+    "supervisor": "NOT_IMPLEMENTED",
+    "planner": "NOT_IMPLEMENTED"
+  },
+  "tokenMeter": "operator-declared byte-level upper bound; no actual real tokenizer verification",
+  "failedAttemptsRetained": [
+    "translator-physical-first.log",
+    "translator-physical-expanded.log",
+    "translator-restart-first.log",
+    "translator-restart-second.log",
+    "translator-restart-diagnostic.log",
+    "translator-restart-third.log"
+  ],
+  "standalone": {
+    "cleanBuild": true,
+    "llmUnits": 80,
+    "ownSourceFilesMatched": 88,
+    "runtimeEvidence": "canonical frozen source; standalone runtime not separately rerun",
+    "llmJarSha256": "3f878c4c11a8c3c4780ad3de8d7f822b005cbf5a998b021c97ffd2ada881279b"
+  }
+}

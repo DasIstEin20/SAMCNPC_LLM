@@ -43,6 +43,10 @@ ext.fullVerificationId = null
 evaluationDependsOn(':samcnpc-core')
 evaluationDependsOn(':samcnpc-behavior')
 
+def goalRestartId = providers.gradleProperty('llmGoalRestartId').orElse(rootProject.ext.fullVerificationId ?: 'manual').get()
+if (!(goalRestartId ==~ /[A-Za-z0-9_-]{1,64}/)) throw new GradleException('Invalid llmGoalRestartId')
+def goalRestartDirectory = "run-server-goals-restart-${goalRestartId}"
+
 minecraft {
     mappings channel: 'official', version: minecraft_version
     copyIdeResources = true
@@ -67,7 +71,25 @@ minecraft {
             property 'samcnpc.clientLoadingSmoke', 'true'
             mods { samcnpc_llm { source sourceSets.test } }
         }
+        clientGoalsSmoke {
+            parent runs.client
+            workingDirectory project.file('run-client-goals-smoke')
+            property 'samcnpc.goalsClientSmoke', 'true'
+            mods { samcnpc_llm { source sourceSets.test } }
+        }
         server { args '--nogui' }
+        serverGoalsSaveSmoke {
+            parent runs.server
+            workingDirectory project.file(goalRestartDirectory)
+            property 'samcnpc.goalRestartPhase', 'save'
+            mods { samcnpc_llm { source sourceSets.test } }
+        }
+        serverGoalsLoadSmoke {
+            parent runs.server
+            workingDirectory project.file(goalRestartDirectory)
+            property 'samcnpc.goalRestartPhase', 'load'
+            mods { samcnpc_llm { source sourceSets.test } }
+        }
         serverLoadingSmoke {
             parent runs.server
             workingDirectory project.file('run-server-loading-smoke')
@@ -111,7 +133,7 @@ tasks.named('jar', Jar).configure {
 }
 
 // Command-line userdev needs the exact bundled Behavior data staged under its game directory.
-['Run': 'run', 'ClientLoadingSmoke': 'run-client-loading-smoke', 'ServerLoadingSmoke': 'run-server-loading-smoke'].each { suffix, folder ->
+['Run': 'run', 'ClientLoadingSmoke': 'run-client-loading-smoke', 'ServerLoadingSmoke': 'run-server-loading-smoke', 'ClientGoalsSmoke': 'run-client-goals-smoke', 'ServerGoalsSaveSmoke': goalRestartDirectory, 'ServerGoalsLoadSmoke': goalRestartDirectory].each { suffix, folder ->
     def stage = tasks.register("stageBehaviorData${suffix}", Copy) {
         from project(':samcnpc-behavior').layout.projectDirectory.dir('src/main/resources/data')
         into layout.projectDirectory.dir("${folder}/data")
@@ -119,6 +141,53 @@ tasks.named('jar', Jar).configure {
     tasks.matching {
         suffix == 'Run' ? it.name in ['runClient', 'runServer'] : it.name == "run${suffix}"
     }.configureEach { dependsOn stage }
+}
+
+
+tasks.matching { it.name == 'runClientGoalsSmoke' }.configureEach {
+    def report = layout.projectDirectory.file('run-client-goals-smoke/client-goals-result.txt').asFile
+    doFirst { report.parentFile.mkdirs(); report.text = 'RUNNING\n' }
+    doLast {
+        if (!report.text.startsWith('PASS ')) throw new GradleException("LLM goal client failed: ${report}")
+    }
+}
+
+
+['Save', 'Load'].each { stage ->
+    tasks.matching { it.name == "runServerGoals${stage}Smoke" }.configureEach {
+        def report = layout.projectDirectory.file("${goalRestartDirectory}/server-goals-${stage.toLowerCase()}.txt").asFile
+        doFirst {
+            report.parentFile.mkdirs(); report.text = 'RUNNING\n'
+            // Project-scoped EULA authorization: root AGENTS.md section 12.
+            new File(report.parentFile, 'eula.txt').text = 'eula=true\n'
+            def settings = new File(report.parentFile, 'server.properties')
+            if (!settings.exists()) settings.text = """server-ip=127.0.0.1
+server-port=25575
+online-mode=true
+level-name=goal-restart-world
+level-type=minecraft:flat
+generator-settings={"layers":[{"block":"minecraft:bedrock","height":1},{"block":"minecraft:dirt","height":2},{"block":"minecraft:grass_block","height":1}],"biome":"minecraft:plains"}
+level-seed=0
+generate-structures=false
+difficulty=peaceful
+view-distance=4
+simulation-distance=4
+max-players=1
+spawn-protection=0
+"""
+        }
+        doLast {
+            if (!report.text.startsWith('PASS ')) throw new GradleException("LLM goal restart ${stage} failed: ${report}")
+        }
+    }
+}
+
+tasks.matching { it.name == "runServerGoalsLoadSmoke" }.configureEach { mustRunAfter "runServerGoalsSaveSmoke" }
+
+// JUnit uses named Minecraft classes; dependency JARs have already been reobfuscated by Forge.
+tasks.withType(Test).configureEach {
+    classpath = files(project(':samcnpc-core').sourceSets.main.output,
+        project(':samcnpc-behavior').sourceSets.main.output) + classpath
 }
 
 tasks.withType(Jar).configureEach {

@@ -1,0 +1,201 @@
+package io.samcnpc.llm.goal
+
+import io.samcnpc.behavior.api.*
+import io.samcnpc.core.api.NpcActionStatus
+import io.samcnpc.llm.api.LlmProvider
+import io.samcnpc.llm.config.ProviderSettings
+import io.samcnpc.llm.provider.OpenAiCompatibleProvider
+import io.samcnpc.llm.scheduling.*
+import net.minecraft.network.chat.Component
+import net.minecraft.server.MinecraftServer
+import net.minecraft.server.level.ServerPlayer
+import java.util.UUID
+
+internal data class GoalReply(val accepted: Boolean, val code: String, val record: GoalRecord? = null)
+
+/** Player-facing goal lifecycle; all world authorization uses the published Behavior gateway. */
+internal class LlmGoalController(
+    private val server: MinecraftServer,
+    val settings: ProviderSettings,
+    val store: LlmGoalStore = LlmGoalStore.forServer(server),
+    rates: InferenceRateGate = InferenceRateGate(settings.inference.serverResources()),
+    provider: LlmProvider = OpenAiCompatibleProvider(settings),
+) : AutoCloseable {
+    private val runtime = TranslatorRuntime(server, store, settings, provider, rates, ::notify)
+    private var closed = false
+
+    fun start(actor: ServerPlayer, npc: UUID, text: String, now: Long): GoalReply {
+        authorization(actor, npc)?.let { return it }
+        readiness()?.let { return rejected(it) }
+        if (!GoalRecord.validText(text, 1024)) return rejected("INVALID_GOAL_TEXT")
+        val previous = store.get(npc)
+        if (previous != null && previous.phase !in finished) return rejected("ACTIVE_GOAL_REQUIRES_STOP")
+        if (previous?.budget?.inFlight != null) return rejected("PREVIOUS_INFERENCE_DRAINING")
+        if (activeTask(actor, npc)) return rejected("ACTIVE_BEHAVIOR_TASK_REQUIRES_REVIEW")
+        val record = GoalRecord(npc, actor.uuid, UUID.randomUUID(), 1, text, limits = settings.inference.goalLimits())
+        return queue(actor, record, now, InferenceReason.USER_GOAL)
+    }
+
+    fun answer(actor: ServerPlayer, npc: UUID, text: String, now: Long): GoalReply {
+        authorization(actor, npc)?.let { return it }
+        readiness()?.let { return rejected(it) }
+        val record = store.get(npc) ?: return rejected("GOAL_NOT_FOUND")
+        if (record.phase != GoalPhase.ASK_USER || record.manualHold) return rejected("NO_ACTIVE_QUESTION")
+        if (!GoalRecord.validText(text, 512)) return rejected("INVALID_ANSWER_TEXT")
+        val answer = record.answer?.let { it + "\n" + text } ?: text
+        if (!GoalRecord.validText(answer, 512)) return rejected("CLARIFICATION_LIMIT")
+        if (record.revision == Long.MAX_VALUE) return rejected("GOAL_REVISION_EXHAUSTED")
+        if (record.budget.inFlight != null) return rejected("PREVIOUS_INFERENCE_DRAINING")
+        if (activeTask(actor, npc)) return rejected("ACTIVE_BEHAVIOR_TASK_REQUIRES_REVIEW")
+        return queue(actor, record.copy(actorUuid = actor.uuid, revision = record.revision + 1,
+            answer = answer, phase = GoalPhase.QUEUED, code = "USER_ANSWER", question = null),
+            now, InferenceReason.USER_ANSWER)
+    }
+
+    fun resume(actor: ServerPlayer, npc: UUID, now: Long): GoalReply {
+        authorization(actor, npc)?.let { return it }
+        val record = store.get(npc) ?: return rejected("GOAL_NOT_FOUND")
+        if (record.budget.inFlight != null) return rejected("PREVIOUS_INFERENCE_DRAINING")
+        if (record.phase == GoalPhase.REVIEW_REQUIRED) return rejected("REVIEW_REQUIRES_NEW_GOAL")
+        if (record.phase in finished) return rejected("FINISHED_GOAL_REQUIRES_NEW_GOAL")
+        if (record.phase == GoalPhase.ASK_USER) return rejected("ANSWER_REQUIRED")
+        if (record.revision == Long.MAX_VALUE) return rejected("GOAL_REVISION_EXHAUSTED")
+        val known = record.task
+        if (known != null) {
+            val view = checkNotNull(OperationSupervisionApi.observe(server, actor, npc).observation)
+            val task = view.task
+            if (task == null || task.taskId != known.id) return rejected("TASK_REVIEW_REQUIRED")
+            if (task.state in terminalTaskStates) {
+                val terminal = record.copy(phase = when (task.state) {
+                    OperationTaskState.COMPLETED -> GoalPhase.COMPLETED
+                    OperationTaskState.FAILED -> GoalPhase.FAILED
+                    else -> GoalPhase.STOPPED
+                }, code = "TASK_" + task.state.name, manualHold = task.state == OperationTaskState.CANCELLED)
+                store.put(terminal)?.let { return rejected(it) }
+                runtime.cancel(npc)
+                return GoalReply(true, terminal.code, terminal)
+            }
+            var current = task
+            if (task.state == OperationTaskState.PAUSED) {
+                val reply = OperationSupervisionApi.control(server, actor, npc,
+                    OperationControlRequest(task.taskId, task.controlRevision, task.definitionRevision,
+                        view.observedTick, view.observedTick + 100, OperationControl.RESUME))
+                if (reply.result.status != NpcActionStatus.SUCCEEDED) return rejected("RESUME_" + reply.result.code.name)
+                current = reply.observation?.task ?: return rejected("RESUME_OBSERVATION_MISSING")
+            }
+            val resumed = record.copy(actorUuid = actor.uuid, revision = record.revision + 1,
+                phase = GoalPhase.EXECUTING, code = "USER_ACCEPTED_CURRENT_TASK", manualHold = false,
+                task = GoalTask(current.taskId, current.definitionRevision, current.controlRevision, known.operationId))
+            store.put(resumed)?.let { return rejected(it) }
+            runtime.attach(resumed, actor)?.let { return waiting(resumed, it) }
+            return GoalReply(true, resumed.code, runtime.observeKnown(resumed, actor))
+        }
+        readiness()?.let { return rejected(it) }
+        if (activeTask(actor, npc)) return rejected("ACTIVE_BEHAVIOR_TASK_REQUIRES_REVIEW")
+        return queue(actor, record.copy(actorUuid = actor.uuid, revision = record.revision + 1,
+            phase = GoalPhase.QUEUED, code = "USER_RESUMED", manualHold = false, question = null),
+            now, InferenceReason.USER_GOAL)
+    }
+
+    fun stop(actor: ServerPlayer, npc: UUID): GoalReply {
+        authorization(actor, npc)?.let { return it }
+        val record = store.get(npc) ?: return rejected("GOAL_NOT_FOUND")
+        val stopped = record.copy(phase = GoalPhase.STOPPED, code = "USER_STOPPED", manualHold = true, question = null)
+        store.put(stopped)?.let { return rejected(it) }
+        runtime.cancel(npc)
+        val view = checkNotNull(OperationSupervisionApi.observe(server, actor, npc).observation)
+        val task = view.task
+        if (task != null && task.taskId == record.task?.id && task.state !in terminalTaskStates) {
+            val reply = OperationSupervisionApi.control(server, actor, npc,
+                OperationControlRequest(task.taskId, task.controlRevision, task.definitionRevision,
+                    view.observedTick, view.observedTick + 100, OperationControl.CANCEL))
+            if (reply.result.status != NpcActionStatus.SUCCEEDED) {
+                val failed = stopped.copy(code = "STOP_CONTROL_" + reply.result.code.name)
+                check(store.put(failed) == null)
+                return GoalReply(false, failed.code, failed)
+            }
+        }
+        return GoalReply(true, stopped.code, store.get(npc))
+    }
+
+    fun status(actor: ServerPlayer, npc: UUID): GoalReply {
+        authorization(actor, npc)?.let { return it }
+        val record = store.get(npc) ?: return rejected("GOAL_NOT_FOUND")
+        val current = runtime.observeKnown(record, actor)
+        return GoalReply(true, current.code, current)
+    }
+
+    fun forget(actor: ServerPlayer, npc: UUID): GoalReply {
+        authorization(actor, npc)?.let { return it }
+        val record = store.get(npc) ?: return rejected("GOAL_NOT_FOUND")
+        if (record.phase !in finished || record.budget.inFlight != null) return rejected("STOP_GOAL_BEFORE_FORGET")
+        runtime.cancel(npc)
+        store.remove(npc)?.let { return rejected(it) }
+        return GoalReply(true, "GOAL_FORGOTTEN")
+    }
+
+    /** Known executing tasks can be monitored after login/restart; this never queues inference. */
+    fun reconnect(actor: ServerPlayer) {
+        check(server.isSameThread)
+        if (closed || store.problem != null) return
+        for (record in store.records().filter { it.actorUuid == actor.uuid && it.phase == GoalPhase.EXECUTING && !it.manualHold }) {
+            if (authorization(actor, record.npcUuid) != null) continue
+            val current = runtime.observeKnown(record, actor)
+            if (current.phase == GoalPhase.EXECUTING) runtime.attach(current, actor)
+        }
+    }
+
+    fun poll(now: Long) { check(server.isSameThread); if (!closed) runtime.poll(now) }
+
+    private fun queue(actor: ServerPlayer, record: GoalRecord, now: Long, reason: InferenceReason): GoalReply {
+        if (InferenceBudget(record.limits, record.budget).availableCalls == 0) return rejected("GOAL_CALL_BUDGET_EXHAUSTED")
+        store.put(record)?.let { return rejected(it) }
+        runtime.attach(record, actor)?.let { return waiting(record, it) }
+        runtime.wake(record, now, reason)?.let { runtime.cancel(record.npcUuid); return waiting(record, it) }
+        return GoalReply(true, record.code, record)
+    }
+
+    private fun waiting(record: GoalRecord, code: String): GoalReply {
+        val next = record.copy(phase = GoalPhase.WAITING, code = code, question = null, manualHold = true)
+        check(store.put(next) == null)
+        return GoalReply(false, code, next)
+    }
+
+    private fun authorization(actor: ServerPlayer, npc: UUID): GoalReply? {
+        check(server.isSameThread)
+        if (closed) return rejected("GOAL_CONTROLLER_CLOSED")
+        val reply = OperationSupervisionApi.observe(server, actor, npc)
+        if (reply.result.status != NpcActionStatus.SUCCEEDED || reply.observation == null)
+            return rejected("OBSERVATION_" + reply.result.code.name)
+        store.problem?.let { return rejected(it) }
+        return null
+    }
+
+    private fun readiness(): String? = when {
+        !settings.enabled -> "LLM_DISABLED"
+        settings.problem() != null -> "INVALID_PROVIDER_CONFIGURATION"
+        else -> settings.inference.readiness(settings)
+    }
+
+    private fun activeTask(actor: ServerPlayer, npc: UUID): Boolean =
+        OperationSupervisionApi.observe(server, actor, npc).observation?.task?.state?.let { it !in terminalTaskStates } == true
+
+    private fun notify(record: GoalRecord) {
+        val actor = server.playerList.getPlayer(record.actorUuid) ?: return
+        actor.sendSystemMessage(Component.literal("SAMCNPC LLM " + record.npcUuid + ": " + record.phase.name +
+            " / " + record.code + (record.question?.let { "\n" + it } ?: "")))
+    }
+
+    override fun close() {
+        check(server.isSameThread)
+        if (closed) return
+        closed = true
+        runtime.close()
+    }
+
+    companion object {
+        private val finished = setOf(GoalPhase.COMPLETED, GoalPhase.FAILED, GoalPhase.STOPPED)
+        private val terminalTaskStates = setOf(OperationTaskState.COMPLETED, OperationTaskState.FAILED, OperationTaskState.CANCELLED)
+        private fun rejected(code: String) = GoalReply(false, code)
+    }
+}

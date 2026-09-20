@@ -15,5 +15,7 @@ internal interface InferenceHost {
     fun started(wake: InferenceWake, captured: CapturedContext, requestId: UUID)
     /** Admit or record failure before the held attempt is settled. Never retry an uncertain world effect. */
     fun completed(wake: InferenceWake, captured: CapturedContext, result: InferenceResult)
+    /** Persist the final conservative charge after admission or cancellation. Server thread only. */
+    fun settled(wake: InferenceWake, requestId: UUID, budget: InferenceBudgetView)
     fun deferred(wake: InferenceWake, code: String, retryAtMillis: Long?)
 }

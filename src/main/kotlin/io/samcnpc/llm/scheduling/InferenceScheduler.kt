@@ -89,7 +89,7 @@ internal class InferenceScheduler(
                 hostFailed(error)
             } finally {
                 completing = null
-                check(attempt.budget.settle(attempt.input.requestId))
+                settle(attempt)
             }
             if (closed) return
         }
@@ -197,6 +197,12 @@ internal class InferenceScheduler(
         catch (error: RuntimeException) { hostFailed(error) }
     }
 
+    private fun settle(attempt: Active) {
+        check(attempt.budget.settle(attempt.input.requestId))
+        try { host.settled(attempt.wake, attempt.input.requestId, attempt.budget.snapshot()) }
+        catch (error: RuntimeException) { hostFailed(error) }
+    }
+
     private fun hostFailed(error: RuntimeException) {
         LOGGER.warn("LLM inference host failed; scheduler closed exception={}", error.javaClass.simpleName)
         close()
@@ -210,7 +216,7 @@ internal class InferenceScheduler(
         completing?.cancellation?.cancel()
         for (attempt in active.values) {
             attempt.cancellation.cancel()
-            check(attempt.budget.settle(attempt.input.requestId))
+            settle(attempt)
         }
         active.clear()
         workers.shutdownNow()

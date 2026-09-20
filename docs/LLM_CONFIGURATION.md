@@ -39,9 +39,52 @@ process, never in this file, GUI, user goal or behavior pack. Empty variable nam
 means no authentication. Selecting JSON_OBJECT is an explicit backend setting,
 not permission to execute free text. Local schema/semantic validation still applies.
 
-Current delivery: configuration and logo verified in the real Forge client.
-Bounded HTTP transport is verified with the local test emulator. Context/admission,
-scheduling and autonomous planning are tracked in
-[LLM_INTEGRATION_PLAN](LLM_INTEGRATION_PLAN.md); enabling a config switch alone
-does not make unfinished modes operational. The transport is not yet wired to user goals. Tests use a CPU-only local HTTP
-emulator, with no model installation, GPU allocation or claim of real-model quality.
+Translator commands are connected to the provider and the public Behavior gateway.
+See [LLM_TRANSLATOR](LLM_TRANSLATOR.md) for commands, restart behavior and limits.
+Supervisor and Planner are tracked separately in [LLM_INTEGRATION_PLAN](LLM_INTEGRATION_PLAN.md).
+Tests use a CPU-only local HTTP emulator: no model installation, GPU allocation or
+claim of real-model quality. User-provided endpoint/model tests remain deferred.
+
+## Inference metering profile
+
+The advanced `[inference]` section belongs to the same server-owned TOML file.
+The GUI preserves it when editing connection fields. Changing endpoint/model makes
+an existing exact-tuple declaration inapplicable until it is verified again.
+
+```toml
+[inference]
+verifiedByteLevel = false
+verifiedBaseUrl = "http://127.0.0.1:1234/v1"
+verifiedModel = ""
+backendVersion = ""
+modelDigest = ""
+tokenizerDigest = ""
+templateDigest = ""
+templateReserve = 2048
+contextWindow = 32768
+inputTokens = 8192
+inputMicrosPerMillion = 0
+outputMicrosPerMillion = 0
+goalCostMicros = 0
+hourlyCostMicros = 0
+```
+
+These defaults deliberately contain no verified model. `UNVERIFIED_TOKEN_PROFILE`
+means no request is sent. The declaration is appropriate only after confirming a
+conservative byte-level tokenizer bound and chat-template reserve for the exact
+backend/model/tokenizer/template tuple; names alone prove nothing. Record immutable
+identifiers in the evidence fields. Other tokenizers require their own validated
+metering adapter before support can be claimed.
+
+The current adapter bounds input by the entire UTF-8 serialized HTTP request plus
+`templateReserve`, including the output schema. This is conservative accounting,
+not measured token consumption. `inputTokens` must cover that bound and, together
+with `maxOutputTokens`, fit the verified context window. Defaults are not an assertion
+that every catalog prompt fits an 8192-token allocation. The full Translator catalog
+used about 40 KiB of HTTP data in emulator scenarios and a 49152 input reservation;
+this fixture size does not characterize a future model's token usage.
+
+Rates and cost caps use integer millionths of the same operator-chosen currency;
+zero rates/caps describe a local endpoint with no configured monetary charge.
+A priced endpoint needs explicit rates and caps. No budget is silently enlarged or
+refunded on transport failure. Endpoint changes preserve server-lifetime rate history.

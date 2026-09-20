@@ -20,6 +20,7 @@ internal object OperationStopProbe {
     private var npcUuid: UUID? = null
     private var http: DecisionHttpProbe? = null
     private var scheduler: SchedulerRuntimeProbe? = null
+    private var translator: TranslatorRuntimeProbe? = null
     private var origin: NpcPosition? = null
     private var subscription: OperationSubscription? = null
     val started: Boolean get() = subscription != null
@@ -73,6 +74,18 @@ internal object OperationStopProbe {
         return current.poll()
     }
 
+    fun pollTranslator(server: MinecraftServer): String? {
+        val current = translator
+        if (current == null) {
+            translator = TranslatorRuntimeProbe(server, checkNotNull(player), checkNotNull(origin))
+            return null
+        }
+        return try { current.poll() } catch (failure: RuntimeException) {
+            current.close()
+            throw failure
+        }
+    }
+
     fun beforeStop() {
         check(checkNotNull(subscription).state == OperationSubscriptionState.ACTIVE)
     }
@@ -80,6 +93,8 @@ internal object OperationStopProbe {
     fun afterBehaviorStop(server: MinecraftServer) {
         check(checkNotNull(subscription).state == OperationSubscriptionState.SERVER_STOPPED)
         stopped = true
+        translator?.close()
+        translator = null
         scheduler?.close()
         scheduler = null
         http?.close()

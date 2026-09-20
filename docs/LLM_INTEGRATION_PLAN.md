@@ -397,14 +397,22 @@ niezależnych testów/stuba i drugiego dostępnego backendu.
 
 ### L4 — Translator, pierwszy kompletny produkt (po L0–L3)
 
-- [ ] L4.1 Dodać ograniczone komendy celu/statusu/odpowiedzi/stop dla summoner/operatora, bez wymagania nowego GUI; zweryfikować UUID/range i limit tekstu.
-- [ ] L4.2 Połączyć naturalny cel z jedną decyzją, najpierw transport/deliver/lumberjack; niejasny zasób/ilość/alias/odbiorca prowadzi do ASK_USER.
-- [ ] L4.3 Wprowadzić minimalny trwały GoalRecord/admission ledger, jedno aktywne pytanie i deterministyczny raport wyniku; brak inference po każdym kroku.
-- [ ] L4.4 Przejść rzeczywisty klient/serwer: polecenie → typed order → fizyczna dostawa, brak zasobu, pełny cel, user cancel, wyłączenie providera i restart bez duplikacji.
-- [ ] L4.5 Rozszerzyć translator na pozostałe rodziny poprzez ten sam katalog; dla wszystkich 16 wykazać poprawne mapowanie albo jawne pytanie/odrzucenie przy brakujących danych.
+- [x] L4.1 Dodać ograniczone komendy celu/statusu/odpowiedzi/stop dla summoner/operatora, bez wymagania nowego GUI; zweryfikować UUID/range i limit tekstu.
+- [x] L4.2 Połączyć naturalny cel z jedną decyzją, najpierw transport/deliver/lumberjack; niejasny zasób/ilość/alias/odbiorca prowadzi do ASK_USER.
+- [x] L4.3 Wprowadzić minimalny trwały GoalRecord/admission ledger, jedno aktywne pytanie i deterministyczny raport wyniku; brak inference po każdym kroku.
+- [x] L4.4 Przejść rzeczywisty klient/serwer: polecenie → typed order → fizyczna dostawa, brak zasobu, pełny cel, user cancel, wyłączenie providera i restart bez duplikacji.
+- [x] L4.5 Rozszerzyć translator na pozostałe rodziny poprzez ten sam katalog; dla wszystkich 16 wykazać poprawne mapowanie albo jawne pytanie/odrzucenie przy brakujących danych.
 
 Wyjście: użytkownik wydaje jedno polecenie naturalne, Behavior wykonuje pracę bez
 dalszego inference; wynik wynika z zasobów świata, nie odpowiedzi tekstowej modelu.
+
+Dowód L4: LLM_TRANSLATOR.md, ADR0097 i translator-evidence.json: 491 unit (80 LLM),
+8 fizycznych scenariuszy dedicated i 8 w kliencie, 9 HTTP na kampanię, 11 kontroli
+uprawnień, restart dwóch JVM bez ponownego assignmentu; clean/static/distribution
+oraz 809 hashy PASS. Korpus obejmuje 16 rodzin i 16 pytań przez emulator HTTP.
+Zgodnie z decyzją użytkownika zakres zaliczenia to integracja z emulatorem: wybór
+operacji przez prawdziwy model i jakość językowa pozostają USER_DEFERRED (L3.5).
+Stałe odpowiedzi korpusu nie są dowodem rozumienia poleceń przez model.
 
 ### L5 — Supervisor i ochrona przed pętlami (po zaliczeniu Translatora)
 
