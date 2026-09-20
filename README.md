@@ -15,6 +15,8 @@ timeouts/cancellation, explicit errors, Forge configuration and a Mods Config sc
 Default endpoint is **http://127.0.0.1:1234/v1**, editable together with the model ID.
 Integration is disabled by default, with no startup request or automatic model loading.
 See [configuration](docs/LLM_CONFIGURATION.md).
+The pinned Behavior API also provides [authorized body/task inspection](docs/OPERATION_INSPECTION_API.md)
+for the context builder under development.
 
 **Work in progress:** context, decision admission, scheduling and
 Translator → Supervisor → Planner are still being built. This version does not yet
@@ -44,7 +46,7 @@ Minecraft test servers require EULA acceptance.
 
 ## Validation
 
-Canonical workspace: clean build, 401 units (45 Core/337 Behavior/19 LLM),
+Canonical workspace: clean build, 410 units (45 Core/337 Behavior/19 LLM),
 boundary/distribution checks, dedicated and client HTTP/configuration tests passed.
 This checkout's independent build/runtime results are recorded in [PROJECT_STATE](PROJECT_STATE.md).
 Authenticated skin appearance remains a manual, nonblocking test.

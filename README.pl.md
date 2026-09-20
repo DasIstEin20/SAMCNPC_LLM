@@ -14,7 +14,8 @@ Gotowe: ograniczony adapter HTTP zgodny z OpenAI, typowany kontrakt, walidacja J
 timeout/anulowanie, jawne błędy, konfiguracja Forge oraz ekran Mods → SAMCNPC LLM → Config.
 Domyślny adres **http://127.0.0.1:1234/v1** i ID modelu można zmienić.
 Domyślnie integracja jest wyłączona; start moda nie wysyła żądań ani nie ładuje modelu.
-[Konfiguracja](docs/LLM_CONFIGURATION.md).
+[Konfiguracja](docs/LLM_CONFIGURATION.md). Przypięty Behavior udostępnia także
+[autoryzowany odczyt ciała i zadania](docs/OPERATION_INSPECTION_API.md) dla budowanego kontekstu.
 
 **Prace trwają:** kontekst, dopuszczanie decyzji, kolejka oraz tryby
 Translator → Supervisor → Planner. Ta wersja nie zamienia jeszcze poleceń gracza
@@ -31,7 +32,7 @@ Core, Behavior i Kotlin for Forge 4.12.0. Forge: 47.4.21.
 `runClientLoadingSmoke` sprawdzają rzeczywisty Forge, HTTP oraz konfigurację.
 Serwer testowy wymaga zaakceptowania EULA Minecrafta.
 
-Główny workspace: 401 testów jednostkowych, clean build, granice/dystrybucja,
+Główny workspace: 410 testów jednostkowych, clean build, granice/dystrybucja,
 dedicated oraz klient z GUI i emulatorem — PASS.
 Wyniki osobnego repo: [PROJECT_STATE](PROJECT_STATE.md).
 Test wyglądu skórek dwóch zalogowanych kont pozostaje ręczny i nie blokuje prac.
