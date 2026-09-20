@@ -24,7 +24,7 @@ internal object ProviderRuntimeProbe {
                     val request = LlmRequest(UUID.randomUUID(), "Return JSON only.", """{"state":{},"goal":"wait"}""",
                         """{"type":"object","properties":{"decision":{"type":"string"}},"required":["decision"],"additionalProperties":false}""")
                     endpoint.enqueue()
-                    check(provider.complete(request).result.toCompletableFuture().get(3, TimeUnit.SECONDS) is LlmResponse.Candidate)
+                    requireCandidate(provider.complete(request).result.toCompletableFuture().get(3, TimeUnit.SECONDS), "initial")
                     val stalledBody = CountDownLatch(1)
                     endpoint.enqueue(FakeOpenAiEndpoint.Reply(waitDuringBody = stalledBody))
                     val timedOut = provider.complete(request).result.toCompletableFuture().get(3, TimeUnit.SECONDS)
@@ -34,12 +34,18 @@ internal object ProviderRuntimeProbe {
                     val offline = provider.complete(request).result.toCompletableFuture().get(3, TimeUnit.SECONDS)
                     check(offline is LlmResponse.Failed && offline.code == LlmFailure.UNAVAILABLE)
                     endpoint.enqueue()
-                    check(provider.complete(request).result.toCompletableFuture().get(3, TimeUnit.SECONDS) is LlmResponse.Candidate)
+                    requireCandidate(provider.complete(request).result.toCompletableFuture().get(3, TimeUnit.SECONDS), "recovery")
                     check(provider.activeRequests() == 0 && endpoint.received.size == 4)
                     "emulatedHttp=true boundedBodyTimeout=true http503=true recovery=true calls=4"
                 }
             }
         }, executor)
+    }
+
+    private fun requireCandidate(response: LlmResponse, stage: String) {
+        check(response is LlmResponse.Candidate) {
+            "HTTP probe $stage result=" + (response as? LlmResponse.Failed)?.code
+        }
     }
 
     fun poll(): String? {

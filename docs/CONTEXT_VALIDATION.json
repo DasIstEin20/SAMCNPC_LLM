@@ -1,0 +1,42 @@
+{
+  "status": "PASS",
+  "utc": "2026-09-20T04:15:55.227640+00:00",
+  "units": {
+    "samcnpc-core": 47,
+    "samcnpc-behavior": 364,
+    "samcnpc-llm": 25
+  },
+  "frozenSourceFiles": 760,
+  "cleanBuild": true,
+  "boundaryDistributionGuards": true,
+  "forgeReports": {
+    "client": "PASS titleScreen=true frames=234 configGui=true configSave=true staleDraft=true logo=true mods=[samcnpc_behavior, samcnpc_core, samcnpc_llm] behaviorValidation=true componentCatalog=14/23 registeredSchema=true typedOrders=true configLoaded=true defaultDisabled=true emulatedHttp=true boundedBodyTimeout=true http503=true recovery=true calls=4",
+    "server": "PASS dedicated=true ticks=48 coreApi=true mods=[samcnpc_behavior, samcnpc_core, samcnpc_llm] behaviorValidation=true componentCatalog=14/23 registeredSchema=true typedOrders=true configLoaded=true defaultDisabled=true emulatedHttp=true boundedBodyTimeout=true http503=true recovery=true calls=4 contextWorker=true detachedAfterDismiss=true inventorySlots=36 hiddenBlockOmitted=true contextBytes=9725 contextBounds=true captureAuthority=true subscriptionsStopped=true"
+  },
+  "unchangedCoreBehaviorEvidence": "events-evidence.json; Core141 native visual, Behavior214 native and12 actual client cases with9 event probes; source hashes unchanged",
+  "actualContextRuntime": "dedicated server real NPC/task capture; worker encoding after dismissal; auth, hidden ore and bytes/Unicode bounds",
+  "realModels": "USER_DEFERRED_NOT_VERIFIED",
+  "authenticatedSkinAccounts": "MANUAL_PENDING_NONBLOCKING",
+  "standaloneLlm": {
+    "cleanBuild": true,
+    "units": 25,
+    "sourceFilesMatchingFrozenCanonical": 39,
+    "behaviorCommit": "4e37c4b3aec34a48f0787212dbaa59bcac055edf",
+    "utc": "2026-09-20T04:23:14.802179+00:00",
+    "runtimeEvidenceScope": "canonical context campaign; exact LLM sources and unchanged dependency graph, standalone runtime not repeated"
+  },
+  "artifacts": {
+    "samcnpc-llm": {
+      "bytes": 928408,
+      "sha256": "324587ba06fdd29f4da793b950869dde8309df0bf998614a0ff0bf20c3952889"
+    },
+    "samcnpc-behavior": {
+      "bytes": 3636911,
+      "sha256": "7e2c75744b2e2d961fac12eae97b9151de6c4eff568f6710a8b75d70fc201eb9"
+    },
+    "samcnpc-core": {
+      "bytes": 1746209,
+      "sha256": "a78d2ee36caa8e1c928dc9b31a8e1a6d4ec8f314ff8bb6ab2418c63510af89d7"
+    }
+  }
+}

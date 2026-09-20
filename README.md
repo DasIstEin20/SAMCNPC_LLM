@@ -6,28 +6,27 @@
 
 English | [Polski](README.pl.md)
 
-Optional high-level decision module for SAMCNPC on Minecraft Forge 1.20.1.
-LLM selects an operation; Behavior executes and recovers; Core provides body mechanics.
-Core and Behavior remain useful without this mod.
+Optional high-level decision integration for Minecraft Forge 1.20.1.
+Architecture: LLM selects an operation; Behavior executes and recovers; Core provides
+body mechanics. Core and Behavior remain useful without this mod.
 
-Implemented: typed bounded OpenAI-compatible HTTP transport, strict JSON input checks,
-timeouts/cancellation, explicit errors, Forge configuration and a Mods Config screen.
-Default endpoint is **http://127.0.0.1:1234/v1**, editable together with the model ID.
-Integration is disabled by default, with no startup request or automatic model loading.
-See [configuration](docs/LLM_CONFIGURATION.md).
-The pinned Behavior API also provides [authorized body/task inspection](docs/OPERATION_INSPECTION_API.md)
-for the context builder under development.
+Implemented: bounded OpenAI-compatible HTTP transport, timeout/cancellation and
+error handling, Forge Mods configuration, and an authorized immutable NPC context
+with all 36 inventory slots, task/progress, legal visual facts and bounded journals.
+The default endpoint is **http://127.0.0.1:1234/v1**, editable with the model ID.
+Integration is disabled by default: no startup request or automatic model loading.
+See [configuration](docs/LLM_CONFIGURATION.md) and [context](docs/LLM_CONTEXT.md).
 
-**Work in progress:** context, decision admission, scheduling and
-Translator → Supervisor → Planner are still being built. This version does not yet
-turn player goals into NPC work. Tests use a lightweight loopback HTTP emulator;
-real backend/model compatibility and model reasoning are not claimed verified.
-See [the plan](docs/LLM_INTEGRATION_PLAN.md) and [the boundary](docs/LLM_BOUNDARY.md).
+**Work in progress:** decision admission, scheduling and Translator → Supervisor →
+Planner. This version does not yet turn player goals into NPC work. The plan is
+12/36 complete. Tests use a lightweight local HTTP emulator; actual model/backend
+compatibility and planning quality remain unverified.
+See [the plan](docs/LLM_INTEGRATION_PLAN.md) and [boundary](docs/LLM_BOUNDARY.md).
 
 ## Build
 
 Use Java 17. Forge 47.4.21, Kotlin 2.2.21 and Kotlin for Forge 4.12.0 are pinned.
-Clone recursively, or initialize dependencies before building:
+Clone recursively, or initialize the pinned Behavior/Core dependencies:
 
 ```sh
 git submodule update --init --recursive
@@ -35,25 +34,19 @@ git submodule update --init --recursive
 ```
 
 Windows: `gradlew.bat clean build`. Artifact: `build/libs/samcnpc-llm-0.1.0.jar`.
-Install it together with corresponding Core, Behavior and Kotlin for Forge.
-The pinned Behavior submodule pins Core in turn.
-
-`test` runs the protocol emulator and unit tests without Minecraft or a model.
-`runServerLoadingSmoke` and `runClientLoadingSmoke` launch real Forge, exercise the
-transport emulator and verify configuration/loading. The client also tests the
-actual Config screen, saving, invalid fields, stale edits and logo resources.
-Minecraft test servers require EULA acceptance.
+Install it with corresponding Core, Behavior and Kotlin for Forge.
+`test` uses no Minecraft client or model. `runServerLoadingSmoke` and
+`runClientLoadingSmoke` launch real Forge, exercise HTTP/configuration, and verify
+NPC context capture or the actual Mods Config screen. Servers require EULA acceptance.
 
 ## Validation
 
-Canonical workspace: clean build, 418 units (45 Core/337 Behavior/19 LLM),
-boundary/distribution checks, dedicated and client HTTP/configuration tests passed.
-This checkout's independent build/runtime results are recorded in [PROJECT_STATE](PROJECT_STATE.md).
-Authenticated skin appearance remains a manual, nonblocking test.
+Canonical clean build: 436 units (47 Core/364 Behavior/25 LLM), actual dedicated
+context/HTTP and client GUI/HTTP, boundaries and three-JAR distribution PASS.
+Standalone clean build: 25 LLM units; source match and artifact hashes in
+[evidence](docs/CONTEXT_VALIDATION.json). [Project state](PROJECT_STATE.md) separates
+current checks from unchanged Core/Behavior gameplay evidence. Two-account skin
+appearance is a manual, nonblocking check.
 
 [Core](https://github.com/DasIstEin20/SAMCNPC_Core) ·
 [Behavior](https://github.com/DasIstEin20/SAMCNPC_Behavior)
-
-2026-09-20: Behavior observation generations verified; canonical 423 units, 211 native Behavior tests, 12 client cases (9 generation probes), three-mod smokes. Standalone LLM clean build/19 units passed; [dependency evidence](docs/LIFETIME_DEPENDENCY_VALIDATION.json). On-demand events and ContextBuilder remain unfinished.
-
-2026-09-20: L1.3 complete; LLM plan9/36. Behavior events verified: canonical430 units,214 native Behavior,12 client cases(9 event probes),actual dedicated shutdown closure. Standalone LLM clean build/19 units passed; [evidence](docs/EVENTS_DEPENDENCY_VALIDATION.json). ContextBuilder and admission remain unfinished.

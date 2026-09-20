@@ -20,6 +20,7 @@ object AllModsServerSmoke {
     private var loading: String? = null
     private var ticks = 0
     private var finalReport: String? = null
+    private var transportStartedTick: Int? = null
 
     @SubscribeEvent
     fun started(event: ServerStartedEvent) {
@@ -37,21 +38,25 @@ object AllModsServerSmoke {
         if (!enabled || event.phase != TickEvent.Phase.END) return
         val result = loading ?: return
         check(++ticks < 1200) { "Provider runtime smoke timed out" }
-        if (ticks == 20) {
-            ProviderRuntimeProbe.start()
-            OperationStopProbe.start(event.server)
-        }
+        if (ticks == 20) OperationStopProbe.start(event.server)
         if (ticks <= 20) return
+        val context = ContextRuntimeProbe.poll() ?: return
+        val started = transportStartedTick
+        if (started == null) {
+            ProviderRuntimeProbe.start()
+            transportStartedTick = ticks
+            return
+        }
         val transport = ProviderRuntimeProbe.poll() ?: return
-        check(ticks >= 30) { "Server did not tick while HTTP body was stalled" }
+        check(ticks - started >= 10) { "Server did not tick while HTTP body was stalled" }
         OperationStopProbe.beforeStop()
-        finalReport = "dedicated=true ticks=$ticks coreApi=true $result $transport"
+        finalReport = "dedicated=true ticks=$ticks coreApi=true $result $transport $context"
         Files.writeString(Path.of("server-loading-result.txt"), "PENDING_STOP $finalReport\n")
         event.server.halt(false)
     }
     @SubscribeEvent(priority = EventPriority.LOWEST)
     fun stopping(event: ServerStoppingEvent) {
-        if (enabled && finalReport != null) OperationStopProbe.afterBehaviorStop(event.server)
+        if (enabled && OperationStopProbe.started) OperationStopProbe.afterBehaviorStop(event.server)
     }
 
     @SubscribeEvent

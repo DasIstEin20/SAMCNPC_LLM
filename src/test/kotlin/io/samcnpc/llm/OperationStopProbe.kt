@@ -19,6 +19,7 @@ internal object OperationStopProbe {
     private var channel: EmbeddedChannel? = null
     private var npcUuid: UUID? = null
     private var subscription: OperationSubscription? = null
+    val started: Boolean get() = subscription != null
     var stopped = false
         private set
 
@@ -44,6 +45,7 @@ internal object OperationStopProbe {
         player = actor
         channel = embedded
         npcUuid = id
+        ContextRuntimeProbe.start(server, actor, position)
     }
 
     fun beforeStop() {
