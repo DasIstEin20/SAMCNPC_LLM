@@ -6,6 +6,8 @@ import io.samcnpc.llm.api.LlmProvider
 import io.samcnpc.llm.config.ProviderSettings
 import io.samcnpc.llm.provider.OpenAiCompatibleProvider
 import io.samcnpc.llm.scheduling.*
+import io.samcnpc.llm.supervision.*
+import io.samcnpc.llm.context.LlmMode
 import net.minecraft.network.chat.Component
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.level.ServerPlayer
@@ -24,7 +26,7 @@ internal class LlmGoalController(
     private val runtime = TranslatorRuntime(server, store, settings, provider, rates, ::notify)
     private var closed = false
 
-    fun start(actor: ServerPlayer, npc: UUID, text: String, now: Long): GoalReply {
+    fun start(actor: ServerPlayer, npc: UUID, text: String, now: Long, stockTarget: StockTarget? = null): GoalReply {
         authorization(actor, npc)?.let { return it }
         readiness()?.let { return rejected(it) }
         if (!GoalRecord.validText(text, 1024)) return rejected("INVALID_GOAL_TEXT")
@@ -32,7 +34,16 @@ internal class LlmGoalController(
         if (previous != null && previous.phase !in finished) return rejected("ACTIVE_GOAL_REQUIRES_STOP")
         if (previous?.budget?.inFlight != null) return rejected("PREVIOUS_INFERENCE_DRAINING")
         if (activeTask(actor, npc)) return rejected("ACTIVE_BEHAVIOR_TASK_REQUIRES_REVIEW")
-        val record = GoalRecord(npc, actor.uuid, UUID.randomUUID(), 1, text, limits = settings.inference.goalLimits())
+        if (stockTarget != null && store.records().any { it.npcUuid != npc && it.phase !in finished &&
+            it.supervision?.target?.sameStorage(stockTarget) == true }) return rejected("STOCK_ALREADY_SUPERVISED")
+        val record = GoalRecord(npc, actor.uuid, UUID.randomUUID(), 1, text, limits = settings.inference.goalLimits(),
+            phase = if (stockTarget == null) GoalPhase.QUEUED else GoalPhase.WAITING,
+            mode = if (stockTarget == null) LlmMode.TRANSLATOR else LlmMode.SUPERVISOR,
+            supervision = stockTarget?.let { StockSupervision(it) })
+        if (stockTarget != null) {
+            val (_, problem) = StockSupervisor.read(server, actor, record)
+            if (problem != null) return rejected(problem)
+        }
         return queue(actor, record, now, InferenceReason.USER_GOAL)
     }
 
@@ -48,7 +59,8 @@ internal class LlmGoalController(
         if (record.budget.inFlight != null) return rejected("PREVIOUS_INFERENCE_DRAINING")
         if (activeTask(actor, npc)) return rejected("ACTIVE_BEHAVIOR_TASK_REQUIRES_REVIEW")
         return queue(actor, record.copy(actorUuid = actor.uuid, revision = record.revision + 1,
-            answer = answer, phase = GoalPhase.QUEUED, code = "USER_ANSWER", question = null),
+            answer = answer, phase = if (record.supervision == null) GoalPhase.QUEUED else GoalPhase.WAITING,
+            supervision = record.supervision?.userIntervention(), code = "USER_ANSWER", question = null),
             now, InferenceReason.USER_ANSWER)
     }
 
@@ -65,6 +77,15 @@ internal class LlmGoalController(
             val view = checkNotNull(OperationSupervisionApi.observe(server, actor, npc).observation)
             val task = view.task
             if (task == null || task.taskId != known.id) return rejected("TASK_REVIEW_REQUIRED")
+            if (record.supervision != null && task.state in setOf(OperationTaskState.COMPLETED, OperationTaskState.FAILED)) {
+                val (stock, problem) = StockSupervisor.read(server, actor, record)
+                if (stock == null) return rejected(checkNotNull(problem))
+                val terminal = StockSupervisor.terminal(record.copy(code = "TASK_" + task.state.name), stock)
+                val resumed = terminal.copy(actorUuid = actor.uuid, revision = record.revision + 1,
+                    phase = GoalPhase.WAITING, manualHold = false, question = null,
+                    supervision = terminal.supervision?.userIntervention())
+                return queue(actor, resumed, now, InferenceReason.USER_GOAL)
+            }
             if (task.state in terminalTaskStates) {
                 val terminal = record.copy(phase = when (task.state) {
                     OperationTaskState.COMPLETED -> GoalPhase.COMPLETED
@@ -93,7 +114,8 @@ internal class LlmGoalController(
         readiness()?.let { return rejected(it) }
         if (activeTask(actor, npc)) return rejected("ACTIVE_BEHAVIOR_TASK_REQUIRES_REVIEW")
         return queue(actor, record.copy(actorUuid = actor.uuid, revision = record.revision + 1,
-            phase = GoalPhase.QUEUED, code = "USER_RESUMED", manualHold = false, question = null),
+            phase = if (record.supervision == null) GoalPhase.QUEUED else GoalPhase.WAITING,
+            supervision = record.supervision?.userIntervention(), code = "USER_RESUMED", manualHold = false, question = null),
             now, InferenceReason.USER_GOAL)
     }
 
@@ -134,15 +156,25 @@ internal class LlmGoalController(
         return GoalReply(true, "GOAL_FORGOTTEN")
     }
 
-    /** Known executing tasks can be monitored after login/restart; this never queues inference. */
+    /** Known tasks and waiting watches reconnect; only a new authorized sample may wake a watch. */
     fun reconnect(actor: ServerPlayer) {
         check(server.isSameThread)
         if (closed || store.problem != null) return
-        for (record in store.records().filter { it.actorUuid == actor.uuid && it.phase == GoalPhase.EXECUTING && !it.manualHold }) {
+        for (record in store.records().filter { it.actorUuid == actor.uuid && !it.manualHold &&
+            (it.phase == GoalPhase.EXECUTING || it.supervision != null && it.phase == GoalPhase.WAITING) }) {
             if (authorization(actor, record.npcUuid) != null) continue
             val current = runtime.observeKnown(record, actor)
-            if (current.phase == GoalPhase.EXECUTING) runtime.attach(current, actor)
+            if (current.phase == GoalPhase.EXECUTING || current.supervision != null && current.phase == GoalPhase.WAITING && !current.manualHold)
+                runtime.attach(current, actor)
         }
+    }
+
+    /** An explicit Core dismissal is authoritative; an unload/missing lookup is not deletion. */
+    fun dismissed(npc: UUID) {
+        check(server.isSameThread)
+        if (closed || store.problem != null) return
+        runtime.cancel(npc)
+        check(store.remove(npc) == null)
     }
 
     fun poll(now: Long) { check(server.isSameThread); if (!closed) runtime.poll(now) }
@@ -151,6 +183,7 @@ internal class LlmGoalController(
         if (InferenceBudget(record.limits, record.budget).availableCalls == 0) return rejected("GOAL_CALL_BUDGET_EXHAUSTED")
         store.put(record)?.let { return rejected(it) }
         runtime.attach(record, actor)?.let { return waiting(record, it) }
+        if (record.supervision != null && record.phase == GoalPhase.WAITING) return GoalReply(true, record.code, record)
         runtime.wake(record, now, reason)?.let { runtime.cancel(record.npcUuid); return waiting(record, it) }
         return GoalReply(true, record.code, record)
     }

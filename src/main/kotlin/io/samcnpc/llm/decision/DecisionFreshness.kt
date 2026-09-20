@@ -16,6 +16,7 @@ internal object DecisionFreshness {
             actor != binding.actorUuid -> "ACTOR_CHANGED"
             current.physical.npcUuid != binding.npcUuid -> "NPC_CHANGED"
             goal.id != binding.goalId || goal.revision != binding.goalRevision -> "GOAL_CHANGED"
+            goal.mode != captured.goal.mode || goal.supervision != captured.goal.supervision -> "GOAL_POLICY_CHANGED"
             goal.remainingCalls == 0 -> "GOAL_BUDGET_EXHAUSTED"
             policy.revision != binding.policyRevision || !samePolicy(captured.policy, policy) -> "POLICY_CHANGED"
             current.generations != binding.generations -> "GENERATION_CHANGED"

@@ -6,6 +6,7 @@ import io.samcnpc.llm.api.LlmProvider
 import io.samcnpc.llm.config.ProviderSettings
 import io.samcnpc.llm.context.*
 import io.samcnpc.llm.scheduling.*
+import io.samcnpc.llm.supervision.*
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.level.ServerPlayer
 import java.util.UUID
@@ -20,7 +21,9 @@ internal class TranslatorRuntime(
     private val notify: (GoalRecord) -> Unit,
 ) : InferenceHost, AutoCloseable {
     private val sessions = linkedMapOf<UUID, GoalSession>()
-    private val policy = ContextPolicy(1, OperationType.entries.toSet(), emptySet(), emptySet(), 72000, 16, 0)
+    private val translatorPolicy = ContextPolicy(1, OperationType.entries.toSet(), emptySet(), emptySet(), 72000, 16, 0)
+    private val supervisorPolicy = ContextPolicy(2, StockDecisionPolicy.operations, emptySet(), emptySet(), 72000, 16, 0)
+    private fun policy(record: GoalRecord) = if (record.supervision == null) translatorPolicy else supervisorPolicy
     private val scheduler = InferenceScheduler(provider, settings, settings.inference.profile(settings),
         settings.inference.allocation(settings), this, rates)
     private var closed = false
@@ -71,6 +74,14 @@ internal class TranslatorRuntime(
             val state = session.subscription?.state
             if (state != OperationSubscriptionState.ACTIVE)
                 hold(id, "SUPERVISION_" + (state?.name ?: "UNAVAILABLE"))
+            else {
+                val record = store.get(id)
+                if (record?.supervision != null && record.phase == GoalPhase.WAITING && !record.manualHold &&
+                    session.budget.snapshot().inFlight == null && server.overworld().gameTime >= session.nextStockTick) {
+                    session.nextStockTick = server.overworld().gameTime + 20
+                    sample(record, now)
+                }
+            }
         }
     }
 
@@ -83,11 +94,17 @@ internal class TranslatorRuntime(
             return InferencePreparation.Rejected("GOAL_NO_LONGER_CURRENT")
         val actor = server.playerList.getPlayer(record.actorUuid)
             ?: return InferencePreparation.Rejected("ACTOR_DISCONNECTED")
+        // Automatic stock wakes also pass readiness; a disabled/unverified provider consumes no reservation.
+        if (!settings.enabled) return InferencePreparation.Rejected("LLM_DISABLED")
+        if (settings.problem() != null) return InferencePreparation.Rejected("INVALID_PROVIDER_CONFIGURATION")
+        settings.inference.readiness(settings)?.let { return InferencePreparation.Rejected(it) }
         val budgetProblem = session.budget.problem(settings.inference.allocation(settings).charge())
         if (budgetProblem != null) return InferencePreparation.Rejected(budgetProblem)
-        val captured = NpcContextBuilder.capture(server, actor, record.npcUuid, contextGoal(record, session), policy)
+        val captured = NpcContextBuilder.capture(server, actor, record.npcUuid, contextGoal(record, session), policy(record))
         if (captured is ContextCaptureResult.Rejected) return InferencePreparation.Rejected(captured.code)
         check(captured is ContextCaptureResult.Captured)
+        if (record.supervision != null && checkNotNull(captured.value.stock).count >= record.supervision.target.target)
+            return InferencePreparation.Rejected("STOCK_TARGET_REACHED")
         if (!session.admission.bind(captured.value)) return InferencePreparation.Rejected("ADMISSION_REVIEW_REQUIRED")
         session.captured = captured.value
         return InferencePreparation.Ready(captured.value, session.budget)
@@ -109,17 +126,22 @@ internal class TranslatorRuntime(
             return
         }
         if (result is InferenceResult.Failed) {
-            persist(record.copy(phase = GoalPhase.WAITING, code = result.code, question = null))
+            session.failedInference = true
+            val failed = record.copy(phase = GoalPhase.WAITING, code = result.code, question = null)
+            persist(failed); notify(failed)
             return
         }
         check(result is InferenceResult.Decoded)
         val actor = server.playerList.getPlayer(record.actorUuid)
         if (actor == null) { hold(record.npcUuid, "ACTOR_DISCONNECTED"); return }
         // This dirty mark is conservative recovery metadata, not an atomic transaction with Behavior.
-        val dispatching = record.copy(phase = GoalPhase.ADMITTING, code = "ADMISSION_STARTED")
+        val prepared = if (record.supervision == null) record else StockSupervisor.admitting(record, result.decision, captured)
+        if (prepared.phase == GoalPhase.ASK_USER) { persist(prepared); notify(prepared); return }
+        val dispatching = prepared.copy(phase = GoalPhase.ADMITTING, code = "ADMISSION_STARTED")
         persist(dispatching)
-        val outcome = session.admission.admit(server, actor, result.decision, contextGoal(record, session), policy, record.manualHold)
-        val next = TranslatorOutcomes.admitted(dispatching, result.decision, outcome)
+        val outcome = session.admission.admit(server, actor, result.decision, contextGoal(record, session), policy(record), record.manualHold)
+        val next = if (record.supervision == null) TranslatorOutcomes.admitted(dispatching, result.decision, outcome)
+        else StockSupervisor.admitted(dispatching, result.decision, outcome, server.overworld().gameTime)
         persist(next)
         if (next.phase != GoalPhase.EXECUTING) notify(next)
     }
@@ -127,15 +149,19 @@ internal class TranslatorRuntime(
     override fun settled(wake: InferenceWake, requestId: UUID, budget: InferenceBudgetView) {
         val record = store.get(wake.npcUuid)
         if (record != null && record.goalId == wake.goalId) {
+            // Scheduler queues its one allowed retry before settling. Only a terminal inference failure holds the watch.
+            val failedWithoutRetry = sessions[wake.npcUuid]?.failedInference == true &&
+                record.supervision != null && record.phase == GoalPhase.WAITING
             val unfinished = record.phase in setOf(GoalPhase.INFERENCING, GoalPhase.ADMITTING)
             persist(record.copy(budget = budget, contextId = null,
                 phase = if (unfinished) GoalPhase.REVIEW_REQUIRED else record.phase,
                 code = if (unfinished) "INFERENCE_OR_ADMISSION_CANCELLED" else record.code,
-                manualHold = record.manualHold || unfinished))
+                manualHold = record.manualHold || unfinished || failedWithoutRetry))
         }
+        sessions[wake.npcUuid]?.failedInference = false
         sessions[wake.npcUuid]?.captured = null
         val phase = store.get(wake.npcUuid)?.phase
-        if (phase !in activePhases) release(wake.npcUuid)
+        if (phase !in activePhases && !isWatching(store.get(wake.npcUuid))) release(wake.npcUuid)
     }
 
     override fun deferred(wake: InferenceWake, code: String, retryAtMillis: Long?) {
@@ -143,8 +169,13 @@ internal class TranslatorRuntime(
         if (record.goalId != wake.goalId || record.revision != wake.goalRevision || record.manualHold) {
             scheduler.cancel(wake.npcUuid); return
         }
+        if (code == "STOCK_TARGET_REACHED" && record.supervision != null) {
+            persist(record.copy(phase = GoalPhase.WAITING, code = code, question = null,
+                supervision = record.supervision.copy(armed = true, waitUntilTick = null)))
+            return
+        }
         val next = record.copy(phase = if (retryAtMillis == null) GoalPhase.WAITING else GoalPhase.QUEUED,
-            code = code, question = null)
+            code = code, question = null, manualHold = record.manualHold || retryAtMillis == null && record.supervision != null)
         persist(next)
         if (retryAtMillis == null) {
             notify(next)
@@ -156,12 +187,17 @@ internal class TranslatorRuntime(
         if (record.phase != GoalPhase.EXECUTING) return record
         val reply = OperationSupervisionApi.observe(server, actor, record.npcUuid)
         val view = reply.observation
-        val next = if (view == null || reply.result.status != NpcActionStatus.SUCCEEDED)
+        var next = if (view == null || reply.result.status != NpcActionStatus.SUCCEEDED)
             record.copy(phase = GoalPhase.WAITING, code = "OBSERVATION_" + reply.result.code.name, manualHold = true)
         else TranslatorOutcomes.observed(record, view)
+        if (record.supervision != null && next.phase in setOf(GoalPhase.COMPLETED, GoalPhase.FAILED)) {
+            val (stock, problem) = StockSupervisor.read(server, actor, record)
+            next = if (stock == null) StockSupervisor.unavailable(record, checkNotNull(problem))
+                else StockSupervisor.terminal(next.copy(code = view?.task?.frames?.firstOrNull()?.reason ?: next.code), stock)
+        }
         if (next != record) {
             persist(next); notify(next)
-            if (next.phase != GoalPhase.EXECUTING) cancel(record.npcUuid)
+            if (next.phase != GoalPhase.EXECUTING && !isWatching(next)) cancel(record.npcUuid)
         }
         return next
     }
@@ -171,7 +207,7 @@ internal class TranslatorRuntime(
         if (batch.journal.events.none { it.kind in significant }) return
         val actor = server.playerList.getPlayer(record.actorUuid) ?: return
         if (record.phase == GoalPhase.EXECUTING) observeKnown(record, actor)
-        else if (record.phase in setOf(GoalPhase.QUEUED, GoalPhase.INFERENCING)) {
+        else if (record.phase in setOf(GoalPhase.QUEUED, GoalPhase.INFERENCING) || isWatching(record)) {
             // Any meaningful manual/task transition makes this pending translator decision obsolete.
             hold(record.npcUuid, "TASK_CHANGED_DURING_INFERENCE")
         }
@@ -185,7 +221,29 @@ internal class TranslatorRuntime(
     }
 
     private fun contextGoal(record: GoalRecord, session: GoalSession) = ContextGoal(record.goalId,
-        record.revision, record.contextText(), LlmMode.TRANSLATOR, null, session.budget.contextRemainingCalls)
+        record.revision, record.contextText(), record.mode, null, session.budget.contextRemainingCalls, supervision = record.supervision)
+
+    private fun isWatching(record: GoalRecord?): Boolean = record?.supervision != null &&
+        record.phase == GoalPhase.WAITING && !record.manualHold
+
+    private fun sample(record: GoalRecord, now: Long) {
+        val actor = server.playerList.getPlayer(record.actorUuid)
+        if (actor == null) { hold(record.npcUuid, "ACTOR_DISCONNECTED"); return }
+        val (stock, problem) = StockSupervisor.read(server, actor, record)
+        if (stock == null) { hold(record.npcUuid, checkNotNull(problem)); return }
+        val state = checkNotNull(record.supervision)
+        if (state.waitUntilTick != null && stock.observedTick < state.waitUntilTick) return
+        if (!state.target.needsRefill(stock.count, state.armed)) {
+            if (!state.armed || state.waitUntilTick != null) persist(record.copy(code = "STOCK_TARGET_REACHED",
+                supervision = state.copy(armed = true, waitUntilTick = null)))
+            return
+        }
+        state.failures.problem()?.let { persist(StockSupervisor.ask(record, it)); cancel(record.npcUuid); return }
+        val queued = record.copy(phase = GoalPhase.QUEUED, code = "STOCK_SHORTAGE",
+            supervision = state.copy(armed = false, waitUntilTick = null))
+        persist(queued)
+        wake(queued, now, InferenceReason.STOCK_CHANGED)?.let { hold(record.npcUuid, it) }
+    }
 
     private fun persist(record: GoalRecord) { check(store.put(record) == null) { "Goal persistence rejected bounded state" } }
 

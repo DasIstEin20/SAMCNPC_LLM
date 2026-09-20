@@ -12,6 +12,8 @@ internal class GoalSession(record: GoalRecord) {
     val actorUuid: UUID = record.actorUuid
     val budget = InferenceBudget(record.limits, record.budget)
     val admission = DecisionAdmission()
+    var failedInference = false
     var captured: CapturedContext? = null
+    var nextStockTick: Long = 0
     var subscription: OperationSubscription? = null
 }

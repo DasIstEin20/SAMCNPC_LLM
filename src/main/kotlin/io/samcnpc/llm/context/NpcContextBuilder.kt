@@ -28,17 +28,28 @@ internal object NpcContextBuilder {
         if (reply.result.status != NpcActionStatus.SUCCEEDED || inspection == null) {
             return ContextCaptureResult.Rejected("OBSERVATION_" + reply.result.code.name)
         }
+        val target = goal.supervision?.target
+        val stock = if (target == null) null else {
+            val stockReply = io.samcnpc.behavior.api.OperationStockApi.inspect(server, actor, npcUuid, target.dimensionId, target.query)
+            if (stockReply.result.status != NpcActionStatus.SUCCEEDED)
+                return ContextCaptureResult.Rejected("STOCK_" + stockReply.result.code.name)
+            val read = stockReply.stock
+            if (read !is io.samcnpc.core.api.NpcStockRead.Observed)
+                return ContextCaptureResult.Rejected("STOCK_" +
+                    ((read as? io.samcnpc.core.api.NpcStockRead.Unavailable)?.reason?.name ?: "UNKNOWN"))
+            read
+        }
         val physical = inspection.physical
         val tick = physical.gameTime
         if (tick < 0 || tick > Long.MAX_VALUE - ttlTicks ||
             inspection.body.observedTick != tick || inspection.operation.observedTick != tick ||
-            inspection.world?.observedTick != tick) return ContextCaptureResult.Rejected("INCONSISTENT_CAPTURE_CLOCK")
+            inspection.world?.observedTick != tick || stock != null && stock.observedTick != tick) return ContextCaptureResult.Rejected("INCONSISTENT_CAPTURE_CLOCK")
         val expiry = minOf(tick + ttlTicks, goal.deadlineTick ?: Long.MAX_VALUE)
         if (expiry <= tick || goal.remainingCalls == 0) return ContextCaptureResult.Rejected("GOAL_BUDGET_EXHAUSTED")
         val task = inspection.operation.task
         val binding = ContextBinding(UUID.randomUUID(), npcUuid, actor.uuid, goal.id, goal.revision, policy.revision,
             inspection.generations, catalogHash, tick, expiry, task?.taskId, task?.definitionRevision, task?.controlRevision)
         return ContextCaptureResult.Captured(CapturedContext(binding, inspection, goal, policy,
-            physical.summonerUuid == actor.uuid, actor.hasPermissions(2)))
+            physical.summonerUuid == actor.uuid, actor.hasPermissions(2), stock))
     }
 }

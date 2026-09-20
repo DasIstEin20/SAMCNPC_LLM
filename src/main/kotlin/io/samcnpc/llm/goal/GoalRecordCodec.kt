@@ -1,6 +1,8 @@
 package io.samcnpc.llm.goal
 
 import io.samcnpc.llm.scheduling.*
+import io.samcnpc.llm.context.LlmMode
+import io.samcnpc.llm.supervision.StockSupervisionCodec
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.NbtIo
 import net.minecraft.nbt.Tag
@@ -22,6 +24,8 @@ internal object GoalRecordCodec {
         tag.putLong("revision", record.revision); tag.putString("text", record.text)
         tag.putString("phase", record.phase.name); tag.putString("code", record.code)
         tag.putBoolean("hold", record.manualHold)
+        tag.putString("mode", record.mode.name)
+        record.supervision?.let { tag.put("supervisor", StockSupervisionCodec.encode(it)) }
         record.answer?.let { tag.putString("answer", it) }; record.question?.let { tag.putString("question", it) }
         record.contextId?.let { tag.putUUID("context", it) }
         val task = record.task
@@ -41,8 +45,19 @@ internal object GoalRecordCodec {
         return tag
     }
 
-    fun decode(tag: CompoundTag): GoalRecord? {
-        if (!tag.allKeys.containsAll(required) || tag.allKeys.any { it !in required && it !in optional }) return null
+    fun decode(tag: CompoundTag, version: Int = 2): GoalRecord? {
+        if (version !in 1..2) return null
+        val requiredFields = if (version == 1) required else required + "mode"
+        val optionalFields = if (version == 1) optional else optional + "supervisor"
+        if (!tag.allKeys.containsAll(requiredFields) || tag.allKeys.any { it !in requiredFields && it !in optionalFields }) return null
+        val mode = if (version == 1) LlmMode.TRANSLATOR else {
+            if (!tag.contains("mode", Tag.TAG_STRING.toInt())) return null
+            LlmMode.entries.firstOrNull { it.name == tag.getString("mode") } ?: return null
+        }
+        val supervision = if (tag.contains("supervisor")) {
+            if (!tag.contains("supervisor", Tag.TAG_COMPOUND.toInt())) return null
+            StockSupervisionCodec.decode(tag.getCompound("supervisor")) ?: return null
+        } else null
         if (!listOf("npc", "actor", "goal").all(tag::hasUUID)) return null
         if (!listOf("text", "phase", "code").all { tag.contains(it, Tag.TAG_STRING.toInt()) }) return null
         if (!listOf("revision", "inputLimit", "outputLimit", "costLimit", "input", "output", "cost")
@@ -69,7 +84,7 @@ internal object GoalRecordCodec {
                 InferenceBudgetLimits(tag.getInt("attemptLimit"), tag.getLong("inputLimit"),
                     tag.getLong("outputLimit"), tag.getLong("costLimit")),
                 InferenceBudgetView(tag.getInt("attempts"), tag.getLong("input"), tag.getLong("output"),
-                    tag.getLong("cost"), if (tag.hasUUID("inFlight")) tag.getUUID("inFlight") else null))
+                    tag.getLong("cost"), if (tag.hasUUID("inFlight")) tag.getUUID("inFlight") else null), mode, supervision)
             if (fits(tag)) result else null
         } catch (_: IllegalArgumentException) { null }
     }

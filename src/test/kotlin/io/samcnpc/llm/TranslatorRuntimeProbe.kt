@@ -23,7 +23,7 @@ import java.util.concurrent.atomic.AtomicInteger
 /** Real registered commands, real provider configuration and actual container transfers. No model process. */
 internal class TranslatorRuntimeProbe(private val server: MinecraftServer, private val actor: ServerPlayer,
                                       origin: NpcPosition,
-                                      private val canFinish: (java.util.UUID) -> Boolean = { true }) : AutoCloseable {
+                                      private val canFinish: (java.util.UUID) -> Boolean = { true }) : GoalRuntimeProbe {
     private val original = LlmConfig.snapshot().values
     private val level = actor.serverLevel()
     private val base = BlockPos.containing(origin.x + 16, origin.y, origin.z + 8)
@@ -56,7 +56,7 @@ internal class TranslatorRuntimeProbe(private val server: MinecraftServer, priva
     private var authorityChecks = 0
     private var stockReads = 0
 
-    fun renderView(): Pair<java.util.UUID, String>? = current?.let { it.npcUuid to cases[index] }
+    override fun renderView(): Pair<java.util.UUID, String>? = current?.let { it.npcUuid to cases[index] }
 
     init {
         for (x in -2..10) for (z in -2..2) for (y in -1..5) {
@@ -69,7 +69,7 @@ internal class TranslatorRuntimeProbe(private val server: MinecraftServer, priva
         configure(settings)
     }
 
-    fun poll(): String? {
+    override fun poll(): String? {
         final?.let { return it }
         check(++ticks < 3000) { "Translator probe timed out" }
         val controller = checkNotNull(LlmServerEvents.controller(server))
@@ -282,7 +282,7 @@ internal class TranslatorRuntimeProbe(private val server: MinecraftServer, priva
         endpoint.close()
         if (LlmConfig.snapshot().values != original) configure(original)
         current?.let { handle ->
-            LlmServerEvents.controller(server)?.store?.remove(handle.npcUuid)
+            LlmGoalStore.forServer(server).remove(handle.npcUuid)
             if (service.runtime(handle) != null) service.dismiss(handle, NpcDismissMode.DROP_INVENTORY)
         }
         for (item in level.getEntitiesOfClass(ItemEntity::class.java, bounds())) item.discard()

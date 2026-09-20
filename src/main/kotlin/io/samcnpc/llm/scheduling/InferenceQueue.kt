@@ -2,7 +2,7 @@ package io.samcnpc.llm.scheduling
 
 import java.util.UUID
 
-internal enum class InferenceReason { USER_GOAL, USER_ANSWER, TASK_TERMINAL, WAIT_DEADLINE, TRANSPORT_RETRY, OUTPUT_REPAIR }
+internal enum class InferenceReason { USER_GOAL, USER_ANSWER, TASK_TERMINAL, STOCK_CHANGED, WAIT_DEADLINE, TRANSPORT_RETRY, OUTPUT_REPAIR }
 
 /** Only wake intent is queued. The controller captures a fresh authorized context when dispatched. */
 internal class InferenceWake(val npcUuid: UUID, val goalId: UUID, val goalRevision: Long,

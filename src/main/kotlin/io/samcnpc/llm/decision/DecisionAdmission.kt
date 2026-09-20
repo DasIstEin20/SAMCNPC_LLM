@@ -59,6 +59,20 @@ internal class DecisionAdmission(private val gateway: DecisionGateway = Decision
             return DecisionOutcome.rejected(it)
         }
         DecisionPolicy.problem(decision, source)?.let { return DecisionOutcome.rejected(it) }
+        val stockTarget = goal.supervision?.target
+        if (stockTarget != null) {
+            val stockReply = OperationStockApi.inspect(server, actor, source.binding.npcUuid,
+                stockTarget.dimensionId, stockTarget.query)
+            if (stockReply.result.status != NpcActionStatus.SUCCEEDED)
+                return DecisionOutcome.rejected("STOCK_" + stockReply.result.code.name)
+            val stock = stockReply.stock as? io.samcnpc.core.api.NpcStockRead.Observed
+                ?: return DecisionOutcome.rejected("STOCK_NO_LONGER_OBSERVED")
+            if (stock.count != source.stock?.count || stock.slots != source.stock?.slots)
+                return DecisionOutcome.rejected("STOCK_CHANGED_DURING_INFERENCE")
+            io.samcnpc.llm.supervision.StockDecisionPolicy.problem(decision.action, stockTarget, stock)?.let {
+                return DecisionOutcome.rejected(it)
+            }
+        }
         val action = decision.action
         if (action is DecisionAction.Continue || action is DecisionAction.Wait || action is DecisionAction.AskUser)
             return DecisionOutcome(DecisionOutcomeState.NO_EFFECT, decision.kind.name, current.operation.task?.taskId)

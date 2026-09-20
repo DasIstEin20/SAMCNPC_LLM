@@ -46,6 +46,9 @@ evaluationDependsOn(':samcnpc-behavior')
 def goalRestartId = providers.gradleProperty('llmGoalRestartId').orElse(rootProject.ext.fullVerificationId ?: 'manual').get()
 if (!(goalRestartId ==~ /[A-Za-z0-9_-]{1,64}/)) throw new GradleException('Invalid llmGoalRestartId')
 def goalRestartDirectory = "run-server-goals-restart-${goalRestartId}"
+def supervisorDirectory = "run-server-supervisor-smoke-${goalRestartId}"
+def supervisorFaultsDirectory = "run-server-supervisor-faults-${goalRestartId}"
+def supervisorRestartDirectory = "run-server-supervisor-restart-${goalRestartId}"
 
 minecraft {
     mappings channel: 'official', version: minecraft_version
@@ -65,10 +68,37 @@ minecraft {
             }
         }
         client {}
+        server { args '--nogui' }
         clientLoadingSmoke {
             parent runs.client
             workingDirectory project.file('run-client-loading-smoke')
             property 'samcnpc.clientLoadingSmoke', 'true'
+            mods { samcnpc_llm { source sourceSets.test } }
+        }
+        clientSupervisorSmoke {
+            parent runs.client
+            workingDirectory project.file('run-client-supervisor-smoke')
+            property 'samcnpc.supervisorClientSmoke', 'true'
+            mods { samcnpc_llm { source sourceSets.test } }
+        }
+        serverSupervisorSmoke {
+            parent runs.server
+            workingDirectory project.file(supervisorDirectory)
+            property 'samcnpc.supervisorServerSmoke', 'true'
+            mods { samcnpc_llm { source sourceSets.test } }
+        }
+        clientSupervisorFaultsSmoke {
+            parent runs.client
+            workingDirectory project.file('run-client-supervisor-faults-smoke')
+            property 'samcnpc.supervisorClientSmoke', 'true'
+            property 'samcnpc.supervisorGroup', 'faults'
+            mods { samcnpc_llm { source sourceSets.test } }
+        }
+        serverSupervisorFaultsSmoke {
+            parent runs.server
+            workingDirectory project.file(supervisorFaultsDirectory)
+            property 'samcnpc.supervisorServerSmoke', 'true'
+            property 'samcnpc.supervisorGroup', 'faults'
             mods { samcnpc_llm { source sourceSets.test } }
         }
         clientGoalsSmoke {
@@ -77,7 +107,18 @@ minecraft {
             property 'samcnpc.goalsClientSmoke', 'true'
             mods { samcnpc_llm { source sourceSets.test } }
         }
-        server { args '--nogui' }
+        serverSupervisorSaveSmoke {
+            parent runs.server
+            workingDirectory project.file(supervisorRestartDirectory)
+            property 'samcnpc.supervisorRestartPhase', 'save'
+            mods { samcnpc_llm { source sourceSets.test } }
+        }
+        serverSupervisorLoadSmoke {
+            parent runs.server
+            workingDirectory project.file(supervisorRestartDirectory)
+            property 'samcnpc.supervisorRestartPhase', 'load'
+            mods { samcnpc_llm { source sourceSets.test } }
+        }
         serverGoalsSaveSmoke {
             parent runs.server
             workingDirectory project.file(goalRestartDirectory)
@@ -133,7 +174,7 @@ tasks.named('jar', Jar).configure {
 }
 
 // Command-line userdev needs the exact bundled Behavior data staged under its game directory.
-['Run': 'run', 'ClientLoadingSmoke': 'run-client-loading-smoke', 'ServerLoadingSmoke': 'run-server-loading-smoke', 'ClientGoalsSmoke': 'run-client-goals-smoke', 'ServerGoalsSaveSmoke': goalRestartDirectory, 'ServerGoalsLoadSmoke': goalRestartDirectory].each { suffix, folder ->
+['Run': 'run', 'ClientLoadingSmoke': 'run-client-loading-smoke', 'ServerLoadingSmoke': 'run-server-loading-smoke', 'ClientGoalsSmoke': 'run-client-goals-smoke', 'ServerGoalsSaveSmoke': goalRestartDirectory, 'ServerGoalsLoadSmoke': goalRestartDirectory, 'ClientSupervisorSmoke': 'run-client-supervisor-smoke', 'ServerSupervisorSmoke': supervisorDirectory, 'ServerSupervisorSaveSmoke': supervisorRestartDirectory, 'ServerSupervisorLoadSmoke': supervisorRestartDirectory, 'ClientSupervisorFaultsSmoke': 'run-client-supervisor-faults-smoke', 'ServerSupervisorFaultsSmoke': supervisorFaultsDirectory].each { suffix, folder ->
     def stage = tasks.register("stageBehaviorData${suffix}", Copy) {
         from project(':samcnpc-behavior').layout.projectDirectory.dir('src/main/resources/data')
         into layout.projectDirectory.dir("${folder}/data")
@@ -153,9 +194,10 @@ tasks.matching { it.name == 'runClientGoalsSmoke' }.configureEach {
 }
 
 
+[[name: 'Goals', directory: goalRestartDirectory, report: 'goals'], [name: 'Supervisor', directory: supervisorRestartDirectory, report: 'supervisor']].each { suite ->
 ['Save', 'Load'].each { stage ->
-    tasks.matching { it.name == "runServerGoals${stage}Smoke" }.configureEach {
-        def report = layout.projectDirectory.file("${goalRestartDirectory}/server-goals-${stage.toLowerCase()}.txt").asFile
+    tasks.matching { it.name == "runServer${suite.name}${stage}Smoke" }.configureEach {
+        def report = layout.projectDirectory.file("${suite.directory}/server-${suite.report}-${stage.toLowerCase()}.txt").asFile
         doFirst {
             report.parentFile.mkdirs(); report.text = 'RUNNING\n'
             // Project-scoped EULA authorization: root AGENTS.md section 12.
@@ -182,12 +224,49 @@ spawn-protection=0
     }
 }
 
+}
+
 tasks.matching { it.name == "runServerGoalsLoadSmoke" }.configureEach { mustRunAfter "runServerGoalsSaveSmoke" }
+tasks.matching { it.name == "runServerSupervisorLoadSmoke" }.configureEach { mustRunAfter "runServerSupervisorSaveSmoke" }
 
 // JUnit uses named Minecraft classes; dependency JARs have already been reobfuscated by Forge.
 tasks.withType(Test).configureEach {
     classpath = files(project(':samcnpc-core').sourceSets.main.output,
         project(':samcnpc-behavior').sourceSets.main.output) + classpath
+}
+
+
+['Client', 'Server'].each { side ->
+['', 'Faults'].each { campaign ->
+    tasks.matching { it.name == "run"+side+"Supervisor"+campaign+"Smoke" }.configureEach {
+        def folder = side == 'Server' ? (campaign ? supervisorFaultsDirectory : supervisorDirectory) :
+            (campaign ? 'run-client-supervisor-faults-smoke' : 'run-client-supervisor-smoke')
+        def report = layout.projectDirectory.file(folder+"/"+side.toLowerCase()+"-supervisor-result.txt").asFile
+        doFirst {
+            report.parentFile.mkdirs(); report.text = 'RUNNING\n'
+            if (side == 'Server') {
+                new File(report.parentFile, 'eula.txt').text = 'eula=true\n'
+                def settings = new File(report.parentFile, 'server.properties')
+                if (!settings.exists()) settings.text = """server-ip=127.0.0.1
+server-port=25576
+online-mode=true
+level-name=supervisor-world
+level-type=minecraft:flat
+generator-settings={"layers":[{"block":"minecraft:bedrock","height":1},{"block":"minecraft:dirt","height":2},{"block":"minecraft:grass_block","height":1}],"biome":"minecraft:plains"}
+level-seed=0
+generate-structures=false
+difficulty=peaceful
+view-distance=4
+simulation-distance=4
+max-players=1
+spawn-protection=0
+"""
+            }
+        }
+        doLast { if (!report.text.startsWith('PASS ')) throw new GradleException("Supervisor "+side+" failed: "+report) }
+    }
+}
+
 }
 
 tasks.withType(Jar).configureEach {

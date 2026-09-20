@@ -43,7 +43,8 @@ internal class ContextMemory(plan: List<String> = emptyList(), aliases: List<Con
 }
 
 internal class ContextGoal(val id: UUID, val revision: Long, val text: String, val mode: LlmMode,
-                           val deadlineTick: Long?, val remainingCalls: Int, val memory: ContextMemory = ContextMemory()) {
+                           val deadlineTick: Long?, val remainingCalls: Int, val memory: ContextMemory = ContextMemory(),
+                           val supervision: io.samcnpc.llm.supervision.StockSupervision? = null) {
     init {
         require(revision >= 0 && text.length in 1..2048 && remainingCalls in 0..24)
         require(deadlineTick == null || deadlineTick >= 0)
@@ -73,6 +74,7 @@ internal class CapturedContext(
     val policy: ContextPolicy,
     val actorIsSummoner: Boolean,
     val actorIsOperator: Boolean,
+    val stock: io.samcnpc.core.api.NpcStockRead.Observed? = null,
 )
 
 internal class NpcLlmContext(val binding: ContextBinding, val stateJson: String, val utf8Bytes: Int)

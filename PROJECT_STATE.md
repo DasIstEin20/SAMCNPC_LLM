@@ -1,3 +1,27 @@
+# Verified stock Supervisor — 2026-09-20
+
+L5 complete in the CPU HTTP emulator scope; LLM plan 27/36. The explicit maintain
+command replenishes one visible chest to the exact target, observes hysteresis,
+retains whole-goal budgets and stops repeated/A-B/WAIT failures. Current authorization,
+fresh stock and manual task changes govern every automatic step. Provider retries
+remain bounded; no model request is issued during healthy deterministic execution.
+
+Evidence: supervisor-evidence.json; clean build, 504 units (Core49/Behavior364/LLM91),
+830 frozen source/build hashes and boundary/three-JAR guards PASS. Dedicated and
+integrated client each passed 14 Supervisor scenarios / 22 HTTP calls, including
+malformed-output repair, repeated HTTP 503 and stale stock admission. Client rendered
+14 cases and observed walking in five. Complete Translator/config/scheduler/admission
+regressions also passed. Two JVMs retained task identities, physically delivered 32,
+held uncertain admission without replay and freshly detected removal from stock.
+
+Standalone clean build: 91 LLM units, all 102 own source files matched; Behavior
+c6e0273 and Core1834e5d remain pinned and unchanged. Prior Core146/Behavior215 native
+and Core52 animation evidence is retained through source identity. Controlled
+lost-receipt injection is not a crash/WAL atomicity proof. See LLM_SUPERVISOR.md and
+ADR0099. Real models remain USER_DEFERRED; two-account skins MANUAL_PENDING/nonblocking.
+Next: L6 bounded Planner, then L7 active one-hour multi-NPC acceptance and release.
+Publication checkpoints remain local until the user-authorized 20%-remaining closeout.
+
 # Verified visible stock observation — 2026-09-20
 
 Core now provides an explicit one-item stock sensor for visible reachable vanilla

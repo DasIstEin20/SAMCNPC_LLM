@@ -1,4 +1,4 @@
-# NpcLlmContext v1
+# NpcLlmContext v2
 
 NpcContextBuilder captures one authorized immutable Behavior inspection on the
 server thread. NpcContextEncoder accepts that detached capture on an inference
@@ -29,9 +29,12 @@ model tokens/context-window accounting is not inferred from character counts.
 The binding includes UUIDs, original revisions, catalog schema SHA-256, server/
 registry/body generation and a 1..1200-tick TTL capped by the goal deadline.
 It does not authorize delayed actions by itself. Decision parsing, admission,
-scheduler, persisted goals and the actual Translator remain later work.
+scheduler, persisted goals and Translator are implemented; see LLM_TRANSLATOR.md.
+Version 2 adds optional stockSupervision: explicit target policy, current authorized
+one-item stock observation and bounded failure journal. It is null for Translator.
+Historical attempt counts are not projected as current stock.
 
-Validation: six pure projection/privacy tests and a dedicated-server probe are
+Historical v1 validation: six pure projection/privacy tests and a dedicated-server probe are
 implemented. The probe captures an actual assigned task, rejects an actor outside
 the permitted range, omits a real out-of-range ore, removes the NPC, and encodes on
 a worker. It checks UTF-8 length, 36 slots, aliases, malformed Unicode and an

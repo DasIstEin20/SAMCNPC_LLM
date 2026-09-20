@@ -63,6 +63,13 @@ internal object LlmServerEvents {
         if (actor.server === activeServer) current?.reconnect(actor)
     }
 
+    @SubscribeEvent
+    fun removed(event: io.samcnpc.core.api.NpcRemovedEvent) {
+        if (activeServer?.isSameThread != true) return
+        if (event.lifecycle.state == io.samcnpc.core.api.NpcLifecycleState.DISMISSED)
+            current?.dismissed(event.handle.npcUuid)
+    }
+
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     fun stopping(event: ServerStoppingEvent) {
         if (event.server !== activeServer) return

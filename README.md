@@ -22,16 +22,17 @@ See [configuration](docs/LLM_CONFIGURATION.md), [context](docs/LLM_CONTEXT.md) a
 
 Bounded event scheduling, worker cancellation, retry/circuit and resource budgets are implemented.
 
-**Translator implemented:** registered goal/status/answer/stop/resume commands turn
-one player goal into one validated Behavior operation, retain budgets and recover
-conservatively after restart. See [commands](docs/LLM_TRANSLATOR.md). Supervisor and
-Planner remain in progress; plan 23/36. CPU HTTP emulator tests verify integration.
-Actual model understanding and backend profiles remain unverified/user-deferred.
-See [the plan](docs/LLM_INTEGRATION_PLAN.md) and [boundary](docs/LLM_BOUNDARY.md).
+**Translator and bounded stock Supervisor are implemented.** Translator turns one
+player goal into one validated Behavior operation. Supervisor maintains an explicit
+stock target with hysteresis, fresh observations and bounded failure history.
+Commands, budgets and conservative restart recovery are documented in
+[Translator](docs/LLM_TRANSLATOR.md) and [Supervisor](docs/LLM_SUPERVISOR.md).
+Plan: 27/36; Planner and final endurance acceptance remain next.
+CPU HTTP emulator tests verify integration; actual model understanding and backend
+profiles remain unverified/user-deferred. See [the plan](docs/LLM_INTEGRATION_PLAN.md).
 
-The stock-observation dependency is also verified: 493 total units, 146 Core /
-215 Behavior native cases and five physical stock reads on each client/server path.
-[Stock sensor scope and evidence](docs/STOCK_OBSERVATION.md). Supervisor remains in progress.
+Stock reads use visible reachable vanilla chests and current player authorization.
+[Stock sensor scope](docs/STOCK_OBSERVATION.md) describes visibility and limitations.
 
 ## Build
 
@@ -49,21 +50,28 @@ Install it with corresponding Core, Behavior and Kotlin for Forge.
 `runClientLoadingSmoke` launch real Forge, exercise HTTP/configuration, and verify
 NPC context capture or the actual Mods Config screen. `runClientGoalsSmoke` exercises
 physical commands/tasks; `runServerGoalsSaveSmoke` + `runServerGoalsLoadSmoke` use a
-fresh `-PllmGoalRestartId=<id>` for restart recovery. Servers require EULA acceptance.
+fresh `-PllmGoalRestartId=<id>` for restart recovery. Supervisor has corresponding
+`runServerSupervisorSmoke`, `runClientSupervisorSmoke`, server/client
+`SupervisorFaultsSmoke` and `runServerSupervisorSaveSmoke` / `runServerSupervisorLoadSmoke`
+tasks. Use a fresh restart ID for each campaign. Servers require EULA acceptance.
 
 ## Validation
 
-Canonical clean build: 491 units (47 Core/364 Behavior/80 LLM). Dedicated and client
-each passed eight physical Translator cases / nine HTTP requests; client passed
-11 authority/input checks. Transport, delivery, lumberjack, missing/full storage,
-manual pause, provider disable and cancellation passed. Two JVMs retained task IDs,
-completed known work and held a simulated lost receipt without replay. All 809 frozen
-source/build files and three-JAR guards match. The 16-family scripted corpus checks
-wire/typed contracts, not real-model semantic quality. Prior unchanged Core141/
-Behavior214 native and 12 client cases retain their evidence.
-Standalone build: 80 LLM units, 88 matching source files. [Evidence and hashes](docs/TRANSLATOR_VALIDATION.json).
-[Project state](PROJECT_STATE.md) records limits. Two-account skins are a manual,
-nonblocking check. Real model profiles and the one-hour soak remain unverified.
+Canonical clean build: 504 units (49 Core/364 Behavior/91 LLM), 830 matching frozen
+source/build files and three-JAR guards. Dedicated and client each passed 14
+Supervisor cases / 22 HTTP calls, plus all eight Translator cases / nine HTTP calls.
+Supervisor exercised refill/hysteresis, stale stock, full/missing storage, A/B and
+WAIT loops, manual control, provider disable, malformed JSON and repeated HTTP 503.
+Healthy tasks caused no extra inference. Client rendered 14 Supervisor cases and
+observed walking in five. Two-JVM restart retained task IDs, completed physical
+delivery, held uncertain admission and reobserved stock without replay.
+
+Standalone build: 91 LLM units, 102 matching source files.
+[Evidence and hashes](docs/SUPERVISOR_VALIDATION.json) distinguish emulator/runtime
+proof from real-model quality. Unchanged Core146/Behavior215 native and Core52
+animation cases retain their earlier evidence. [Project state](PROJECT_STATE.md)
+records limits. Two-account skins remain manual/nonblocking; real model profiles,
+Planner and the active one-hour soak remain pending.
 
 [Core](https://github.com/DasIstEin20/SAMCNPC_Core) ·
 [Behavior](https://github.com/DasIstEin20/SAMCNPC_Behavior)

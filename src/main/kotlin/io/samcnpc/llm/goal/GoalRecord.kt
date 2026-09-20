@@ -1,6 +1,8 @@
 package io.samcnpc.llm.goal
 
 import io.samcnpc.llm.scheduling.*
+import io.samcnpc.llm.context.LlmMode
+import io.samcnpc.llm.supervision.StockSupervision
 import java.util.UUID
 
 internal enum class GoalPhase {
@@ -33,9 +35,14 @@ internal data class GoalRecord(
     val contextId: UUID? = null,
     val limits: InferenceBudgetLimits = InferenceBudgetLimits(),
     val budget: InferenceBudgetView = InferenceBudgetView(0, 0, 0, 0, null),
+    val mode: LlmMode = LlmMode.TRANSLATOR,
+    val supervision: StockSupervision? = null,
 ) {
     init {
         require(revision >= 0)
+        require(mode in setOf(LlmMode.TRANSLATOR, LlmMode.SUPERVISOR))
+        require((mode == LlmMode.SUPERVISOR) == (supervision != null))
+        require(mode != LlmMode.SUPERVISOR || phase != GoalPhase.EXECUTING || supervision?.pendingDecision != null)
         require(validText(text, 1024) && (answer == null || validText(answer, 512)))
         require(question == null || validText(question, 256))
         require(code.length in 1..128 && code.all { it in 'A'..'Z' || it in '0'..'9' || it == '_' })

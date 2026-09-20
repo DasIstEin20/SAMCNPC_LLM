@@ -1,6 +1,6 @@
 # F02 / llm_integration — plan budowy
 
-Data: 2026-09-20. Status: **IN_PROGRESS, L0, L1, L2 oraz L3.1–L3.4 ukończone, 18/36 punktów zamkniętych**.
+Data: 2026-09-20. Status: **IN_PROGRESS, L0–L2, L3.1–L3.4, L4 i L5 ukończone, 27/36 punktów zamkniętych**.
 To osobny plan rozwoju istniejącego modułu samcnpc-llm, poza licznikiem P00–P12
 (104/112) i Acceptance Zoo (23/23). L0 domyka istniejące P11.1/P11.7, nie tworzy
 konkurencyjnego katalogu ani drugiego wykonawcy. Pierwotne dopisanie planu nie uruchamiało implementacji. Użytkownik 2026-09-20
@@ -416,13 +416,21 @@ Stałe odpowiedzi korpusu nie są dowodem rozumienia poleceń przez model.
 
 ### L5 — Supervisor i ochrona przed pętlami (po zaliczeniu Translatora)
 
-- [ ] L5.1 Uruchamiać nadzór wyłącznie na decision boundaries; ordinary recovery/combat resume nie generują requestu.
-- [ ] L5.2 Obsłużyć progi zapasu/WAIT, histerezę, deduplikację oraz journal istotnych awarii; nie odpytywać LLM cyklicznie o zdrowy task.
-- [ ] L5.3 Wymusić failure fingerprint i ochronę A/B/cancel-assign, budżet całego celu, WAIT/ASK_USER oraz pierwszeństwo ręcznych zmian.
-- [ ] L5.4 Sprawdzić „utrzymuj 4 stacki” z fizycznym ubytkiem zapasu, pełnym magazynem, utratą materiału, providera, zakresu/autoryzacji i restarcie; zmierzyć liczbę calli.
+- [x] L5.1 Uruchamiać nadzór wyłącznie na decision boundaries; ordinary recovery/combat resume nie generują requestu.
+- [x] L5.2 Obsłużyć progi zapasu/WAIT, histerezę, deduplikację oraz journal istotnych awarii; nie odpytywać LLM cyklicznie o zdrowy task.
+- [x] L5.3 Wymusić failure fingerprint i ochronę A/B/cancel-assign, budżet całego celu, WAIT/ASK_USER oraz pierwszeństwo ręcznych zmian.
+- [x] L5.4 Sprawdzić „utrzymuj 4 stacki” z fizycznym ubytkiem zapasu, pełnym magazynem, utratą materiału, providera, zakresu/autoryzacji i restarcie; zmierzyć liczbę calli.
 
 Wyjście: długie utrzymanie jednego celu z lokalnym recovery, bez pętli żądań
 i bez rozszerzenia uprawnień/offline delegation.
+
+Dowód L5: LLM_SUPERVISOR.md, ADR0099 i supervisor-evidence.json; 504 unit
+(49 Core/364 Behavior/91 LLM), po 14 scenariuszy Supervisora / 22 HTTP na dedicated
+i kliencie, 14 renderowanych NPC i 5 scenariuszy ruchu, dwa osobne JVM restartu,
+pełna regresja Translatora oraz 830 zgodnych hashy. Jedno dozwolone retry HTTP
+i naprawa JSON przechodzą; zdrowy task ma zero dodatkowych wywołań.
+Zakres: jawny, widoczny zapas transport/deliver/lumberjack; rzeczywisty model
+USER_DEFERRED, skórki MANUAL_PENDING.
 
 ### L6 — Planner i ograniczona pamięć (po zaliczeniu Supervisora)
 
@@ -493,6 +501,6 @@ Sprawdzone 2026-09-20; uzasadniają projekt transportu, nie dowodzą zgodności 
 - Ollama opisuje własny /v1/chat/completions i wspierany podzbiór pól. [OpenAI compatibility](https://docs.ollama.com/api/openai-compatibility).
 - vLLM opisuje zgodność Chat API i dodatkowe parametry; zgodność zależy też od modelowego chat template. Odczytana dokumentacja v0.18.2 nie jest wyborem wersji wdrożenia. [OpenAI-Compatible Server](https://docs.vllm.ai/en/v0.18.2/serving/openai_compatible_server/).
 
-**Pierwszy krok implementacji: L0.1 / istniejące P11.1 i P11.7.**
-Potem publiczne obserwacje i kontekst, walidowany kontrakt decyzji, provider oraz
-Translator. Supervisor i Planner wchodzą dopiero po zaliczeniu poprzedniego trybu.
+**Kolejny krok: L6 — ograniczony Planner.**
+Katalog, kontekst, decyzje, provider, Translator i Supervisor mają dowody emulatora.
+Po Plannerze pozostaje L7: pełna kampania i co najmniej godzina aktywnego testu wielu NPC.

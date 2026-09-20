@@ -47,7 +47,7 @@ internal class LlmGoalStore private constructor() : SavedData() {
 
     companion object {
         const val MAX_RECORDS = 256
-        const val VERSION = 1
+        const val VERSION = 2
         private const val NAME = "samcnpc_llm_goals"
         private val LOGGER = LogUtils.getLogger()
 
@@ -62,7 +62,7 @@ internal class LlmGoalStore private constructor() : SavedData() {
             val store = LlmGoalStore()
             val problem = when {
                 tag.allKeys != setOf("version", "goals") || !tag.contains("version", Tag.TAG_INT.toInt()) -> "INVALID_GOAL_STORE"
-                tag.getInt("version") != VERSION -> "UNSUPPORTED_GOAL_STORE_VERSION"
+                tag.getInt("version") !in 1..VERSION -> "UNSUPPORTED_GOAL_STORE_VERSION"
                 !tag.contains("goals", Tag.TAG_LIST.toInt()) -> "INVALID_GOAL_STORE"
                 else -> null
             }
@@ -70,9 +70,10 @@ internal class LlmGoalStore private constructor() : SavedData() {
             val entries = tag.get("goals") as ListTag
             if (entries.size > MAX_RECORDS || !entries.isEmpty() && entries.elementType != Tag.TAG_COMPOUND)
                 return reject(store, tag, "INVALID_GOAL_ENTRIES")
-            var changed = false
+            val version = tag.getInt("version")
+            var changed = version != VERSION
             for (entry in entries) {
-                val record = GoalRecordCodec.decode(entry as CompoundTag) ?: return reject(store, tag, "INVALID_GOAL_RECORD")
+                val record = GoalRecordCodec.decode(entry as CompoundTag, version) ?: return reject(store, tag, "INVALID_GOAL_RECORD")
                 if (record.npcUuid in store.records) return reject(store, tag, "DUPLICATE_GOAL_NPC")
                 val recovered = record.recovered()
                 changed = changed || recovered != record

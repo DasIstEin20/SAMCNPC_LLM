@@ -3,6 +3,8 @@ package io.samcnpc.llm.client
 import io.samcnpc.core.api.NpcPosition
 import io.samcnpc.llm.SamcnpcLlm
 import io.samcnpc.llm.TranslatorRuntimeProbe
+import io.samcnpc.llm.SupervisorRuntimeProbe
+import io.samcnpc.llm.GoalRuntimeProbe
 import net.minecraft.client.Minecraft
 import net.minecraft.client.model.PlayerModel
 import net.minecraft.client.gui.screens.AccessibilityOnboardingScreen
@@ -33,7 +35,9 @@ import kotlin.math.hypot
 /** Actual integrated client/server gameplay; detached render counters are the only cross-thread test state. */
 @Mod.EventBusSubscriber(modid = SamcnpcLlm.MOD_ID, value = [Dist.CLIENT])
 internal object LlmGoalsClientSmoke {
-    private val enabled = java.lang.Boolean.getBoolean("samcnpc.goalsClientSmoke")
+    private val supervisor = java.lang.Boolean.getBoolean("samcnpc.supervisorClientSmoke")
+    private val enabled = supervisor || java.lang.Boolean.getBoolean("samcnpc.goalsClientSmoke")
+    private val report = if (supervisor) "client-supervisor-result.txt" else "client-goals-result.txt"
     private data class View(val npc: UUID, val name: String)
     @Volatile private var worldId: String? = null
     @Volatile private var view: View? = null
@@ -44,14 +48,14 @@ internal object LlmGoalsClientSmoke {
     private var clientTicks = 0
     private var done = false
     // Server-thread only.
-    private var probe: TranslatorRuntimeProbe? = null
+    private var probe: GoalRuntimeProbe? = null
 
     @SubscribeEvent
     fun client(event: TickEvent.ClientTickEvent) {
         if (!enabled || done || event.phase != TickEvent.Phase.END) return
         val minecraft = Minecraft.getInstance()
         try {
-            check(++clientTicks < 6000) { "LLM goal client smoke timed out" }
+            check(++clientTicks < 12000) { "LLM goal client smoke timed out" }
             if (minecraft.screen is AccessibilityOnboardingScreen && minecraft.overlay == null) minecraft.screen?.onClose()
             if (worldId == null && minecraft.screen is TitleScreen && minecraft.overlay == null) {
                 val id = "llm-goals-" + System.currentTimeMillis(); worldId = id
@@ -73,14 +77,14 @@ internal object LlmGoalsClientSmoke {
             }
             val outcome = result ?: return
             check(outcome.startsWith("PASS")) { outcome }
-            check(names.size == 8 && frames.values.all { it.get() >= 2 })
+            check(names.size == (if (supervisor) SupervisorRuntimeProbe.CASES.size else 8) && frames.values.all { it.get() >= 2 })
             check(names.filterValues { it in movingCases }.keys.all { (walking[it]?.get() ?: 0) >= 2 })
-            Files.writeString(Path.of("client-goals-result.txt"), outcome + "\nrenderedCases=" + names.size +
+            Files.writeString(Path.of(report), outcome + "\nrenderedCases=" + names.size +
                 " frames=" + names.entries.associate { it.value to frames[it.key]?.get() } +
                 " walking=" + names.entries.associate { it.value to walking[it.key]?.get() } + "\n")
             done = true; minecraft.stop()
         } catch (failure: Exception) {
-            Files.writeString(Path.of("client-goals-result.txt"), "FAIL " + failure.stackTraceToString())
+            Files.writeString(Path.of(report), "FAIL " + failure.stackTraceToString())
             done = true; minecraft.stop()
         }
     }
@@ -101,11 +105,13 @@ internal object LlmGoalsClientSmoke {
                 val origin = NpcPosition(ground.x + 0.5, ground.y + 1.0, ground.z + 0.5)
                 actor.setGameMode(GameType.SPECTATOR)
                 actor.teleportTo(actor.serverLevel(), origin.x + 20, origin.y + 7, origin.z + 14, 0F, 30F)
-                current = TranslatorRuntimeProbe(server, actor, origin) { npc ->
+                val canFinish: (UUID) -> Boolean = { npc ->
                     val name = names[npc]
                     (frames[npc]?.get() ?: 0) >= 2 &&
                         (name !in movingCases || (walking[npc]?.get() ?: 0) >= 2)
                 }
+                current = if (supervisor) SupervisorRuntimeProbe(server, actor, origin, canFinish)
+                    else TranslatorRuntimeProbe(server, actor, origin, canFinish)
                 probe = current
             }
             val outcome = current.poll()
@@ -135,5 +141,5 @@ internal object LlmGoalsClientSmoke {
             walking.computeIfAbsent(current.npc) { AtomicInteger() }.incrementAndGet()
     }
 
-    private val movingCases = setOf("clarify", "deliver", "lumberjack", "pause", "offline")
+    private val movingCases = if (supervisor) SupervisorRuntimeProbe.MOVING else setOf("clarify", "deliver", "lumberjack", "pause", "offline")
 }

@@ -12,9 +12,24 @@ class LlmGoalStoreTest {
     private fun record() = GoalRecord(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), 1,
         "Przynieś 32 kłody do wskazanej skrzyni", phase = GoalPhase.WAITING)
     private fun file(vararg records: GoalRecord): CompoundTag {
-        val tag = CompoundTag(); tag.putInt("version", 1)
+        val tag = CompoundTag(); tag.putInt("version", LlmGoalStore.VERSION)
         val entries = ListTag(); records.forEach { entries.add(GoalRecordCodec.encode(it)) }
         tag.put("goals", entries); return tag
+    }
+
+
+    @Test fun versionOneMigratesAsTranslatorWithoutResettingBudgetOrKnownTask() {
+        val value = record().copy(phase = GoalPhase.EXECUTING,
+            task = GoalTask(UUID.randomUUID(), 2, 3, "samcnpc:transport"),
+            budget = InferenceBudgetView(2, 32000, 2048, 0, null))
+        val legacy = file(value); legacy.putInt("version", 1)
+        legacy.getList("goals", 10).getCompound(0).remove("mode")
+        val restored = LlmGoalStore.load(legacy)
+        assertNull(restored.problem); assertEquals(value, restored.get(value.npcUuid))
+        assertEquals(2, restored.save(CompoundTag()).getInt("version"))
+        assertEquals(value, LlmGoalStore.load(restored.save(CompoundTag())).get(value.npcUuid))
+        val disguised = file(value); disguised.putInt("version", 1)
+        assertEquals("INVALID_GOAL_RECORD", LlmGoalStore.load(disguised).problem)
     }
 
     @Test fun strictRoundTripPreservesQuestionTaskIdentityAndConservativeBudget() {
