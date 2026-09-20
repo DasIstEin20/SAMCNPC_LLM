@@ -5,6 +5,9 @@ import io.samcnpc.core.api.NpcLoadedQuery
 import io.samcnpc.core.api.NpcPosition
 import net.minecraftforge.event.TickEvent
 import net.minecraftforge.event.server.ServerStartedEvent
+import net.minecraftforge.event.server.ServerStoppingEvent
+import net.minecraftforge.event.server.ServerStoppedEvent
+import net.minecraftforge.eventbus.api.EventPriority
 import net.minecraftforge.eventbus.api.SubscribeEvent
 import net.minecraftforge.fml.common.Mod
 import java.nio.file.Files
@@ -16,6 +19,7 @@ object AllModsServerSmoke {
     private val enabled = java.lang.Boolean.getBoolean("samcnpc.serverLoadingSmoke")
     private var loading: String? = null
     private var ticks = 0
+    private var finalReport: String? = null
 
     @SubscribeEvent
     fun started(event: ServerStartedEvent) {
@@ -33,11 +37,27 @@ object AllModsServerSmoke {
         if (!enabled || event.phase != TickEvent.Phase.END) return
         val result = loading ?: return
         check(++ticks < 1200) { "Provider runtime smoke timed out" }
-        if (ticks == 20) ProviderRuntimeProbe.start()
+        if (ticks == 20) {
+            ProviderRuntimeProbe.start()
+            OperationStopProbe.start(event.server)
+        }
         if (ticks <= 20) return
         val transport = ProviderRuntimeProbe.poll() ?: return
         check(ticks >= 30) { "Server did not tick while HTTP body was stalled" }
-        Files.writeString(Path.of("server-loading-result.txt"), "PASS dedicated=true ticks=$ticks coreApi=true $result $transport\n")
+        OperationStopProbe.beforeStop()
+        finalReport = "dedicated=true ticks=$ticks coreApi=true $result $transport"
+        Files.writeString(Path.of("server-loading-result.txt"), "PENDING_STOP $finalReport\n")
         event.server.halt(false)
+    }
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    fun stopping(event: ServerStoppingEvent) {
+        if (enabled && finalReport != null) OperationStopProbe.afterBehaviorStop(event.server)
+    }
+
+    @SubscribeEvent
+    fun stopped(event: ServerStoppedEvent) {
+        if (!enabled || finalReport == null) return
+        check(OperationStopProbe.stopped)
+        Files.writeString(Path.of("server-loading-result.txt"), "PASS $finalReport subscriptionsStopped=true\n")
     }
 }

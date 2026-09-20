@@ -60,3 +60,5 @@ The repository LICENSE is preserved. Test-generated configs, worlds, EULA files,
 screenshots and logs are excluded from source publication.
 
 2026-09-20: Behavior observation generations verified; canonical 423 units, 211 native Behavior tests, 12 client cases (9 generation probes), three-mod smokes. Standalone LLM clean build/19 units passed; [dependency evidence](docs/LIFETIME_DEPENDENCY_VALIDATION.json). On-demand events and ContextBuilder remain unfinished.
+
+2026-09-20: L1.3 complete; LLM plan9/36. Behavior events verified: canonical430 units,214 native Behavior,12 client cases(9 event probes),actual dedicated shutdown closure. Standalone LLM clean build/19 units passed; [evidence](docs/EVENTS_DEPENDENCY_VALIDATION.json). ContextBuilder and admission remain unfinished.
