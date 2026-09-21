@@ -1,0 +1,140 @@
+{
+  "schemaVersion": 1,
+  "recordedUtc": "2026-09-21T00:05:20.884759+00:00",
+  "scope": "Profile budgets, visible context, legal idle decisions and Qwen gameplay repair",
+  "baseLlmCommit": "912861d8d2d28cc50bd700cf0d50d74cdaaf7389",
+  "pinnedCoreCommit": "1834e5db8e7c7606f418b06b5e5f9da64837ebfb",
+  "pinnedBehaviorCommit": "c6e0273bbbe583cebd20cdd17175aa868686e172",
+  "canonicalUnits": {
+    "core": {
+      "tests": 49,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "behavior": {
+      "tests": 364,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "llm": {
+      "tests": 118,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "standaloneUnits": {
+    "core": {
+      "tests": 49,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "behavior": {
+      "tests": 364,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "llm": {
+      "tests": 118,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "matchingOwnSourceFiles": 134,
+  "sourceManifestSha256": "8792606af389d5fa5051a906abd0348c9132aa30677d7d44f0e6cf033d1cf95a",
+  "nativeReports": {
+    "server-loading-result.txt": {
+      "sha256": "3ddd75343d4f917f3f429ba8fc782c405e1bcf36ca2e55bdcd4f68d63681bca1",
+      "result": "PASS dedicated=true ticks=575 coreApi=true mods=[samcnpc_behavior, samcnpc_core, samcnpc_llm] behaviorValidation=true componentCatalog=14/23 registeredSchema=true typedOrders=true configLoaded=true defaultDisabled=true emulatedHttp=true boundedBodyTimeout=true http503=true recovery=true calls=4 nearbyChestObserved=true occludedChestOmitted=true contextWorker=true detachedAfterDismiss=true inventorySlots=36 hiddenBlockOmitted=true contextBytes=10016 contextBounds=true captureAuthority=true decisionHttpCalls=2 fullSchemaBytes=65003 jsonObjectBytes=56517 lateHttpRejected=true httpResumeApplied=true schedulerCases=15 schedulerHttpCalls=15 schedulerWorkerCalls=15 schedulerThreadChecks=true schedulerVirtualClock=true lastGoalCallAdmitted=true schedulerLateReplySuppressed=true translatorCases=8 translatorHttpCalls=9 translatorMaxRequestBytes=49261 registeredGoalCommands=true goalAuthorityChecks=23 physicalStockReads=5 physicalTransport=true physicalDeliver=true physicalLumberjack=true manualPauseHeld=true memoryCommands=true memoryContext=true confirmedResults=true clarificationBudgetRetained=true offlineBehaviorContinues=true missingResourceFailed=true fullDestinationFailed=true userCancelNoLateAssign=true admissionChecks=39 admissionReplay=true lateManualControlRejected=true exactReceiptReadOnly=true lostReplyNoRetry=true subscriptionsStopped=true"
+    },
+    "client-loading-result.txt": {
+      "sha256": "69f122b567b8edd0896c9e16d824703ffecf80db69fb00bf2a903eb9e85d5edf",
+      "result": "PASS titleScreen=true frames=231 configGui=true configSave=true staleDraft=true logo=true mods=[samcnpc_behavior, samcnpc_core, samcnpc_llm] behaviorValidation=true componentCatalog=14/23 registeredSchema=true typedOrders=true configLoaded=true defaultDisabled=true emulatedHttp=true boundedBodyTimeout=true http503=true recovery=true calls=4"
+    },
+    "client-goals-result.txt": {
+      "sha256": "d63ddb018d170775e2b288c64162fd922b497be59086a466f269be03336006c4",
+      "result": "PASS integratedServer=true actualCommands=true translatorCases=8 translatorHttpCalls=9 translatorMaxRequestBytes=49249 registeredGoalCommands=true goalAuthorityChecks=23 physicalStockReads=5 physicalTransport=true physicalDeliver=true physicalLumberjack=true manualPauseHeld=true memoryCommands=true memoryContext=true confirmedResults=true clarificationBudgetRetained=true offlineBehaviorContinues=true missingResourceFailed=true fullDestinationFailed=true userCancelNoLateAssign=true\nrenderedCases=8 frames={deliver=90, offline=95, missing=24, cancel=36, pause=135, clarify=690, lumberjack=283, full=30} walking={deliver=64, offline=62, missing=null, cancel=null, pause=65, clarify=62, lumberjack=53, full=null}"
+    },
+    "server-supervisor-result.txt": {
+      "sha256": "2bede37b4432943fc7d533c7223e9436ced1dfce585f49ccd118be69c8d7d78a",
+      "result": "PASS dedicated=true supervisorGroup=physical supervisorCases=10 supervisorHttpCalls=10 supervisorMaxRequestBytes=27135 scenarios=maintain,stale,offline,authority,manual,removed,queue_filled,repair,provider_down,dismiss healthyTaskExtraCalls=0 stockAdmissionRechecked=true"
+    },
+    "server-planner-result.txt": {
+      "sha256": "07d5d426603f2dae74b8bd3743d715ed890be4898e1292fe5a845aeeee4f9d86",
+      "result": "PASS dedicated=true plannerCases=6 plannerHttpCalls=9 plannerMaxRequestBytes=42991 physicalFoodWoodInventoryReturn=true freshInventoryRejected=true failedStepAsked=true providerOfflineHeld=true manualPauseResumed=true cancelNoLateAssign=true healthyTaskExtraCalls=0 userConfirmationRequired=true"
+    },
+    "server-goals-save.txt": {
+      "sha256": "dabc17f0027755315cdf11b7004bb02f90e99dbd94c1dc3564ba98e4bb3b8957",
+      "result": "PASS savePid=18980 httpCalls=2 realAssignments=2 lostReceiptInjection=true"
+    },
+    "server-goals-load.txt": {
+      "sha256": "df57dbe2e81915be4a8e86bb68841a7e41b6e7583869463d872c7d3f9372d2e0",
+      "result": "PASS newJvm=true knownTaskPhysicallyCompleted=true exactTaskIdsRetained=true uncertainAdmissionHeld=true heldBudgetSettledOnce=true providerDisabled=true replayAssignments=0 memoryRetained=true authoritativeResultRecorded=true"
+    },
+    "live-model-result.txt": {
+      "sha256": "723ec0929d38c21c889f3eeb5a72ec83b400b4a408980319898a2bf28a50c2d6",
+      "result": "PASS realEndpoint=true cases=8\ncase=missing_location phase=ASK_USER code=ASK_USER attempts=1 question=Please specify exactly which tools you want me to take from the nearest chest, as bulk retrieval or equipping armor without a specific item is not supported.\ncase=deliver_en phase=COMPLETED code=TASK_COMPLETED attempts=1 question=null\ncase=navigate_pl phase=COMPLETED code=TASK_COMPLETED attempts=1 question=null\ncase=supply_pl phase=COMPLETED code=TASK_COMPLETED attempts=1 question=null\ncase=lumberjack_pl phase=COMPLETED code=TASK_COMPLETED attempts=1 question=null\ncase=supply_en phase=COMPLETED code=TASK_COMPLETED attempts=1 question=null\ncase=supply_pl_repeat phase=COMPLETED code=TASK_COMPLETED attempts=1 question=null\ncase=unsupported_bulk phase=ASK_USER code=ASK_USER attempts=1 question=Wyciągnij wszystko ze skrzyni i załóż zbroję jest nieobsługiwane. Proszę podać konkretne nazwy przedmiotów do pobrania (np. 'pobierz 10 drewna'). Założenie broni i pancerza osobno nie jest możliwe."
+    }
+  },
+  "realModelProfile": {
+    "endpoint": "http://127.0.0.1:1234/v1",
+    "model": "qwen3.5-4b",
+    "loadModelKey": "samcnpc/qwen3.5-4b",
+    "backendVersion": "LMStudio-0.4.25+1/llama.cpp-cuda12-2.41.0",
+    "modelDigest": "25082a7dd3776cc3c741c6347d3bd04523f05796607b3fbc32fa3a25dfa1418c",
+    "tokenizerDigest": "0a72b5cec6d6e4824ee888d38a4a362b6623653d3b5757fa79e5fe62e2f153f0",
+    "templateDigest": "e175bc0107b113da24d85536756d0fd6254ba95a1a685ebfeaba25b06fc97155",
+    "templateReserve": 2048,
+    "contextWindow": 65536,
+    "inputTokens": 63488,
+    "maxOutputTokens": 1024,
+    "boundRationale": "GGUF declares GPT2 byte-level BPE with all 256 byte alphabet tokens and no BOS. Merges cannot increase the initial byte-token count. Pinned template renders the exact two text messages once with fixed role delimiters and a closed think block; trims can only reduce content. Full HTTP UTF-8 byte length plus 2048 conservatively includes content, schema and framing. SDK prompt rendering matches pinned template for all vectors; API usage matched SDK token count in smoke test.",
+    "scope": "Unchanged verified tokenizer/template; final native eight-case gameplay run below uses prompt/context v4 and restored parameter defaults",
+    "checkedUtc": "2026-09-20T22:04:38.934130+00:00",
+    "priorTwelveVectorChecks": "autonomy/run-20260920-llm/qwen-samcnpc-token-profile.json",
+    "temperature": 0.1,
+    "responseFormat": "JSON_SCHEMA"
+  },
+  "artifacts": [
+    {
+      "file": "samcnpc-core-0.1.0.jar",
+      "bytes": 1757791,
+      "sha256": "81b4ea9a6cd77c7294e526772820f935be93b8a4c1ecfed794e49e56e6c7fd2e",
+      "testSmokeDriversAbsent": true
+    },
+    {
+      "file": "samcnpc-behavior-0.1.0.jar",
+      "bytes": 3642804,
+      "sha256": "0fd9b4c8b760a0856dd34102fee3173a7e6b2d6a45513d0c1e86b7f9793b3429",
+      "testSmokeDriversAbsent": true
+    },
+    {
+      "file": "samcnpc-llm-0.1.0.jar",
+      "bytes": 1249304,
+      "sha256": "3a0d05c139cdb6cfb6371c3cbc020536e4d73ecc913e26e7006cc78ab8cdb9e9",
+      "testSmokeDriversAbsent": true
+    }
+  ],
+  "evidenceLogs": {
+    "final-canonical-real.log": {
+      "sha256": "baab238a1dd8bc9adb2c4b47380843ee4331896ca709832b854dc8d62819dc9f",
+      "location": "local autonomy/run-20260921-gameplay"
+    },
+    "final-standalone-runtime.log": {
+      "sha256": "1cea8b55b1dda44caac2fed01267637ff696e0694a90964b92e7889c110cacc7",
+      "location": "local autonomy/run-20260921-gameplay"
+    }
+  },
+  "limits": [
+    "Full 56-case real-model corpus and other backends pending",
+    "Native Forge 47.4.21; user installation Forge 47.4.23 not played with new JAR yet",
+    "Bulk take-all and standalone armor equipping are unsupported operations",
+    "Two-account skins manual/nonblocking; previous endurance not rerun",
+    "Nearby visual sample is bounded and non-exhaustive, not a container inventory read"
+  ]
+}

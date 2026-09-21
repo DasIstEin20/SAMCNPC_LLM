@@ -115,6 +115,10 @@ class DecisionDecoderTest {
         val narrow = LlmJson.parse(DecisionSchema.forContext(id, policy(setOf(OperationType.NAVIGATE), emptySet())), 65_536)
         assertEquals(1, narrow[key].asJsonObject["orderDocument"].asJsonObject["oneOf"].asJsonArray.size())
         assertFalse(narrow[key].asJsonObject.has("order_LUMBERJACK"))
+        val navigateParameters = narrow[key].asJsonObject["order_NAVIGATE"].asJsonObject["properties"]
+            .asJsonObject["parameters"].asJsonObject["properties"].asJsonObject
+        assertEquals(1.0, navigateParameters["speed"].asJsonObject["default"].asDouble)
+        assertEquals(0.75, navigateParameters["arrivalDistance"].asJsonObject["default"].asDouble)
         assertEquals("null", narrow["properties"].asJsonObject["change"].asJsonObject["type"].asString)
         val controlOnly = LlmJson.parse(DecisionSchema.forContext(id, policy(emptySet(), emptySet())), 65_536)
         assertFalse(controlOnly.has(key))
@@ -139,10 +143,31 @@ class DecisionDecoderTest {
             assertTrue(bytes.size <= settings.maxContextBytes, "format=$format bytes=" + bytes.size)
             val payload = LlmJson.parse(LlmJson.decode(bytes), settings.maxContextBytes)
             val system = payload["messages"].asJsonArray[0].asJsonObject["content"].asString
-            assertTrue(system.contains(if (format == ResponseFormat.JSON_OBJECT) "OUTPUT_CONTRACT_JSON_SCHEMA" else "OUTPUT_CONTRACT_TYPES"))
+            assertTrue(system.contains(if (format != ResponseFormat.JSON_SCHEMA) "OUTPUT_CONTRACT_JSON_SCHEMA" else "OUTPUT_CONTRACT_TYPES"))
             for (operation in OperationType.entries) assertTrue(system.contains(operation.operationId))
             assertTrue(system.contains("quantity"))
             assertTrue(system.contains("definitionVersion"))
+            assertTrue(system.contains("default"), "Behavior defaults must be visible to the model")
+            if (format == ResponseFormat.JSON_SCHEMA) {
+                val wireSchema = payload["response_format"].asJsonObject["json_schema"].asJsonObject["schema"].toString()
+                assertEquals(io.samcnpc.llm.provider.SchemaEquivalence.expanded(LlmJson.parse(schema, 65536)),
+                    io.samcnpc.llm.provider.SchemaEquivalence.expanded(LlmJson.parse(wireSchema, 65536)))
+                assertFalse(wireSchema.contains("\"default\":"))
+                assertTrue(wireSchema.contains("\"minimum\":"))
+                assertTrue(wireSchema.contains("\"required\":"))
+            }
         }
+    }
+
+    @Test fun idleTranslatorContractContainsOnlyApplicableDecisions() {
+        val idle = LlmJson.parse(DecisionSchema.forContext(id, policy(), hasActiveTask = false), 65536)
+        val choices = idle["properties"].asJsonObject["decision"].asJsonObject["enum"].asJsonArray.map { it.asString }.toSet()
+        assertEquals(setOf("ASSIGN", "WAIT", "ASK_USER"), choices)
+        val active = LlmJson.parse(DecisionSchema.forContext(id, policy(), hasActiveTask = true), 65536)
+        val activeChoices = active["properties"].asJsonObject["decision"].asJsonObject["enum"].asJsonArray.map { it.asString }.toSet()
+        assertFalse("ASSIGN" in activeChoices)
+        assertTrue("CONTINUE" in activeChoices)
+        val planner = LlmJson.parse(DecisionSchema.forContext(id, policy(), planner = true, hasActiveTask = false), 65536)
+        assertTrue(planner["properties"].asJsonObject["decision"].asJsonObject["enum"].asJsonArray.any { it.asString == "CONTINUE" })
     }
 }

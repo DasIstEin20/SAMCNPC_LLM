@@ -35,7 +35,7 @@ internal object LlmServerEvents {
         activeServer = event.server
         startedNanos = System.nanoTime()
         val snapshot = LlmConfig.snapshot()
-        val sharedRates = InferenceRateGate(snapshot.values.inference.serverResources())
+        val sharedRates = InferenceRateGate(snapshot.values.inference.serverResources(snapshot.values.maxOutputTokens))
         rates = sharedRates
         current = LlmGoalController(event.server, snapshot.values, rates = sharedRates)
         configRevision = snapshot.revision
@@ -49,7 +49,7 @@ internal object LlmServerEvents {
         if (snapshot.revision != configRevision) {
             current?.close()
             val sharedRates = checkNotNull(rates)
-            sharedRates.reconfigure(snapshot.values.inference.serverResources())
+            sharedRates.reconfigure(snapshot.values.inference.serverResources(snapshot.values.maxOutputTokens))
             current = LlmGoalController(event.server, snapshot.values, rates = sharedRates)
             configRevision = snapshot.revision
             event.server.playerList.players.forEach { current?.reconnect(it) }

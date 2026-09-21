@@ -21,12 +21,25 @@ internal object NpcContextBuilder {
 
     fun capture(server: MinecraftServer, actor: ServerPlayer, npcUuid: UUID, goal: ContextGoal,
                 policy: ContextPolicy, ttlTicks: Int = 1200,
-                worldRequest: OperationWorldRequest = OperationWorldRequest()): ContextCaptureResult {
+                worldRequest: OperationWorldRequest? = null): ContextCaptureResult {
         if (!server.isSameThread || ttlTicks !in 1..1200) return ContextCaptureResult.Rejected("INVALID_CAPTURE_REQUEST")
-        val reply = OperationInspectionApi.inspect(server, actor, npcUuid, worldRequest)
-        val inspection = reply.inspection
+        val reply = OperationInspectionApi.inspect(server, actor, npcUuid, worldRequest ?: OperationWorldRequest())
+        var inspection = reply.inspection
         if (reply.result.status != NpcActionStatus.SUCCEEDED || inspection == null) {
             return ContextCaptureResult.Rejected("OBSERVATION_" + reply.result.code.name)
+        }
+        if (worldRequest == null) {
+            // Authorization above precedes all reads; the final snapshot is taken on this same server tick.
+            val service = io.samcnpc.core.api.CoreNpcApi.service(server)
+            val handle = service.find(npcUuid) ?: return ContextCaptureResult.Rejected("NPC_UNAVAILABLE")
+            val body = service.runtime(handle) ?: return ContextCaptureResult.Rejected("NPC_UNAVAILABLE")
+            val nearby = NearbyVisualCells.discover(inspection.physical.position, body.worldView()::observeVisibleBlock)
+            val aliases = goal.memory.aliases.filter { it.dimensionId == inspection.physical.dimensionId }.map { it.position }.take(8)
+            val cells = (nearby + aliases).distinct().take(16)
+            val refreshed = OperationInspectionApi.inspect(server, actor, npcUuid, OperationWorldRequest(blocks = cells))
+            inspection = refreshed.inspection
+            if (refreshed.result.status != NpcActionStatus.SUCCEEDED || inspection == null)
+                return ContextCaptureResult.Rejected("OBSERVATION_" + refreshed.result.code.name)
         }
         val target = goal.supervision?.target
         val stock = if (target == null) null else {

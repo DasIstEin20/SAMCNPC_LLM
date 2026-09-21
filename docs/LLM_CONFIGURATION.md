@@ -4,7 +4,8 @@ Default API address: **http://127.0.0.1:1234/v1**. Integration is disabled by
 default and makes no startup request. Install/load your model separately when ready.
 
 Open **Mods → SAMCNPC LLM → Config** to edit the address and exact model ID.
-Use Limits for timeouts, temperature and input/output bounds. Apply saves the draft;
+Use Limits for timeouts, temperature and input/output bounds, and Call budgets for
+per-NPC/server hourly calls. Apply saves the draft;
 Done/Escape discards unsaved edits. Defaults changes the draft and still requires Apply.
 The screen supports English and Polish and uses the SAMCNPC LLM logo.
 
@@ -43,7 +44,8 @@ Translator commands are connected to the provider and the public Behavior gatewa
 See [LLM_TRANSLATOR](LLM_TRANSLATOR.md) for commands, restart behavior and limits.
 Supervisor and Planner are tracked separately in [LLM_INTEGRATION_PLAN](LLM_INTEGRATION_PLAN.md).
 Tests use a CPU-only local HTTP emulator: no model installation, GPU allocation or
-claim of real-model quality. User-provided endpoint/model tests remain deferred.
+claim of real-model quality. The local Qwen profile has separate native smoke evidence;
+see [gameplay repair](LLM_GAMEPLAY_REPAIR.md).
 
 ## Inference metering profile
 
@@ -84,10 +86,17 @@ that every catalog prompt fits an 8192-token allocation. The full Translator cat
 uses about 40 KiB in the JSON_OBJECT emulator profile (49152 input reservation).
 JSON_SCHEMA also sends a compact parameter contract in the model's system message;
 the repaired Qwen profile uses a 63488 input reservation and a 65536 context window,
-with 1024 output tokens and 2048 template reserve. These are conservative caps,
+with 1024 output tokens and 2048 template reserve. Default annotations stay in the
+prompt; internal decoding definitions are minified without changing constraints.
+These are conservative caps,
 not actual tokenizer counts. See [connection repair](LLM_CONNECTION_REPAIR.md).
-Goal/rolling-hour token caps remain unchanged, so a larger per-call reservation
-allows fewer calls before waiting for the next quota window.
+New goals fund 24 reservations at the configured input/output limits. Server token
+caps fund `serverCallsPerHour` reservations. `[inference] npcCallsPerHour` defaults to
+12 (range 1..360), `serverCallsPerHour` to 60 (range 1..720). The local gameplay
+profile uses 60/120; this is an operator choice, not a global default. A ten-second
+NPC cooldown and monetary caps still apply. Existing saved goals retain their
+original limits across answers/resumes. Changed server limits retain spent hourly
+reservations. Deferred requests show a reason and bounded retry delay in chat.
 
 Rates and cost caps use integer millionths of the same operator-chosen currency;
 zero rates/caps describe a local endpoint with no configured monetary charge.

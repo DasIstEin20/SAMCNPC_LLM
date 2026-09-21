@@ -19,7 +19,9 @@ internal object DecisionPolicy {
         val task = inspection.operation.task
         val active = task != null && task.state !in terminalStates
         return when (val action = decision.action) {
-            DecisionAction.Continue, is DecisionAction.AskUser -> null
+            DecisionAction.Continue -> if (!active && captured.goal.mode == io.samcnpc.llm.context.LlmMode.TRANSLATOR)
+                "CONTINUE_REQUIRES_ACTIVE_TASK" else null
+            is DecisionAction.AskUser -> null
             is DecisionAction.Assign -> {
                 if (active) "ACTIVE_TASK_CANNOT_BE_REPLACED_BY_ASSIGN"
                 else orderProblem(action.order, policy, inspection.physical.dimensionId)

@@ -37,7 +37,7 @@ internal class PlannerRuntimeProbe(private val server: MinecraftServer, private 
     private val settings = ProviderSettings(enabled = true, baseUrl = endpoint.baseUrl, model = "planner-emulator",
         apiKeyEnvironment = "", requestTimeoutSeconds = 4,
         inference = InferenceSettings(true, endpoint.baseUrl, "planner-emulator", "emulator-v1",
-            "scripted-fixture", "test-byte-bound", "test-template", 256, 131072, 49152))
+            "scripted-fixture", "test-byte-bound", "test-template", 256, 131072, 63488))
     private var index = 0
     private var handle: NpcHandle? = null
     private var ticks = 0
@@ -131,7 +131,7 @@ internal class PlannerRuntimeProbe(private val server: MinecraftServer, private 
                 if (!record.manualHold || record.phase != GoalPhase.WAITING) return null
                 check(record.code == "LLM_DISABLED" && record.planStepsCompleted == 1)
                 check(record.memory.results.size == 1 && record.memory.plan.size == 3)
-                check(record.budget.settledAttempts == 1 && record.budget.chargedInputTokens == 49152L)
+                check(record.budget.settledAttempts == 1 && record.budget.chargedInputTokens == 63488L)
                 check(view.task?.taskId == taskId && view.task?.state == OperationTaskState.COMPLETED)
                 check(count(destination, Items.APPLE) == 4 && count(source, Items.APPLE) == 28)
             }
@@ -280,7 +280,7 @@ internal class PlannerRuntimeProbe(private val server: MinecraftServer, private 
         fun reply(received: FakeOpenAiEndpoint.Received): FakeOpenAiEndpoint.Reply {
             calls.incrementAndGet()
             val bytes = LlmJson.utf8(received.body).size
-            check(bytes + 256 <= 49152)
+            check(bytes + 256 <= 63488)
             maxBytes.getAndUpdate { maxOf(it, bytes) }
             val http = LlmJson.parse(received.body, 65536)
             val state = LlmJson.parse(http["messages"].asJsonArray[1].asJsonObject["content"].asString, 24576)

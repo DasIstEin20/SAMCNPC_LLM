@@ -21,8 +21,9 @@ real-model corpus/other-backend evaluation remains pending.
 The default endpoint is **http://127.0.0.1:1234/v1**. Address and model are editable
 in Forge Mods Config. Integration is disabled by default; it never installs or
 automatically loads a model. Routine tests use a CPU HTTP emulator. An opt-in
-Qwen3.5-4B Q4_K_M test also passed clarification, physical delivery and Polish
-navigation; see [connection repair](docs/LLM_CONNECTION_REPAIR.md).
+Qwen3.5-4B Q4_K_M test now covers eight command scenarios, including Polish/English
+chest supply, oak harvesting with exact bounds/counts, delivery and navigation;
+see [gameplay repair](docs/LLM_GAMEPLAY_REPAIR.md).
 
 Commands accept Core-style NPC names and unique prefixes, with Tab completion:
 `/samcnpc llm status Sam`. Full UUIDs still work.
@@ -53,6 +54,15 @@ Server runs require Minecraft EULA acceptance.
 
 ## Validation
 
+The gameplay repair adds profile-scaled quotas, Forge GUI call limits, visible
+quota waits and bounded real-eye chest observations. Prompt defaults remain
+visible; the compact decoding schema preserves every effective constraint.
+[Gameplay evidence](docs/GAMEPLAY_REPAIR_VALIDATION.json) records canonical and
+standalone tests, native client/server scenarios and the focused real-Qwen run.
+Bulk take-all and standalone armor equipping remain unsupported operations.
+
+The following selector/release figures are historical.
+
 The selector/connection repair has 525 passing workspace unit tests (49/364/112),
 seven Python guards, dedicated and client Translator regression (8 cases/9 HTTP),
 and 23 command authority checks. Standalone clean build also passed (112 LLM
@@ -80,6 +90,6 @@ loading also passed. Two-account skins are manual and nonblocking.
 [Core](https://github.com/DasIstEin20/SAMCNPC_Core) ·
 [Behavior](https://github.com/DasIstEin20/SAMCNPC_Behavior)
 
-[Frozen evaluation corpus and scoring](docs/LLM_EVALUATION.md): 56 cases, three scripted repetitions; real-model quality remains unmeasured.
+[Frozen evaluation corpus and scoring](docs/LLM_EVALUATION.md): 56 cases, three scripted repetitions; full real-model corpus quality remains pending.
 
 [Installation](docs/LLM_INSTALLATION.md) · [Endurance](docs/LLM_ENDURANCE.md) · [Release acceptance](docs/RELEASE_ACCEPTANCE.md) · [Artifacts](docs/ARTIFACTS.md) · [Manual skin test](docs/MANUAL_SKIN_TEST.md)

@@ -30,5 +30,10 @@
   "samcnpc.llm.config.temperature.hint": "Sampling temperature: 0–2.",
   "samcnpc.llm.config.maxOutputTokens.hint": "Generation limit: 64–4096 tokens.",
   "samcnpc.llm.config.maxContextBytes.hint": "Input text limit: 1024–65536 UTF-8 bytes.",
-  "samcnpc.llm.config.maxResponseBytes.hint": "HTTP response limit: 1024–262144 bytes."
+  "samcnpc.llm.config.maxResponseBytes.hint": "HTTP response limit: 1024–262144 bytes.",
+  "samcnpc.llm.config.quotas": "Call budgets",
+  "samcnpc.llm.config.npcCallsPerHour": "NPC calls / hour",
+  "samcnpc.llm.config.serverCallsPerHour": "Server calls / hour",
+  "samcnpc.llm.config.npcCallsPerHour.hint": "Rolling hour, 1–360. A 10-second cooldown and 24-call goal budget still apply.",
+  "samcnpc.llm.config.serverCallsPerHour.hint": "Rolling hour across all NPCs, 1–720. Existing charges remain after changes."
 }

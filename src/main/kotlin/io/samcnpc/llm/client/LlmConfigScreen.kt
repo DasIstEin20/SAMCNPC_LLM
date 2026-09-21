@@ -17,6 +17,7 @@ internal class LlmConfigScreen(private val parent: Screen) : Screen(Component.li
     private var accepted = LlmConfig.snapshot()
     private var draft = accepted.values
     private var advanced = false
+    private var quotas = false
     private var status = ""
     private val textValues = linkedMapOf<String, String>()
     private val labels = mutableListOf<Pair<String, Int>>()
@@ -33,9 +34,17 @@ internal class LlmConfigScreen(private val parent: Screen) : Screen(Component.li
         labels.clear()
         addRenderableWidget(Button.builder(tr(if (advanced) "basic" else "advanced")) {
             advanced = !advanced
+            quotas = false
             init()
         }.bounds(left + panelWidth - 105, top + 13, 105, 20).build())
-        if (advanced) {
+        addRenderableWidget(Button.builder(tr("quotas")) {
+            quotas = !quotas
+            init()
+        }.bounds(left + panelWidth - 210, top + 13, 100, 20).build())
+        if (quotas) {
+            field("npcCallsPerHour", 0, 3)
+            field("serverCallsPerHour", 1, 3)
+        } else if (advanced) {
             field("connectTimeoutSeconds", 0, 3)
             field("requestTimeoutSeconds", 1, 3)
             field("temperature", 2, 12)
@@ -52,8 +61,7 @@ internal class LlmConfigScreen(private val parent: Screen) : Screen(Component.li
             }.bounds(inputX(), rowY(2), inputWidth(), 20).build()).active = editable
             label("responseFormat", 3)
             addRenderableWidget(Button.builder(Component.literal(draft.responseFormat.name)) {
-                draft = draft.copy(responseFormat = if (draft.responseFormat == ResponseFormat.JSON_SCHEMA)
-                    ResponseFormat.JSON_OBJECT else ResponseFormat.JSON_SCHEMA)
+                draft = draft.copy(responseFormat = ResponseFormat.entries[(draft.responseFormat.ordinal + 1) % ResponseFormat.entries.size])
                 init()
             }.bounds(inputX(), rowY(3), inputWidth(), 20).build()).active = editable
             field("apiKeyEnvironment", 4, 128)
@@ -87,6 +95,8 @@ internal class LlmConfigScreen(private val parent: Screen) : Screen(Component.li
     }
 
     private fun resetText() {
+        textValues["npcCallsPerHour"] = draft.inference.npcCallsPerHour.toString()
+        textValues["serverCallsPerHour"] = draft.inference.serverCallsPerHour.toString()
         textValues["baseUrl"] = draft.baseUrl
         textValues["model"] = draft.model
         textValues["apiKeyEnvironment"] = draft.apiKeyEnvironment
@@ -101,6 +111,8 @@ internal class LlmConfigScreen(private val parent: Screen) : Screen(Component.li
     private fun applyDraft() {
         if (!editable) return
         val candidate = draft.copy(
+            inference = draft.inference.copy(npcCallsPerHour = textValues.getValue("npcCallsPerHour").toIntOrNull() ?: -1,
+                serverCallsPerHour = textValues.getValue("serverCallsPerHour").toIntOrNull() ?: -1),
             baseUrl = textValues.getValue("baseUrl"), model = textValues.getValue("model"),
             apiKeyEnvironment = textValues.getValue("apiKeyEnvironment"),
             connectTimeoutSeconds = textValues.getValue("connectTimeoutSeconds").toIntOrNull() ?: -1,

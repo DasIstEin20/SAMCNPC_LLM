@@ -90,6 +90,7 @@ internal object LlmGoalCommands {
         val message = "SAMCNPC LLM: " + reply.code + if (record == null) "" else
             "\nNPC " + record.npcUuid + " | " + record.phase.name + " | goal " + record.goalId +
                 " rev " + record.revision + " | attempts " + record.budget.settledAttempts + "/" + record.limits.attempts +
+                " | input " + record.budget.chargedInputTokens + "/" + record.limits.inputTokens +
                 " | places " + record.memory.aliases.joinToString(",") { it.name } +
                 " | confirmed results " + record.memory.results.size +
                 (if (record.mode == io.samcnpc.llm.context.LlmMode.PLANNER) " | steps " + record.planStepsCompleted + "/8" else "") +

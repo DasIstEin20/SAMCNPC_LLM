@@ -11,9 +11,9 @@ No scheduler is created automatically on mod startup.
 | Pending wake events | 32 NPCs; coalesced FIFO |
 | Dispatch/completion work | At most 2 each per poll |
 | NPC request spacing | 10 seconds |
-| Reservations per rolling hour | 12 per NPC, 60 per server |
-| Goal reservations | 24 attempts, 196608 input tokens, 24576 output tokens |
-| Server rolling token reservations | 491520 input, 61440 output |
+| Reservations per rolling hour | Configurable; default 12/NPC, 60/server; max 360/720 |
+| Goal reservations | 24 attempts; configured input/output per-call limits × 24 |
+| Server rolling token reservations | Configured input/output per-call limits × server hourly calls |
 | Default per-request allocation | 8192 input, 1024 output |
 | Transport retry / output repair | At most 1 of each per decision cycle |
 | Circuit breaker | 3 transport failures, 60-second cooldown, 1 probe |
@@ -46,7 +46,7 @@ endpoint/model and evidence identifiers for backend, model, tokenizer and chat
 template. Its conservative upper bound counts the complete serialized request bytes
 plus a verified template reserve. It does not report bytes as measured tokens.
 Reported usage above that bound invalidates compatibility. The CPU emulator exercises
-this contract; no real model/backend tuple is verified yet. Changing endpoint/model
+this contract; the separately verified local Qwen tuple is documented in LLM_CONNECTION_REPAIR.md. Changing endpoint/model
 invalidates the declaration. Full 16-operation requests are about 47/52 KiB, so they
 cannot be assumed to fit an 8192-token allocation. Mandatory state is never silently
 dropped to make a request fit.

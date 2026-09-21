@@ -40,7 +40,7 @@ internal class TranslatorRuntimeProbe(private val server: MinecraftServer, priva
     private val settings = ProviderSettings(enabled = true, baseUrl = endpoint.baseUrl, model = "translator-emulator",
         apiKeyEnvironment = "", requestTimeoutSeconds = 4, responseFormat = ResponseFormat.JSON_OBJECT,
         inference = InferenceSettings(true, endpoint.baseUrl, "translator-emulator", "emulator-v1",
-            "scripted-fixture", "test-byte-bound", "test-template", 256, 131072, 49152))
+            "scripted-fixture", "test-byte-bound", "test-template", 256, 131072, 63488))
     private var index = 0
     private var current: NpcHandle? = null
     private var ticks = 0
@@ -331,7 +331,7 @@ internal class TranslatorRuntimeProbe(private val server: MinecraftServer, priva
             if (caseName in setOf("clarify", "deliver", "lumberjack"))
                 java.nio.file.Files.writeString(java.nio.file.Path.of("translator-wire-" + caseName + ".json"), request.body)
             val bytes = LlmJson.utf8(request.body).size
-            check(bytes + 256 <= 49152)
+            check(bytes + 256 <= 63488)
             maxRequestBytes.getAndUpdate { previous -> maxOf(previous, bytes) }
             val http = LlmJson.parse(request.body, 65536)
             val state = LlmJson.parse(http["messages"].asJsonArray[1].asJsonObject["content"].asString, 24576)

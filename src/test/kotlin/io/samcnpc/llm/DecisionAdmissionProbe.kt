@@ -53,7 +53,7 @@ internal object DecisionAdmissionProbe {
         fun reject(source: CapturedContext, expected: String, currentGoal: ContextGoal = goal,
                    currentPolicy: ContextPolicy = policy, hold: Boolean = false) {
             val before = observe()
-            val result = slot(source).admit(server, actor, candidate(source, DecisionAction.Continue), currentGoal, currentPolicy, hold)
+            val result = slot(source).admit(server, actor, candidate(source, DecisionAction.Wait(WaitTrigger.USER_UPDATE, null)), currentGoal, currentPolicy, hold)
             check(result.code == expected) { "admission expected=$expected actual=" + result.code }
             unchanged(before); checks++
         }
@@ -69,6 +69,10 @@ internal object DecisionAdmissionProbe {
             val decision = candidate(source, DecisionAction.Assign(OperationOrder.Navigate(dimension, spawn.copy(x = spawn.x + 24))))
             val result = admission.admit(server, actor, decision, goal, policy, false)
             check(result.state == DecisionOutcomeState.APPLIED) { result.toString() }
+            val active = capture()
+            val continued = slot(active).admit(server, actor, candidate(active, DecisionAction.Continue), goal, policy, false)
+            check(continued.state == DecisionOutcomeState.NO_EFFECT && continued.code == "CONTINUE")
+            checks++
             val before = observe()
             check(admission.admit(server, actor, decision, goal, policy, false).code == "DECISION_ALREADY_CONSUMED")
             unchanged(before); checks++
@@ -80,7 +84,10 @@ internal object DecisionAdmissionProbe {
             for (action in listOf(DecisionAction.Continue, DecisionAction.Wait(WaitTrigger.USER_UPDATE, null),
                 DecisionAction.AskUser("Where should I deliver the logs?"))) {
                 val source = capture()
-                check(slot(source).admit(server, actor, candidate(source, action), goal, policy, false).state == DecisionOutcomeState.NO_EFFECT)
+                val outcome = slot(source).admit(server, actor, candidate(source, action), goal, policy, false)
+                if (action == DecisionAction.Continue) {
+                    check(outcome.state == DecisionOutcomeState.REJECTED && outcome.code == "CONTINUE_REQUIRES_ACTIVE_TASK")
+                } else check(outcome.state == DecisionOutcomeState.NO_EFFECT)
                 check(observe().task == null); checks++
             }
             val idle = capture()
@@ -122,13 +129,13 @@ internal object DecisionAdmissionProbe {
             check(invalidated.admit(server, actor, candidate(idle, DecisionAction.Continue), goal, policy, false).code == "CONTEXT_INVALIDATED"); checks++
             val rebound = slot(idle); val next = capture(); check(rebound.bind(next))
             check(rebound.admit(server, actor, candidate(idle, DecisionAction.Continue), goal, policy, false).code == "CONTEXT_MISMATCH")
-            check(rebound.admit(server, actor, candidate(next, DecisionAction.Continue), goal, policy, false).state == DecisionOutcomeState.NO_EFFECT); checks++
+            check(rebound.admit(server, actor, candidate(next, DecisionAction.Wait(WaitTrigger.USER_UPDATE, null)), goal, policy, false).state == DecisionOutcomeState.NO_EFFECT); checks++
             val wrongThreadSlot = slot(idle)
             val wrongThread = CompletableFuture.supplyAsync {
                 wrongThreadSlot.admit(server, actor, candidate(idle, DecisionAction.Continue), goal, policy, false)
             }.get(3, TimeUnit.SECONDS)
             check(wrongThread.code == "SERVER_THREAD_REQUIRED")
-            check(wrongThreadSlot.admit(server, actor, candidate(idle, DecisionAction.Continue), goal, policy, false).state == DecisionOutcomeState.NO_EFFECT); checks++
+            check(wrongThreadSlot.admit(server, actor, candidate(idle, DecisionAction.Wait(WaitTrigger.USER_UPDATE, null)), goal, policy, false).state == DecisionOutcomeState.NO_EFFECT); checks++
             val disconnectedCopy = ServerPlayer(server, actor.serverLevel(), actor.gameProfile)
             try {
                 check(slot(idle).admit(server, disconnectedCopy, candidate(idle, DecisionAction.Continue), goal, policy, false).code ==

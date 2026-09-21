@@ -15,7 +15,14 @@ internal object WorldContext {
     fun world(world: OperationWorldInspection?, capturedTick: Long, staleAfterTicks: Int): JsonElement {
         if (world == null) return obj("state" to text("NOT_REQUESTED"))
         return obj("source" to text(world.source.name), "dimension" to text(world.dimensionId),
+            "scope" to text("BOUNDED_VISIBLE_SURFACES_NOT_EXHAUSTIVE; containers use block positions, not UUIDs; contents unknown"),
             "capturedTick" to number(world.observedTick),
+            "visibleContainers" to array(world.blocks.mapNotNull { entry ->
+                val observed = entry.observation as? NpcVisualBlockRead.Observed
+                if (observed?.block?.hasContainer != true) null else obj(
+                    "dimensionId" to text(world.dimensionId), "position" to position(observed.block.position),
+                    "contents" to text("UNKNOWN"))
+            }),
             "entities" to entities(world.entities, capturedTick, staleAfterTicks),
             "blocks" to array(world.blocks.map { entry ->
                 val observed = entry.observation

@@ -114,7 +114,7 @@ internal object PlannerRestartSmoke {
         val settings = ProviderSettings(enabled = true, baseUrl = transport.baseUrl, model = "restart-emulator",
             apiKeyEnvironment = "", requestTimeoutSeconds = 4,
             inference = InferenceSettings(true, transport.baseUrl, "restart-emulator", "emulator-v1",
-                "fixture", "test-byte-bound", "test-template", 256, 131072, 49152))
+                "fixture", "test-byte-bound", "test-template", 256, 131072, 63488))
         configured = settings
         check(LlmConfig.update(LlmConfig.snapshot().revision, settings))
     }
@@ -191,7 +191,7 @@ internal object PlannerRestartSmoke {
             check(uncertain.phase == GoalPhase.REVIEW_REQUIRED && uncertain.manualHold)
             check(uncertain.code == "RESTART_REVIEW_REQUIRED" && uncertain.contextId == null)
             check(uncertain.budget.inFlight == null && uncertain.budget.settledAttempts == 1 &&
-                uncertain.budget.chargedInputTokens == 49152L)
+                uncertain.budget.chargedInputTokens == 63488L)
             check(controller.resume(player, second, LlmServerEvents.nowMillis()).code == "REVIEW_REQUIRES_NEW_GOAL")
             controller.reconnect(player)
             assigned = true
@@ -205,7 +205,7 @@ internal object PlannerRestartSmoke {
         if (healthy.phase == GoalPhase.EXECUTING || healthy.phase == GoalPhase.QUEUED ||
             healthy.phase == GoalPhase.WAITING && !healthy.manualHold) return
         check(healthy.phase == GoalPhase.WAITING && healthy.manualHold && healthy.code == "LLM_DISABLED" &&
-            healthy.budget.settledAttempts == 1 && healthy.budget.chargedInputTokens == 49152L) { healthy.toString() }
+            healthy.budget.settledAttempts == 1 && healthy.budget.chargedInputTokens == 63488L) { healthy.toString() }
         check(healthy.planStepsCompleted == 1 && healthy.memory.plan == listOf("Return to base"))
         val manual = checkNotNull(controller.store.get(third))
         check(manual.phase == GoalPhase.WAITING && manual.manualHold && manual.code == "MANUAL_TASK_CHANGE")

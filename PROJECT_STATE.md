@@ -1,3 +1,30 @@
+# Gameplay command repair validated — 2026-09-21
+
+Profile-scaled goal/hourly budgets, configurable hourly calls and explicit quota
+waits resolve premature provider-call starvation. Context v4 adds authorized,
+bounded real-eye chest/wood observations and user-coordinate hints. Idle
+Translator cannot silently CONTINUE; prompt v4 retains published parameter
+defaults. Backend schema compaction preserves effective constraints within the
+unchanged 64 KiB request bound. Core/Behavior source pins remain unchanged.
+
+Final canonical and standalone clean builds passed all 531 unit tests (49 Core,
+364 Behavior, 118 LLM); all 134 own source files match. Source/Core/distribution
+checks and seven Python guards passed. Final native dedicated/client loading,
+config GUI, Translator (8 cases/9 HTTP), Supervisor (10 physical cases/10 HTTP),
+Planner (6 cases/9 HTTP) and fresh-JVM goal restart passed. The actual configured
+LM Studio Qwen3.5-4B passed 8/8 cases using one request each: six physical task
+completions plus two clarification/unsupported outcomes. Lumberjack asserts
+species, requested bounds, removed blocks and delivered count. See
+[validation](docs/GAMEPLAY_REPAIR_VALIDATION.json),
+[repair details](docs/LLM_GAMEPLAY_REPAIR.md) and
+[artifact checksums](docs/GAMEPLAY_REPAIR_SHA256SUMS).
+
+These are focused Forge 47.4.21 tests, not a completed full 56-case real-model
+quality evaluation or a new playthrough on the user's Forge 47.4.23 installation.
+Bulk take-all and standalone armor equipping are absent from the Behavior API;
+small-model interpretation remains fallible. Skin comparison stays manual and
+nonblocking. Original Qwen3.5 profile is retained; comparison models are unused.
+
 # NPC selectors and Qwen connection repair — 2026-09-21
 
 LLM commands accept Core-style names, unique name/UUID prefixes and authorized

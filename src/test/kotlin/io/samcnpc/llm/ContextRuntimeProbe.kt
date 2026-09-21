@@ -25,6 +25,10 @@ internal object ContextRuntimeProbe {
         val handle = checkNotNull(summoned.handle)
         val hidden = BlockPos.containing(position.x + 20, position.y, position.z)
         val oldBlock = level.getBlockState(hidden)
+        val visibleChest = BlockPos.containing(position.x + 2, position.y, position.z)
+        val hiddenChest = BlockPos.containing(position.x, position.y, position.z - 3)
+        val wall = (0..2).map { BlockPos.containing(position.x, position.y + it, position.z - 2) }
+        val replaced = (listOf(visibleChest, hiddenChest) + wall).associateWith { level.getBlockState(it) }
         val actorPosition = NpcPosition(actor.x, actor.y, actor.z)
         val policy = ContextPolicy(2, OperationType.entries.toSet(), OperationCatalogApi.snapshot().changes.keys,
             OperationControl.entries.toSet(), 6000, 3, 12000)
@@ -35,6 +39,14 @@ internal object ContextRuntimeProbe {
             null, 24, memory)
         try {
             level.setBlockAndUpdate(hidden, Blocks.DIAMOND_ORE.defaultBlockState())
+            level.setBlockAndUpdate(visibleChest, Blocks.CHEST.defaultBlockState())
+            level.setBlockAndUpdate(hiddenChest, Blocks.CHEST.defaultBlockState())
+            wall.forEach { level.setBlockAndUpdate(it, Blocks.STONE.defaultBlockState()) }
+            val automatic = NpcContextBuilder.capture(server, actor, handle.npcUuid, goal, policy)
+            check(automatic is ContextCaptureResult.Captured)
+            val surfaces = checkNotNull(automatic.value.inspection.world).blocks
+            check(surfaces.any { it.requested == NpcBlockPosition(visibleChest.x, visibleChest.y, visibleChest.z) && it.observation is NpcVisualBlockRead.Observed })
+            check(surfaces.none { it.requested == NpcBlockPosition(hiddenChest.x, hiddenChest.y, hiddenChest.z) && it.observation is NpcVisualBlockRead.Observed })
             val observed = checkNotNull(OperationSupervisionApi.observe(server, actor, handle.npcUuid).observation)
             val assigned = OperationSupervisionApi.assign(server, actor, handle.npcUuid, OperationAssignmentRequest(null,
                 observed.observedTick, observed.observedTick + 100,
@@ -65,6 +77,7 @@ internal object ContextRuntimeProbe {
             }
         } finally {
             level.setBlockAndUpdate(hidden, oldBlock)
+            replaced.forEach { (cell, state) -> level.setBlockAndUpdate(cell, state) }
             actor.teleportTo(level, actorPosition.x, actorPosition.y, actorPosition.z, 0F, 0F)
             if (service.runtime(handle) != null) check(service.dismiss(handle, NpcDismissMode.ONLY_IF_EMPTY).status == NpcActionStatus.SUCCEEDED)
         }
@@ -97,7 +110,7 @@ internal object ContextRuntimeProbe {
         check(NpcContextEncoder.encode(captured, 1) == ContextEncodingResult.Rejected("CONTEXT_TOO_LARGE"))
         check(NpcContextEncoder.encode(tooLarge) == ContextEncodingResult.Rejected("CONTEXT_TOO_LARGE"))
         check(NpcContextEncoder.encode(invalidText) == ContextEncodingResult.Rejected("INVALID_CONTEXT_ENCODING"))
-        return "contextWorker=true detachedAfterDismiss=true inventorySlots=36 hiddenBlockOmitted=true contextBytes=" +
+        return "nearbyChestObserved=true occludedChestOmitted=true contextWorker=true detachedAfterDismiss=true inventorySlots=36 hiddenBlockOmitted=true contextBytes=" +
             context.utf8Bytes + " contextBounds=true captureAuthority=true"
     }
 }

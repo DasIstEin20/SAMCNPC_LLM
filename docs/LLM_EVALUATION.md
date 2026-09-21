@@ -7,8 +7,9 @@ cases. It is independent of the installed model.
 
 The canonical fixtures are in `src/test/resources/evaluation/v1/` in SAMCNPC_LLM:
 `corpus.json` defines inputs and permitted semantic effects; `profile.json` fixes
-the corpus/prompt hashes, protocol versions and three repetitions. The system
-prompt is version 3, context version 3, decisions version 1 for Translator/Supervisor
+the corpus/prompt hashes, protocol versions and three repetitions. The historical v1 profile remains unchanged. The current `evaluation/v2/profile.json`
+pins prompt version 4 and context version 4 while referencing the same v1 corpus.
+Decisions remain version 1 for Translator/Supervisor
 and version 2 for Planner. This corpus exercises Translator's version 1 contract;
 Planner's separate physical and restart evidence is in PLANNER_VALIDATION.json.
 

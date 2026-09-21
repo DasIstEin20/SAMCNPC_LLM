@@ -21,7 +21,7 @@ internal class LlmGoalController(
     private val server: MinecraftServer,
     val settings: ProviderSettings,
     val store: LlmGoalStore = LlmGoalStore.forServer(server),
-    rates: InferenceRateGate = InferenceRateGate(settings.inference.serverResources()),
+    rates: InferenceRateGate = InferenceRateGate(settings.inference.serverResources(settings.maxOutputTokens)),
     provider: LlmProvider = OpenAiCompatibleProvider(settings),
 ) : AutoCloseable {
     private val runtime = TranslatorRuntime(server, store, settings, provider, rates, ::notify)
@@ -38,7 +38,7 @@ internal class LlmGoalController(
         if (activeTask(actor, npc)) return rejected("ACTIVE_BEHAVIOR_TASK_REQUIRES_REVIEW")
         if (stockTarget != null && store.records().any { it.npcUuid != npc && it.phase !in finished &&
             it.supervision?.target?.sameStorage(stockTarget) == true }) return rejected("STOCK_ALREADY_SUPERVISED")
-        val record = GoalRecord(npc, actor.uuid, UUID.randomUUID(), 1, text, limits = settings.inference.goalLimits(),
+        val record = GoalRecord(npc, actor.uuid, UUID.randomUUID(), 1, text, limits = settings.inference.goalLimits(settings.maxOutputTokens),
             phase = if (stockTarget == null) GoalPhase.QUEUED else GoalPhase.WAITING,
             mode = if (planner) LlmMode.PLANNER else if (stockTarget == null) LlmMode.TRANSLATOR else LlmMode.SUPERVISOR,
             supervision = stockTarget?.let { StockSupervision(it) },

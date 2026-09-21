@@ -23,11 +23,15 @@ internal class InferenceConfigFields(builder: ForgeConfigSpec.Builder) {
     private val outputRate = builder.defineInRange("outputMicrosPerMillion", 0L, 0L, 1_000_000_000L)
     private val goalCost = builder.defineInRange("goalCostMicros", 0L, 0L, 1_000_000_000L)
     private val serverCost = builder.defineInRange("hourlyCostMicros", 0L, 0L, 1_000_000_000L)
+    private val npcCalls = builder.comment("Maximum requests per NPC in a rolling hour; cooldown still applies.")
+        .defineInRange("npcCallsPerHour", defaults.npcCallsPerHour, 1, 360)
+    private val serverCalls = builder.comment("Maximum requests across the server in a rolling hour. Token budgets scale with the verified reservation.")
+        .defineInRange("serverCallsPerHour", defaults.serverCallsPerHour, 1, 720)
     init { builder.pop() }
 
     fun read() = InferenceSettings(verified.get(), endpoint.get(), model.get(), backend.get(),
         modelDigest.get(), tokenizer.get(), template.get(), reserve.get(), window.get(), input.get(),
-        inputRate.get(), outputRate.get(), goalCost.get(), serverCost.get())
+        inputRate.get(), outputRate.get(), goalCost.get(), serverCost.get(), npcCalls.get(), serverCalls.get())
 
     fun write(values: InferenceSettings) {
         verified.set(values.verifiedByteLevel); endpoint.set(values.verifiedBaseUrl); model.set(values.verifiedModel)
@@ -36,6 +40,7 @@ internal class InferenceConfigFields(builder: ForgeConfigSpec.Builder) {
         reserve.set(values.templateReserve); window.set(values.contextWindow); input.set(values.inputTokens)
         inputRate.set(values.inputMicrosPerMillion); outputRate.set(values.outputMicrosPerMillion)
         goalCost.set(values.goalCostMicros); serverCost.set(values.hourlyCostMicros)
+        npcCalls.set(values.npcCallsPerHour); serverCalls.set(values.serverCallsPerHour)
     }
 
     private fun evidence(builder: ForgeConfigSpec.Builder, name: String) =

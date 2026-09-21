@@ -16,7 +16,7 @@ internal object DecisionSchema {
         compact(exported.getAsJsonObject(DEFS)).toString()
     }
 
-    fun forContext(contextId: UUID, policy: ContextPolicy, planner: Boolean = false): String {
+    fun forContext(contextId: UUID, policy: ContextPolicy, planner: Boolean = false, hasActiveTask: Boolean? = null): String {
         val defs = JsonParser.parseString(definitions).asJsonObject
         val operations = policy.operations.sortedBy { it.ordinal }
         if (operations.isNotEmpty()) {
@@ -26,7 +26,15 @@ internal object DecisionSchema {
         val props = JsonObject()
         props.add("schemaVersion", typed("integer").also { it.addProperty("const", if (planner) 2 else DecisionDecoder.VERSION) })
         props.add("contextId", typed("string").also { it.add("enum", strings(listOf(contextId.toString()))) })
-        props.add("decision", typed("string").also { it.add("enum", strings(DecisionKind.entries.map { kind -> kind.name })) })
+        val decisions = DecisionKind.entries.filter { kind -> when (kind) {
+            DecisionKind.CONTINUE -> hasActiveTask != false || planner
+            DecisionKind.ASSIGN -> operations.isNotEmpty() && hasActiveTask != true
+            DecisionKind.AMEND -> changes.isNotEmpty() && hasActiveTask != false
+            DecisionKind.PAUSE, DecisionKind.RESUME, DecisionKind.CANCEL ->
+                policy.controls.any { it.name == kind.name } && hasActiveTask != false
+            else -> true
+        } }
+        props.add("decision", typed("string").also { it.add("enum", strings(decisions.map { it.name })) })
         props.add("summary", boundedText(256))
         props.add("operation", if (operations.isEmpty()) typed("null") else nullable(reference("orderDocument")))
         props.add("change", if (changes.isEmpty()) typed("null") else nullable(alternatives(changes.map { reference("change_" + it) })))
@@ -59,7 +67,7 @@ internal object DecisionSchema {
         value.isJsonObject -> {
             val result = JsonObject()
             for ((key, child) in value.asJsonObject.entrySet()) {
-                if (key == "description" || key == "default" || key == "$" + "schema" || key.startsWith("x-")) continue
+                if (key == "description" || key == "$" + "schema" || key.startsWith("x-")) continue
                 result.add(key, compact(child))
             }
             result

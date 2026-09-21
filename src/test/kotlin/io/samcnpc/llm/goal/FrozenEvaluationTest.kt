@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit
 class FrozenEvaluationTest {
     private val policy = ContextPolicy(1, OperationType.entries.toSet(), emptySet(), emptySet(), 72000, 16, 0)
     private fun bytes(name: String): ByteArray =
-        checkNotNull(javaClass.getResourceAsStream("/evaluation/v1/" + name)).use { it.readBytes() }
+        checkNotNull(javaClass.getResourceAsStream((if (name == "profile.json") "/evaluation/v2/" else "/evaluation/v1/") + name)).use { it.readBytes() }
     private fun json(name: String): JsonObject = LlmJson.parse(bytes(name).toString(Charsets.UTF_8), 131072)
     private fun sha(bytes: ByteArray): String = MessageDigest.getInstance("SHA-256").digest(bytes)
         .joinToString("") { "%02x".format(it) }
@@ -30,7 +30,9 @@ class FrozenEvaluationTest {
         assertEquals(profile["corpusSha256"].asString, sha(bytes("corpus.json")))
         assertEquals(profile["promptSha256"].asString, sha(DecisionPrompt.text.toByteArray(Charsets.UTF_8)))
         assertEquals(DecisionPrompt.VERSION, profile["promptVersion"].asInt)
-        assertEquals("USER_DEFERRED", profile["realModelStatus"].asString)
+        assertEquals("PENDING_FULL_MODEL_EVALUATION", profile["realModelStatus"].asString)
+        val oldProfile = checkNotNull(javaClass.getResourceAsStream("/evaluation/v1/profile.json")).use { it.readBytes() }
+        assertEquals(profile["previousProfileSha256"].asString, sha(oldProfile))
         assertEquals("SCRIPTED_WIRE_CONTRACT_NOT_MODEL_QUALITY", corpus["scope"].asString)
         val rows = corpus["cases"].asJsonArray.map { it.asJsonObject }
         assertEquals(56, rows.size)
@@ -122,10 +124,10 @@ class FrozenEvaluationTest {
         report.addProperty("operationSelectionByModel", "NOT_MEASURED")
         report.addProperty("liveUnauthorizedEffects", "NOT_MEASURED_HERE_SEE_NATIVE_ADMISSION_EVIDENCE")
         report.addProperty("physicalSuccess", "NOT_MEASURED_HERE_SEE_NATIVE_RUNTIME_EVIDENCE")
-        report.addProperty("realModel", "USER_DEFERRED")
+        report.addProperty("realModel", "PENDING_FULL_MODEL_EVALUATION")
         val directory = Path.of("build/evaluation")
         Files.createDirectories(directory)
-        Files.writeString(directory.resolve("scripted-v1.json"), GsonBuilder().setPrettyPrinting().create().toJson(report) + "\n")
+        Files.writeString(directory.resolve("scripted-v2.json"), GsonBuilder().setPrettyPrinting().create().toJson(report) + "\n")
     }
 }
 

@@ -30,5 +30,10 @@
   "samcnpc.llm.config.temperature.hint": "Temperatura generowania: 0–2.",
   "samcnpc.llm.config.maxOutputTokens.hint": "Limit generowania: 64–4096 tokenów.",
   "samcnpc.llm.config.maxContextBytes.hint": "Limit wejścia: 1024–65536 bajtów UTF-8.",
-  "samcnpc.llm.config.maxResponseBytes.hint": "Limit odpowiedzi HTTP: 1024–262144 bajty."
+  "samcnpc.llm.config.maxResponseBytes.hint": "Limit odpowiedzi HTTP: 1024–262144 bajty.",
+  "samcnpc.llm.config.quotas": "Budżety zapytań",
+  "samcnpc.llm.config.npcCallsPerHour": "NPC: zapytań / h",
+  "samcnpc.llm.config.serverCallsPerHour": "Serwer: zapytań / h",
+  "samcnpc.llm.config.npcCallsPerHour.hint": "Ruchome okno godziny, 1–360. Nadal obowiązuje odstęp 10 s i 24 zapytania na cel.",
+  "samcnpc.llm.config.serverCallsPerHour.hint": "Wszystkie NPC w ruchomym oknie godziny, 1–720. Zmiana zachowuje już naliczone zapytania."
 }

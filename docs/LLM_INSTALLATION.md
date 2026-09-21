@@ -28,8 +28,12 @@ Endpoint/model selection alone is not a verified tokenizer profile. Follow
 [LLM_CONFIGURATION](LLM_CONFIGURATION.md) before enabling inference. Its conservative
 input bound must include the complete request/schema and fit the model's actual
 context window. Emulator profile declarations are test fixtures, not profiles
-approved for arbitrary local models. A narrow Qwen3.5-4B Q4_K_M profile and live
-three-case smoke are recorded in [the connection repair](LLM_CONNECTION_REPAIR.md).
+approved for arbitrary local models. The verified Qwen3.5-4B Q4_K_M profile and final eight-case native smoke are
+recorded in [the gameplay repair](LLM_GAMEPLAY_REPAIR.md) and
+[validation evidence](GAMEPLAY_REPAIR_VALIDATION.json). Shared hourly defaults
+are 12 calls/NPC and 60/server; the local testing installation uses 60/120,
+configurable through the Call budgets page. Existing goals retain their saved
+budgets; stop an old held goal before submitting a fresh goal when necessary.
 The full real-model evaluation corpus remains pending. This mod installs no model
 and allocates no model VRAM.
 

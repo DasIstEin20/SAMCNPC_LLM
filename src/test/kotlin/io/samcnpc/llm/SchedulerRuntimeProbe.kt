@@ -139,9 +139,12 @@ internal class SchedulerRuntimeProbe(private val server: MinecraftServer, privat
             val candidate = JsonObject()
             candidate.addProperty("schemaVersion", 1)
             candidate.addProperty("contextId", captured.binding.contextId.toString())
-            candidate.addProperty("decision", "CONTINUE")
+            candidate.addProperty("decision", "WAIT")
             candidate.addProperty("summary", "Deterministic emulator fixture")
             for (field in listOf("operation", "change", "question", "wait")) candidate.add(field, JsonNull.INSTANCE)
+            candidate.add("wait", JsonObject().also {
+                it.addProperty("trigger", "USER_UPDATE"); it.add("ticks", JsonNull.INSTANCE)
+            })
             val body = when {
                 name == "usage" -> FakeOpenAiEndpoint.success(candidate.toString()).replace("\"prompt_tokens\":12", "\"prompt_tokens\":999999")
                 name == "repair" -> FakeOpenAiEndpoint.success("{broken")

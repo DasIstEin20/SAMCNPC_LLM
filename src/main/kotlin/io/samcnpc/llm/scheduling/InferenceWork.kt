@@ -58,9 +58,14 @@ internal object InferenceWork {
             val prompt = DecisionPrompt.text + if (input.feedbackCode == null) "" else
                 "\nThe previous candidate was rejected with code " + input.feedbackCode +
                     ". Produce a corrected decision using the current STATE and output contract."
+            val taskState = input.captured.inspection.operation.task?.state
+            val activeTask = taskState != null && taskState !in setOf(
+                io.samcnpc.behavior.api.OperationTaskState.COMPLETED,
+                io.samcnpc.behavior.api.OperationTaskState.CANCELLED,
+                io.samcnpc.behavior.api.OperationTaskState.FAILED)
             val request = LlmRequest(input.requestId, prompt, context.stateJson,
                 DecisionSchema.forContext(context.binding.contextId, input.captured.policy,
-                    planner = input.captured.goal.mode == LlmMode.PLANNER))
+                    planner = input.captured.goal.mode == LlmMode.PLANNER, hasActiveTask = activeTask))
             val bytes = ChatCompletionCodec.request(request, input.settings).size
             if (bytes > input.settings.maxContextBytes) return InferenceResult.Failed("CONTEXT_TOO_LARGE")
             val tokens = input.profile.upperBound(input.settings, bytes)

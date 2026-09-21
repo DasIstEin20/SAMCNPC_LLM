@@ -46,6 +46,12 @@ internal object LlmConfigClientProbe {
                 field(mc, "baseUrl").value = address
                 field(mc, "model").value = MODEL
                 click(mc, "off")
+                click(mc, "quotas")
+                field(mc, "npcCallsPerHour").value = "0"
+                click(mc, "apply")
+                check(LlmConfig.snapshot() == original) { "GUI admitted invalid call budget" }
+                field(mc, "npcCallsPerHour").value = "60"
+                field(mc, "serverCallsPerHour").value = "120"
                 click(mc, "advanced")
                 field(mc, "requestTimeoutSeconds").value = "0"
                 click(mc, "apply")
@@ -57,6 +63,7 @@ internal object LlmConfigClientProbe {
                 check(saved.revision > original.revision && saved.values.enabled)
                 check(saved.values.baseUrl == address && saved.values.model == MODEL)
                 check(saved.values.requestTimeoutSeconds == 23 && saved.values.temperature == 0.2)
+                check(saved.values.inference.npcCallsPerHour == 60 && saved.values.inference.serverCallsPerHour == 120)
                 val file = Path.of("config/samcnpc-llm-common.toml")
                 check(Files.readString(file).contains(address)) { "GUI save did not reach TOML" }
                 pendingScreenshot = "llm-config-limits.png"

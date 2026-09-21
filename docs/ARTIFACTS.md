@@ -1,3 +1,14 @@
+# Current gameplay repair artifacts — 2026-09-21
+
+The final matched three-JAR build is identified by
+[gameplay repair checksums](GAMEPLAY_REPAIR_SHA256SUMS) and
+[final validation](GAMEPLAY_REPAIR_VALIDATION.json). Canonical and standalone
+clean builds passed with 134 matching own source files. Core/Behavior source pins
+are unchanged. Smoke drivers are absent from the mod JARs. The final native
+Qwen3.5 run passed eight cases, including six physical task completions.
+
+The selector/connection and release artifact records below are historical.
+
 # Current selector/connection repair artifacts — 2026-09-21
 
 The matched three-JAR repair build is identified by

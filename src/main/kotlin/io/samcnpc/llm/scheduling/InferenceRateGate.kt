@@ -8,8 +8,12 @@ internal sealed interface RatePermit {
     data class Deferred(val code: String, val earliestMillis: Long?) : RatePermit
 }
 internal data class ServerInferenceResources(val inputTokens: Long = 491520, val outputTokens: Long = 61440,
-                                            val costMicros: Long = 0) {
-    init { require(inputTokens >= 0 && outputTokens >= 0 && costMicros >= 0) }
+                                            val costMicros: Long = 0, val npcCallsPerHour: Int = 12,
+                                            val serverCallsPerHour: Int = 60) {
+    init {
+        require(inputTokens >= 0 && outputTokens >= 0 && costMicros >= 0)
+        require(npcCallsPerHour in 1..360 && serverCallsPerHour in 1..720)
+    }
 }
 
 /** Server-thread attempt reservations, independent of wall clock/game ticks. No automatic refund. */
@@ -44,14 +48,14 @@ internal class InferenceRateGate(private var limits: ServerInferenceResources = 
         val last = history?.peekLast()
         if (last != null && nowMillis - last < MIN_GAP_MILLIS)
             return RatePermit.Deferred("NPC_COOLDOWN", last + MIN_GAP_MILLIS)
-        if (history != null && history.size >= NPC_ATTEMPTS_PER_HOUR)
+        if (history != null && history.size >= limits.npcCallsPerHour)
             return RatePermit.Deferred("NPC_HOURLY_BUDGET", history.peekFirst() + WINDOW_MILLIS)
-        if (global.size >= SERVER_ATTEMPTS_PER_HOUR)
+        if (global.size >= limits.serverCallsPerHour)
             return RatePermit.Deferred("SERVER_HOURLY_BUDGET", global.peekFirst().atMillis + WINDOW_MILLIS)
         resources(charge)?.let { return it }
         if (!commit) return RatePermit.Granted
-        // Global reservations bound the number of unexpired NPC histories to <=60.
-        check(byNpc.size <= SERVER_ATTEMPTS_PER_HOUR)
+        // Even after a lower reconfiguration, retained reservations stay bounded by the hard cap.
+        check(byNpc.size <= 720)
         val next = history ?: ArrayDeque<Long>().also { byNpc[npcUuid] = it }
         next.addLast(nowMillis)
         global.addLast(Entry(nowMillis, charge))

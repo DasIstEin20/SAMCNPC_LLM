@@ -66,9 +66,10 @@ No real profile is preapproved. Test emulator profile declarations are fixtures,
 not configurations to copy to an arbitrary model.
 
 The existing scheduler enforces two simultaneous requests, a ten-second NPC gap,
-12 requests/NPC/hour and 60/server/hour. A goal retains 24 attempt slots and
-196608 input / 24576 output token reservations across answers and resumes.
-Server input/output reservations are 491520/61440 per rolling hour. Reservations
+configurable hourly calls (defaults 12/NPC and 60/server). New goals fund 24 attempt
+slots at the configured per-request input/output reservation; server token caps
+fund its hourly call count. Answers/resumes retain the original saved goal limits.
+Old goals are not upgraded or refunded; start a new goal for new limits. Reservations
 use conservative bounds, not reported usage refunds. Config changes preserve the
 current server lifetime's rolling history. Rate windows restart with the server;
 persisted goal charges do not. A healthy Behavior task continues without inference.
@@ -129,3 +130,10 @@ previously idle goal after correcting provider configuration, use
 `/samcnpc llm stop Sam` before `/samcnpc llm goal Sam <new goal>`.
 CONTINUE is never completion and cannot start a missing task. The goal/status
 code remains authoritative; a model summary is not an execution receipt.
+
+At decision boundaries the context samples at most 128 nearby cells through Core's
+real-eye sensor, retaining at most eight visible chest/wood surfaces. This is a
+non-exhaustive local sample; contents remain UNKNOWN. Use explicit coordinates or
+saved aliases for a chest outside it. Named supply can proceed without asking the
+player to confirm stock; Behavior performs the authoritative check. Arbitrary
+"take everything" and standalone armor equipping are not supported operations.

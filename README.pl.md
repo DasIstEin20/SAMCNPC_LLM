@@ -21,8 +21,8 @@ pełny korpus jakości oraz inne backendy pozostają do sprawdzenia.
 Domyślny endpoint to **http://127.0.0.1:1234/v1**. Adres i model zmienisz w Forge Mods
 Config. Integracja jest domyślnie wyłączona; nie instaluje ani nie ładuje modelu.
 Zwykłe testy używają emulatora HTTP. Osobny test Qwen3.5-4B Q4_K_M zaliczył
-pytanie o brakujące dane, fizyczną dostawę i nawigację po polskim poleceniu.
-Szczegóły: [naprawa połączenia](docs/LLM_CONNECTION_REPAIR.md).
+osiem scenariuszy, w tym pobieranie przedmiotów po polsku i angielsku oraz
+ścinanie dębu z kontrolą obszaru i ilości. [Opis naprawy](docs/LLM_GAMEPLAY_REPAIR.md).
 
 Komendy przyjmują nazwy i unikalne skróty tak jak Core, z podpowiedziami Tab:
 `/samcnpc llm status Sam`. Pełne UUID nadal działają.
@@ -30,6 +30,15 @@ Komendy przyjmują nazwy i unikalne skróty tak jak Core, z podpowiedziami Tab:
 [Konfiguracja](docs/LLM_CONFIGURATION.md) · [Komendy Translatora](docs/LLM_TRANSLATOR.md) ·
 [Supervisor](docs/LLM_SUPERVISOR.md) · [Planner](docs/LLM_PLANNER.md) ·
 [Pamięć](docs/LLM_MEMORY.md) · [Plan](docs/LLM_INTEGRATION_PLAN.md)
+
+Naprawa poleceń z 21.09: budżety dopasowane do profilu modelu, konfigurowalne
+limity zapytań, komunikaty oczekiwania, obserwacja widocznych skrzyń oraz jawne
+wartości domyślne parametrów. Próby z Qwenem obejmują pobieranie przedmiotów po
+polsku i angielsku, dostawę, ruch oraz ścinanie dębu z kontrolą obszaru i ilości.
+[Opis naprawy](docs/LLM_GAMEPLAY_REPAIR.md) · [Wyniki](docs/GAMEPLAY_REPAIR_VALIDATION.json).
+Polecenia „weź wszystko” i samodzielne zakładanie zbroi wymagają dodatkowych operacji
+Behavior; obecny katalog ich nie obsługuje. Pełny benchmark jakości modelu nadal czeka.
+Poniższe liczby poprzedniej naprawy i wydania są historyczne.
 
 ## Budowanie
 

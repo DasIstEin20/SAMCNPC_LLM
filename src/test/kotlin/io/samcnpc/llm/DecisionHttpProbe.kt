@@ -144,7 +144,7 @@ internal class DecisionHttpProbe(private val server: MinecraftServer, private va
                         val body = LlmJson.parse(received.body, 65536)
                         val system = body["messages"].asJsonArray[0].asJsonObject["content"].asString
                         if (format == ResponseFormat.JSON_OBJECT) check(system.contains("OUTPUT_CONTRACT_JSON_SCHEMA"))
-                        else check(body["response_format"].asJsonObject["json_schema"].asJsonObject["schema"] == LlmJson.parse(schema, 65536))
+                        else check(io.samcnpc.llm.provider.SchemaEquivalence.expanded(body["response_format"].asJsonObject["json_schema"].asJsonObject["schema"].asJsonObject) == io.samcnpc.llm.provider.SchemaEquivalence.expanded(LlmJson.parse(schema, 65536)))
                         check(provider.activeRequests() == 0)
                         WorkerResult(decision.value, bytes)
                     }

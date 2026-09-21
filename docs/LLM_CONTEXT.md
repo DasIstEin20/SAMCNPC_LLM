@@ -1,4 +1,4 @@
-# NpcLlmContext v3
+# NpcLlmContext v4
 
 NpcContextBuilder captures one authorized immutable Behavior inspection on the
 server thread. NpcContextEncoder accepts that detached capture on an inference
@@ -47,3 +47,10 @@ Confirmed results come from authoritative task observations, not model summaries
 
 Version 3 adds server-completed and remaining Planner step counts. Only Planner
 uses decision envelope v2; Translator/Supervisor retain v1. See LLM_PLANNER.md.
+
+Version 4 adds a bounded default visual sample at decision boundaries: at most
+128 Core real-eye checks, eight visible container/wood surfaces plus up to eight
+same-dimension memory aliases. `world.visibleContainers` exposes coordinates with
+UNKNOWN contents; hidden cells are omitted. `goal.explicitCoordinates` preserves
+up to eight comma-separated x/y/z triples from user text. Its provenance is user
+intent, never proof of world state or authorization. No new per-tick scan is added.

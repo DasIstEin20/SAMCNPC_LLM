@@ -37,4 +37,32 @@ class InferenceSettingsTest {
         assertNotNull(verified.copy(inputMicrosPerMillion = -1).problem())
         assertNotNull(settings.copy(inference = verified.copy(inputTokens = 0)).problem())
     }
+
+    @Test fun largeVerifiedReservationsFundEveryAdvertisedGoalCall() {
+        val profile = verified.copy(contextWindow = 65536, inputTokens = 63488,
+            npcCallsPerHour = 60, serverCallsPerHour = 120)
+        val charge = profile.allocation(settings).charge()
+        val budget = io.samcnpc.llm.scheduling.InferenceBudget(profile.goalLimits(settings.maxOutputTokens))
+        repeat(24) {
+            val request = java.util.UUID.randomUUID()
+            assertNull(budget.reserve(request, charge))
+            assertTrue(budget.settle(request))
+        }
+        assertEquals("GOAL_CALL_BUDGET_EXHAUSTED", budget.problem(charge))
+        val rates = io.samcnpc.llm.scheduling.InferenceRateGate(profile.serverResources(settings.maxOutputTokens))
+        val npc = java.util.UUID.randomUUID()
+        repeat(60) { assertEquals(io.samcnpc.llm.scheduling.RatePermit.Granted, rates.reserve(npc, it * 10000L, charge)) }
+        assertEquals(io.samcnpc.llm.scheduling.RatePermit.Deferred("NPC_HOURLY_BUDGET", 3600000),
+            rates.preview(npc, 600000L, charge))
+        rates.reconfigure(profile.copy(npcCallsPerHour = 2).serverResources(settings.maxOutputTokens))
+        assertEquals(60, rates.reservedInCurrentWindow())
+        assertEquals(io.samcnpc.llm.scheduling.RatePermit.Deferred("NPC_HOURLY_BUDGET", 3600000),
+            rates.preview(npc, 600000L, charge))
+    }
+
+    @Test fun callCapsRejectInvalidValues() {
+        assertNotNull(verified.copy(npcCallsPerHour = 0).problem())
+        assertNotNull(verified.copy(npcCallsPerHour = 361).problem())
+        assertNotNull(verified.copy(serverCallsPerHour = 721).problem())
+    }
 }

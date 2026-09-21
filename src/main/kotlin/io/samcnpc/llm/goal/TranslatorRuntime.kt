@@ -193,6 +193,13 @@ internal class TranslatorRuntime(
         val next = record.copy(phase = if (retryAtMillis == null) GoalPhase.WAITING else GoalPhase.QUEUED,
             code = code, question = null, manualHold = record.manualHold || retryAtMillis == null && record.mode != LlmMode.TRANSLATOR)
         persist(next)
+        // A queued quota wait otherwise looks like a dead connection: no HTTP is sent yet.
+        if (retryAtMillis != null && next.code != record.code && code != "NPC_COOLDOWN") {
+            notify(next)
+            val seconds = ((retryAtMillis - LlmServerEvents.nowMillis()).coerceAtLeast(0) + 999) / 1000
+            server.playerList.getPlayer(record.actorUuid)?.sendSystemMessage(
+                net.minecraft.network.chat.Component.literal("SAMCNPC LLM: request not sent yet; retry in $seconds s ($code)."))
+        }
         if (retryAtMillis == null) {
             notify(next)
             if (sessions[wake.npcUuid]?.budget?.snapshot()?.inFlight == null) release(wake.npcUuid)

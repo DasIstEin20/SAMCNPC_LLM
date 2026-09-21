@@ -18,6 +18,8 @@ internal data class InferenceSettings(
     val outputMicrosPerMillion: Long = 0,
     val goalCostMicros: Long = 0,
     val hourlyCostMicros: Long = 0,
+    val npcCallsPerHour: Int = 12,
+    val serverCallsPerHour: Int = 60,
 ) {
     fun problem(): String? = when {
         !ProviderSettings.validBaseUrl(verifiedBaseUrl) -> "verifiedBaseUrl"
@@ -26,6 +28,8 @@ internal data class InferenceSettings(
         templateReserve !in 0..8192 -> "templateReserve"
         contextWindow !in 1024..262144 -> "contextWindow"
         inputTokens !in 1..131072 -> "inputTokens"
+        npcCallsPerHour !in 1..360 -> "npcCallsPerHour"
+        serverCallsPerHour !in 1..720 -> "serverCallsPerHour"
         listOf(inputMicrosPerMillion, outputMicrosPerMillion, goalCostMicros, hourlyCostMicros).any { it !in 0..1_000_000_000L } -> "cost"
         else -> null
     }
@@ -48,8 +52,13 @@ internal data class InferenceSettings(
     }
     fun allocation(settings: ProviderSettings) =
         InferenceAllocation(inputTokens, settings.maxOutputTokens, inputMicrosPerMillion, outputMicrosPerMillion)
-    fun goalLimits() = InferenceBudgetLimits(costMicros = goalCostMicros)
-    fun serverResources() = ServerInferenceResources(costMicros = hourlyCostMicros)
+    // A verified request may reserve much more than the historical 8192-token default.
+    // Token quotas must fund the declared call count; cost caps can still stop it earlier.
+    fun goalLimits(outputTokens: Int = 1024) = InferenceBudgetLimits(
+        inputTokens = inputTokens.toLong() * 24, outputTokens = outputTokens.toLong() * 24, costMicros = goalCostMicros)
+    fun serverResources(outputTokens: Int = 1024) = ServerInferenceResources(
+        inputTokens = inputTokens.toLong() * serverCallsPerHour, outputTokens = outputTokens.toLong() * serverCallsPerHour,
+        costMicros = hourlyCostMicros, npcCallsPerHour = npcCallsPerHour, serverCallsPerHour = serverCallsPerHour)
 
     companion object {
         fun validEvidence(value: String): Boolean = value.length <= 256 && value == value.trim() && value.none(Char::isISOControl)

@@ -37,6 +37,9 @@ internal object SchemaPrompt {
             }
             for ((key, name) in aliases) append('@').append(name).append('=')
                 .append(type(LlmJson.parse(key, 65536), aliases, expand = true)).append('\n')
+            append("Choose only fields needed for the user's goal. Omitted optional fields use Behavior defaults. ")
+            append("Bounds are not defaults; enum values are alternatives, not a checklist. ")
+            append("Never invent missing item names or quantities. Use ASK_USER for unspecified tools, bulk take-all or standalone armor equipping.\n")
         }
     }
 

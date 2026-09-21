@@ -24,7 +24,7 @@ internal object ChatCompletionCodec {
         val messages = JsonArray()
         // Constrained decoding may enforce a grammar without showing it to the model.
         // Both modes need the operation parameters in the actual prompt.
-        val contractText = if (settings.responseFormat == ResponseFormat.JSON_OBJECT)
+        val contractText = if (settings.responseFormat != ResponseFormat.JSON_SCHEMA)
             "OUTPUT_CONTRACT_JSON_SCHEMA\n" + schema.toString()
         else SchemaPrompt.describe(schema)
         val system = request.systemPrompt + "\n" + contractText
@@ -37,11 +37,41 @@ internal object ChatCompletionCodec {
             val contract = JsonObject()
             contract.addProperty("name", "samcnpc_decision")
             contract.addProperty("strict", true)
-            contract.add("schema", schema)
+            contract.add("schema", validationSchema(schema))
             format.add("json_schema", contract)
         } else format.addProperty("type", "json_object")
         root.add("response_format", format)
         return LlmJson.utf8(root.toString())
+    }
+
+    // Prompt annotations stay visible once. Internal definition names carry no validation meaning.
+    private fun validationSchema(schema: JsonObject): JsonElement {
+        val definitionsKey = "$" + "defs"
+        val referenceKey = "$" + "ref"
+        val names = schema.getAsJsonObject(definitionsKey)?.keySet()?.mapIndexed { index, name -> name to "d$index" }?.toMap()
+            ?: emptyMap()
+        val prefix = "#/$definitionsKey/"
+        fun encode(value: JsonElement, root: Boolean = false): JsonElement = when {
+            value.isJsonObject -> JsonObject().also { result ->
+                for ((key, child) in value.asJsonObject.entrySet()) {
+                    if (key == "default" || key == "uniqueItems" && child.isJsonPrimitive && !child.asBoolean) continue
+                    if (root && key == definitionsKey) {
+                        val definitions = JsonObject()
+                        for ((name, definition) in child.asJsonObject.entrySet())
+                            definitions.add(names.getValue(name), encode(definition))
+                        result.add(key, definitions)
+                    } else if (key == referenceKey && child.asString.startsWith(prefix)) {
+                        val path = child.asString.removePrefix(prefix)
+                        val name = path.substringBefore('/')
+                        val replacement = names[name]
+                        result.addProperty(key, if (replacement == null) child.asString else prefix + replacement + path.removePrefix(name))
+                    } else result.add(key, encode(child))
+                }
+            }
+            value.isJsonArray -> JsonArray().also { result -> value.asJsonArray.forEach { result.add(encode(it)) } }
+            else -> value.deepCopy()
+        }
+        return encode(schema, true)
     }
 
     fun response(request: LlmRequest, http: HttpResponse<ByteArray>): LlmResponse {
