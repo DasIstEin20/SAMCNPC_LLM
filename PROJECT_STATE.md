@@ -1,3 +1,14 @@
+# Planned quota/context follow-up — 2026-09-21
+
+User requested a plan and log diagnosis only to conserve remaining usage.
+See docs/LLM_INTEGRATION_PLAN.md (Q1–Q2, C1–C6) and docs/LLM_CONTEXT_INCIDENT.md.
+Minecraft 12:35 first rejected the conservative whole-request input bound before
+HTTP, then configuration input 63488 + output 4096 exceeded context 65536.
+Forgetting the goal did not resolve the latter. Exact failed payload size and
+actual tokenizer usage are unavailable. No configuration/source/JAR changes or
+model calls made. Optional quotas and whole-request compact remain PLANNED.
+Docs-only verification; previous build/gameplay evidence is unchanged.
+
 # Gameplay command repair validated — 2026-09-21
 
 Profile-scaled goal/hourly budgets, configurable hourly calls and explicit quota

@@ -525,3 +525,56 @@ Sprawdzone 2026-09-20; uzasadniają projekt transportu, nie dowodzą zgodności 
 Najpierw zweryfikować profil backend/model/tokenizer/template i limity kontekstu,
 potem uruchomić zamrożony korpus oraz fizyczne scenariusze. Emulator nie zastępuje
 oceny jakości modelu. Test skórek pozostaje w oddzielnej ręcznej kolejce.
+
+## Uzupełnienie 2026-09-21: lokalne kwoty i rzeczywisty budżet kontekstu
+
+Status: **PLANNED — bez implementacji w tej sesji, na prośbę użytkownika
+oszczędzającego limit pracy**. To otwarte poprawki po walidacji poprzedniego
+zakresu, nie zaliczone punkty istniejącej kampanii. Diagnoza:
+[LLM_CONTEXT_INCIDENT](LLM_CONTEXT_INCIDENT.md).
+
+- [ ] Q1. Dodać jawny tryb bez kwot godzinowych i bez limitu wywołań na cały cel;
+  dla lokalnego zastosowania ma być dostępny bez sztucznego podnoszenia liczb.
+  Kwoty/ceny pozostawić jako opcjonalną politykę administratora, także dla
+  płatnych endpointów. Nie wybierać polityki wyłącznie po adresie IP/modelu.
+  Dziś nie ma limitu dziennego: 24 oznacza wywołania na cel.
+- [ ] Q2. Zachować ograniczoną kolejkę, liczbę jednoczesnych requestów, timeout,
+  backoff przy awarii i wykrywanie powtarzanej nieskutecznej decyzji. Tryb bez
+  kwot nie może tworzyć nieskończonej historii rezerwacji. Udokumentować migrację
+  zapisanych celów i zmianę konfiguracji; nie refundować już wysłanych requestów
+  ani odnawiać budżetów deterministycznych zadań Behavior.
+- [ ] C1. Rozdzielić w GUI/statusie: bajty HTTP, liczbę tokenów (dokładną albo
+  oznaczoną jako górne oszacowanie), rezerwę odpowiedzi, okno modelu i kwotę celu.
+  Pokazywać potrzebne/dostępne wartości oraz czy wywołano provider. Walidować
+  input + output <= contextWindow przed zapisaniem formularza; proponować
+  spójne wartości, bez cichego rozszerzania deklarowanego okna modelu.
+- [ ] C2. Zmniejszyć udział pełnego katalogu operacji w żądaniu; mierzyć osobno
+  prompt, stan, katalog i backend response schema. Usunąć zbędne powtórzenia,
+  zachowując domyślne parametry i semantykę walidacji. Rozważyć pełny zwięzły
+  katalog możliwości + szczegółowy kontrakt wybieranej rodziny, z jawną ścieżką
+  wyboru innej rodziny; nie ukrywać potrzebnych operacji przez zgadywanie intencji.
+- [ ] C3. Wprowadzić kompakcję opartą na budżecie CAŁEGO żądania, nie tylko
+  limicie 24 KiB dla sekcji STATE. Obecne redukcje enchantments/events uruchamiają
+  się dla STATE, a nie po INPUT_TOKEN_BOUND_EXCEEDED. Deterministycznie redukować
+  opcjonalne detale/stare zdarzenia i agregować wyniki; zachować wszystkie 36
+  slotów, cel, uprawnienia, rewizje, aktualny task/receipts i historię potrzebną
+  do ochrony przed powtarzaniem błędów. Jeśli obowiązkowa część nie mieści się,
+  podać dokładną przyczynę; nie wysyłać uszkodzonego/uciętego JSON.
+- [ ] C4. Zweryfikować dokładne liczenie tokenów dla obsługiwanego backendu wraz
+  z chat template i sposobem obsługi response schema. Przy niedostępności użyć
+  sprawdzonego konserwatywnego oszacowania. Nie zastępować obecnego zabezpieczenia
+  zgadywaniem „4 znaki = token” ani po prostu wyłączeniem walidacji profilu.
+- [ ] C5. Dodać `/samcnpc llm compact <npc>` jako ręczne uruchomienie tej samej
+  deterministycznej projekcji i raport rozmiarów przed/po, bez dodatkowego LLM.
+  Domyślnie redukować kontekst automatycznie przed requestem. To nie reset celu,
+  taska, kwot czy ochrony przed pętlą i nie odpowiednik `forget`. Autoryzacja oraz
+  unieważnianie odpowiedzi w locie muszą obowiązywać jak przy innych zmianach.
+- [ ] C6. Testy regresji: kontekst gry większy niż dotychczasowe smoke fixtures,
+  pełny ekwipunek/enchantments, zdarzenia/failures/aliases, PL/EN, dopasowanie
+  wejścia+wyjścia, raport odrzucenia przed HTTP, kompakcja bez utraty kontraktu,
+  brak kwot przy nadal ograniczonej kolejce. Następnie clean build i native
+  klient/serwer oraz realny model; nie uznawać kompilacji za naprawę gameplay.
+
+Kolejność: diagnostyka C1 → redukcja katalogu/całego żądania C2–C3 → Q1–Q2
+→ dokładniejszy profil C4 / ręczna komenda C5 → walidacja C6. Pełny korpus
+jakości L3.5 i ręczny test skórek zachowują osobne statusy.
