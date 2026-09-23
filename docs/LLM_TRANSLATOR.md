@@ -137,3 +137,36 @@ non-exhaustive local sample; contents remain UNKNOWN. Use explicit coordinates o
 saved aliases for a chest outside it. Named supply can proceed without asking the
 player to confirm stock; Behavior performs the authoritative check. Arbitrary
 "take everything" and standalone armor equipping are not supported operations.
+
+
+## Explicit server-enforced intent
+
+Ordinary `/samcnpc llm goal` text is UNCONTRACTED: strict decoding alone does not
+prove that the model respected its meaning. These short typed commands create a
+server-owned contract, independently checked again before admission:
+
+```text
+/samcnpc llm stock_to Sam minecraft:cobblestone 32 120 64 -30
+/samcnpc llm take_more Sam minecraft:cobblestone 32 120 64 -30
+/samcnpc llm deliver_carried Sam minecraft:oak_log 16 120 64 -30
+/samcnpc llm transport_exact Sam minecraft:cobblestone 32 10 64 20 30 64 50
+/samcnpc llm wood_min Sam samcnpc:oak 16 100 64 -24 110 78 -14 120 64 -30
+/samcnpc llm mine_min Sam minecraft:stone minecraft:cobblestone 16 100 64 -24 110 78 -14 120 64 -30
+/samcnpc llm go_bounded Sam 120.5 64 -30.5
+```
+
+`stock_to` means total carried stock; `take_more` means additional acquisition
+relative to authoritative initial stock (12 + 32 = 44). `deliver_carried` forbids
+new acquisition. Transfer commands name exact quantities and containers.
+`wood_min` and `mine_min` take the minimum/maximum work corners, then the destination.
+Harvest quantity is a minimum: a whole tree/vein can overshoot. The area bounds work
+and destruction, not the route to the permitted chest. These commands do not grant
+player attacks or arbitrary auxiliary work. Unsupported guarantees fail closed.
+The current dimension comes from the authorized command source. Coordinates are
+absolute numeric values; vanilla's 256-character input limit still applies.
+
+Reservations survive answers, new Planner steps, resume and restart. Uncertain
+effects are not automatically refunded or retried. See [ADR0113](adr/0113-trusted-goal-constraints.md)
+for the supported subset and admission/persistence rules. A contract prevents
+widening authorization; it does not guarantee that the model will choose a useful
+decision.

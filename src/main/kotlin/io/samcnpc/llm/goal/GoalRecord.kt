@@ -39,8 +39,12 @@ internal data class GoalRecord(
     val supervision: StockSupervision? = null,
     val memory: GoalMemory = GoalMemory(),
     val planStepsCompleted: Int = 0,
+    val constraints: io.samcnpc.llm.intent.GoalConstraints? = null,
+    val intentReservation: io.samcnpc.llm.intent.GoalIntentReservation = io.samcnpc.llm.intent.GoalIntentReservation(),
 ) {
     init {
+        require(constraints == null && intentReservation == io.samcnpc.llm.intent.GoalIntentReservation() ||
+            constraints != null && mode != LlmMode.SUPERVISOR && intentReservation.fits(constraints))
         require(revision >= 0)
         require(planStepsCompleted in 0..8 && (mode == LlmMode.PLANNER || planStepsCompleted == 0))
         require(mode != LlmMode.PLANNER || memory.plan.size <= 8 - planStepsCompleted)

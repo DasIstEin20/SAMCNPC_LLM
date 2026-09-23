@@ -29,6 +29,7 @@ internal data class ProviderSettings(
         maxContextBytes !in 1024..65_536 -> "maxContextBytes"
         maxResponseBytes !in 1024..262_144 -> "maxResponseBytes"
         inference.problem() != null -> "inference." + inference.problem()
+        inference.inputTokens.toLong() + maxOutputTokens > inference.contextWindow -> "inference.contextAllocation"
         else -> null
     }
 
@@ -59,4 +60,4 @@ internal data class ProviderSettings(
     }
 }
 
-internal enum class ResponseFormat { JSON_SCHEMA, JSON_OBJECT }
+internal enum class ResponseFormat { JSON_SCHEMA, JSON_OBJECT, SAM_EXPRESSION_V1 }

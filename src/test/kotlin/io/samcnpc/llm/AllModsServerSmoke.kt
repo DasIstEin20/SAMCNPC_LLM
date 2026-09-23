@@ -41,6 +41,7 @@ object AllModsServerSmoke {
         if (ticks == 20) OperationStopProbe.start(event.server)
         if (ticks <= 20) return
         val context = ContextRuntimeProbe.poll() ?: return
+        val richContext = OperationStopProbe.pollRichContext(event.server) ?: return
         val started = transportStartedTick
         if (started == null) {
             ProviderRuntimeProbe.start()
@@ -53,7 +54,7 @@ object AllModsServerSmoke {
         val scheduling = OperationStopProbe.pollScheduler(event.server) ?: return
         val translator = OperationStopProbe.pollTranslator(event.server) ?: return
         OperationStopProbe.beforeStop()
-        finalReport = "dedicated=true ticks=$ticks coreApi=true $result $transport $context $decisions $scheduling $translator ${OperationStopProbe.admissionReport}"
+        finalReport = "dedicated=true ticks=$ticks coreApi=true $result $transport $context $richContext $decisions $scheduling $translator ${OperationStopProbe.admissionReport}"
         Files.writeString(Path.of("server-loading-result.txt"), "PENDING_STOP $finalReport\n")
         event.server.halt(false)
     }

@@ -5,6 +5,21 @@ import org.junit.jupiter.api.Test
 import java.util.UUID
 
 class InferenceRateGateTest {
+    @Test fun releasingExactUnsentEntryPreservesOtherNpcsChargesAndSurvivesReconfiguration() {
+        val gate = InferenceRateGate(ServerInferenceResources(10, 10, 10))
+        val npc = UUID.randomUUID(); val other = UUID.randomUUID(); val unsent = UUID.randomUUID()
+        assertEquals(RatePermit.Granted, gate.reserve(other, 0, InferenceCharge(4, 4, 4)))
+        assertEquals(RatePermit.Granted, gate.reserve(npc, 0, InferenceCharge(6, 6, 6), unsent))
+        gate.reconfigure(ServerInferenceResources(10, 10, 10))
+        assertTrue(gate.releaseUnsent(unsent))
+        assertFalse(gate.releaseUnsent(unsent))
+        assertEquals(1, gate.reservedInCurrentWindow()); assertEquals(1, gate.trackedNpcs())
+        assertEquals(RatePermit.Deferred("SERVER_INPUT_BUDGET", 3600000),
+            gate.preview(npc, 0, InferenceCharge(7, 0, 0)))
+        assertEquals(RatePermit.Granted, gate.reserve(npc, 0, InferenceCharge(6, 6, 6)))
+        assertEquals(RatePermit.Deferred("NPC_COOLDOWN", 10000), gate.preview(other, 0))
+    }
+
     @Test fun attemptsKeepTheirReservationsAcrossFailuresAndGoalChanges() {
         val gate = InferenceRateGate(); val npc = UUID.randomUUID()
         assertEquals(RatePermit.Granted, gate.reserve(npc, 0))

@@ -19,6 +19,8 @@
   "samcnpc.llm.config.localHint": "Ustawienia tej instalacji / singleplayer.",
   "samcnpc.llm.config.remoteHint": "Serwer zdalny: administrator edytuje jego TOML.",
   "samcnpc.llm.config.invalid": "Nieprawidłowe pole: %s",
+  "samcnpc.llm.config.inference.contextAllocation": "Suma tokenów wejścia i wyjścia przekracza zadeklarowane okno kontekstu modelu",
+  "samcnpc.llm.config.contextAllocationHint": "Wejście %s + wyjście %s > okno %s. Ustaw wejście ≤ %s lub wyjście ≤ %s (minimum 64).",
   "samcnpc.llm.config.saved": "Zapisano. Nowe żądania użyją tych ustawień.",
   "samcnpc.llm.config.conflict": "Ustawienia zmieniono. Wczytano ponownie.",
   "samcnpc.llm.config.saveFailed": "Nie udało się zapisać. Sprawdź log.",
@@ -35,5 +37,11 @@
   "samcnpc.llm.config.npcCallsPerHour": "NPC: zapytań / h",
   "samcnpc.llm.config.serverCallsPerHour": "Serwer: zapytań / h",
   "samcnpc.llm.config.npcCallsPerHour.hint": "Ruchome okno godziny, 1–360. Nadal obowiązuje odstęp 10 s i 24 zapytania na cel.",
-  "samcnpc.llm.config.serverCallsPerHour.hint": "Wszystkie NPC w ruchomym oknie godziny, 1–720. Zmiana zachowuje już naliczone zapytania."
+  "samcnpc.llm.config.serverCallsPerHour.hint": "Wszystkie NPC w ruchomym oknie godziny, 1–720. Zmiana zachowuje już naliczone zapytania.",
+  "samcnpc.llm.config.goalQuotaMode": "Kwoty nowych celów",
+  "samcnpc.llm.config.hourlyQuotaMode": "Kwoty godzinowe",
+  "samcnpc.llm.config.quotaMode.LIMITED": "Włączone",
+  "samcnpc.llm.config.quotaMode.UNLIMITED": "Bez kwot",
+  "samcnpc.llm.config.goalQuotaMode.hint": "Kwoty wywołań, tokenów i kosztów dla nowych celów. Istniejące cele zachowują zapisany tryb.",
+  "samcnpc.llm.config.hourlyQuotaMode.hint": "Godzinowe kwoty wywołań, tokenów i kosztów. Odstęp, kolejka, współbieżność i rozmiar żądania pozostają ograniczone."
 }

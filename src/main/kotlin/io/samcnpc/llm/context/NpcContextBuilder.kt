@@ -21,7 +21,7 @@ internal object NpcContextBuilder {
 
     fun capture(server: MinecraftServer, actor: ServerPlayer, npcUuid: UUID, goal: ContextGoal,
                 policy: ContextPolicy, ttlTicks: Int = 1200,
-                worldRequest: OperationWorldRequest? = null): ContextCaptureResult {
+                worldRequest: OperationWorldRequest? = null, diagnostic: Boolean = false): ContextCaptureResult {
         if (!server.isSameThread || ttlTicks !in 1..1200) return ContextCaptureResult.Rejected("INVALID_CAPTURE_REQUEST")
         val reply = OperationInspectionApi.inspect(server, actor, npcUuid, worldRequest ?: OperationWorldRequest())
         var inspection = reply.inspection
@@ -58,7 +58,7 @@ internal object NpcContextBuilder {
             inspection.body.observedTick != tick || inspection.operation.observedTick != tick ||
             inspection.world?.observedTick != tick || stock != null && stock.observedTick != tick) return ContextCaptureResult.Rejected("INCONSISTENT_CAPTURE_CLOCK")
         val expiry = minOf(tick + ttlTicks, goal.deadlineTick ?: Long.MAX_VALUE)
-        if (expiry <= tick || goal.remainingCalls == 0) return ContextCaptureResult.Rejected("GOAL_BUDGET_EXHAUSTED")
+        if (expiry <= tick || !diagnostic && goal.remainingCalls == 0) return ContextCaptureResult.Rejected("GOAL_BUDGET_EXHAUSTED")
         val task = inspection.operation.task
         val binding = ContextBinding(UUID.randomUUID(), npcUuid, actor.uuid, goal.id, goal.revision, policy.revision,
             inspection.generations, catalogHash, tick, expiry, task?.taskId, task?.definitionRevision, task?.controlRevision)

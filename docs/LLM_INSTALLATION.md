@@ -17,6 +17,12 @@ first-party SAMCNPC mod.
 2. Replace the SAMCNPC JARs as a matched set in `mods/`. Older development
    snapshots also used version 0.1.0; the recorded hashes and repository pins
    identify this candidate. Mixed old/new snapshots are not a validated set.
+   Audit builds also advertise API versions and source/build fingerprints in
+   `META-INF/mods.toml`. Behavior checks Core; LLM checks Behavior and Core before
+   initializing dependent code, even when inference is disabled. A legacy/mismatched
+   JAR stops startup with a message such as `LLM requires Behavior API 2, installed
+   missing/invalid`. Install a matched set; do not edit the identifiers to suppress
+   this check. Fingerprints are diagnostics, separate from release JAR hashes.
 3. Start normally. LLM integration defaults to disabled and does not contact a
    provider at startup. NPC operations remain available through Behavior.
 4. When a model is available, configure its address and exact model ID under
@@ -34,7 +40,7 @@ recorded in [the gameplay repair](LLM_GAMEPLAY_REPAIR.md) and
 are 12 calls/NPC and 60/server; the local testing installation uses 60/120,
 configurable through the Call budgets page. Existing goals retain their saved
 budgets; stop an old held goal before submitting a fresh goal when necessary.
-The full real-model evaluation corpus remains pending. This mod installs no model
+JSON_SCHEMA is the recommended default. SAM_EXPRESSION_V1 is an opt-in experiment. This mod installs no model
 and allocates no model VRAM.
 
 For authentication, set the API key in the configured environment variable of the

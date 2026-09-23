@@ -1,10 +1,45 @@
 package io.samcnpc.llm
 
 import io.samcnpc.llm.config.ProviderSettings
+import io.samcnpc.llm.config.InferenceSettings
+import io.samcnpc.llm.scheduling.InferenceQuotaMode
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 
 class ProviderSettingsTest {
+    @Test fun quotaModesAreExplicitIndependentAndCannotDisablePhysicalRequestBoundsOrProfileVerification() {
+        val mode = InferenceQuotaMode.UNLIMITED
+        val settings = ProviderSettings(model = "fixture")
+        val profile = InferenceSettings(verifiedByteLevel = true, verifiedModel = "fixture", backendVersion = "fixture",
+            modelDigest = "fixture", tokenizerDigest = "fixture", templateDigest = "fixture",
+            inputMicrosPerMillion = 1_000_000, outputMicrosPerMillion = 1_000_000)
+        assertEquals("GOAL_COST_BUDGET_EXHAUSTED", profile.readiness(settings))
+        assertEquals("SERVER_COST_BUDGET", profile.copy(goalQuotaMode = mode).readiness(settings))
+        assertEquals("GOAL_COST_BUDGET_EXHAUSTED", profile.copy(hourlyQuotaMode = mode).readiness(settings))
+        val unlimited = profile.copy(goalQuotaMode = mode, hourlyQuotaMode = mode)
+        assertNull(unlimited.readiness(settings))
+        assertEquals(mode, unlimited.goalLimits().quotaMode); assertEquals(mode, unlimited.serverResources().quotaMode)
+        assertEquals("UNVERIFIED_TOKEN_PROFILE", unlimited.copy(verifiedByteLevel = false).readiness(settings))
+        assertEquals("TOKEN_PROFILE_ENDPOINT_MODEL_MISMATCH", unlimited.readiness(settings.copy(baseUrl = "https://example.com/v1")))
+        assertEquals("MODEL_CONTEXT_WINDOW_EXCEEDED", unlimited.copy(inputTokens = 32768).readiness(settings))
+        assertEquals("inference.contextAllocation", settings.copy(inference = unlimited.copy(inputTokens = 32768)).problem())
+        for (url in listOf("http://127.0.0.1:1234/v1", "https://example.com/v1")) {
+            val defaults = ProviderSettings(baseUrl = url)
+            assertEquals(InferenceQuotaMode.LIMITED, defaults.inference.goalQuotaMode)
+            assertEquals(InferenceQuotaMode.LIMITED, defaults.inference.hourlyQuotaMode)
+        }
+    }
+
+    @Test fun settingsRejectCombinedInputAndOutputBeyondTheDeclaredModelWindow() {
+        val settings = ProviderSettings()
+        val overflow = settings.copy(inference = settings.inference.copy(inputTokens = 32768))
+        assertEquals("inference.contextAllocation", overflow.problem())
+        assertEquals("inference.contextAllocation", overflow.copy(enabled = true, model = "fixture").problem())
+        assertNull(settings.copy(inference = settings.inference.copy(inputTokens = 31744)).problem())
+        assertEquals("inference.contextAllocation", settings.copy(maxOutputTokens = 4096,
+            inference = settings.inference.copy(inputTokens = 31744)).problem())
+    }
+
     @Test fun defaultIsDisabledAndDoesNotInventAModel() {
         val values = ProviderSettings()
         assertFalse(values.enabled)

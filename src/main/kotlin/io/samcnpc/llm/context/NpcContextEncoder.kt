@@ -13,23 +13,34 @@ import java.nio.charset.CharacterCodingException
 
 /** Pure worker-side encoding. No world reads, reflection, secrets or raw human diagnostics. */
 internal object NpcContextEncoder {
-    const val VERSION = 4
+    const val VERSION = 7
+    const val MAX_DETAIL_LEVEL = 3
     const val MAX_STATE_BYTES = 24 * 1024
 
     fun encode(captured: CapturedContext, maxBytes: Int = MAX_STATE_BYTES): ContextEncodingResult {
         require(maxBytes in 1..MAX_STATE_BYTES)
+        for (level in 0..MAX_DETAIL_LEVEL) {
+            val result = encodeProjection(captured, level)
+            if (result is ContextEncodingResult.Rejected) return result
+            check(result is ContextEncodingResult.Encoded)
+            if (result.value.utf8Bytes <= maxBytes) return result
+        }
+        return ContextEncodingResult.Rejected("CONTEXT_TOO_LARGE")
+    }
+
+    /** Complete-request preflight chooses a detail level without first spending the whole STATE allowance. */
+    fun encodeProjection(captured: CapturedContext, level: Int): ContextEncodingResult {
+        require(level in 0..MAX_DETAIL_LEVEL)
+        val (enchantments, recentEvents) = listOf(16 to 16, 16 to 16, 4 to 8, 0 to 0)[level]
         try {
-            for ((enchantments, recentEvents) in listOf(16 to 16, 4 to 8, 0 to 0)) {
-                val json = project(captured, enchantments, recentEvents).toString()
-                val bytes = LlmJson.utf8(json).size
-                if (bytes <= maxBytes) return ContextEncodingResult.Encoded(NpcLlmContext(captured.binding, json, bytes))
-            }
+            val original = project(captured, enchantments, recentEvents).asJsonObject
+            val json = (if (level == 0) original else ItemFactsProjection.compact(original)).toString()
+            return ContextEncodingResult.Encoded(NpcLlmContext(captured.binding, json, LlmJson.utf8(json).size))
         } catch (_: CharacterCodingException) {
             return ContextEncodingResult.Rejected("INVALID_CONTEXT_ENCODING")
         } catch (_: IllegalArgumentException) {
             return ContextEncodingResult.Rejected("INVALID_CONTEXT_VALUE")
         }
-        return ContextEncodingResult.Rejected("CONTEXT_TOO_LARGE")
     }
 
     private fun project(captured: CapturedContext, enchantments: Int, recentEvents: Int): JsonElement {
@@ -54,6 +65,9 @@ internal object NpcContextEncoder {
             "goal" to obj("id" to text(goal.id.toString()), "revision" to number(goal.revision), "text" to text(goal.text),
                 "explicitCoordinates" to GoalCoordinates.encode(goal.text),
                 "coordinateProvenance" to text("USER_TEXT_ONLY_NOT_OBSERVED_WORLD"),
+                "intentAuthority" to text(if (goal.constraints == null) "FREE_TEXT_UNCONTRACTED" else "PLAYER_APPROVED_TYPED_CONTRACT_V1"),
+                "constraints" to (goal.constraints?.let { io.samcnpc.llm.intent.GoalConstraintCodec.encode(it) } ?: text(null)),
+                "intentReservation" to (if (goal.constraints == null) text(null) else obj("acquired" to number(goal.intentReservation.acquired), "delivered" to number(goal.intentReservation.delivered))),
                 "mode" to text(goal.mode.name), "deadlineTick" to number(goal.deadlineTick),
                 "planStepsCompleted" to number(goal.planStepsCompleted),
                 "remainingPlanSteps" to number(if (goal.mode == LlmMode.PLANNER) 8 - goal.planStepsCompleted else null)),
@@ -65,6 +79,7 @@ internal object NpcContextEncoder {
                 "sameDimensionRequired" to flag(true), "admissionRecheckRequired" to flag(true)),
             "clock" to obj("capturedTick" to number(binding.issuedTick), "expiresTick" to number(binding.expiresTick),
                 "remainingGoalCalls" to number(goal.remainingCalls),
+                "goalQuotaMode" to text(if (goal.remainingCalls == null) "UNLIMITED" else "LIMITED"),
                 "serverSession" to text(binding.generations.serverSession.toString()),
                 "registryGeneration" to text(binding.generations.registry.toString()),
                 "bodyGeneration" to text(binding.generations.body.toString())),

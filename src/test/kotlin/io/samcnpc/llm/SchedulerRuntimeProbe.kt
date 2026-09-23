@@ -33,7 +33,9 @@ internal class SchedulerRuntimeProbe(private val server: MinecraftServer, privat
         OperationControl.entries.toSet(), 12000, 3, 100)
     private val cases = listOf("parallel", "retry", "repair", "last", "unverified", "small",
         "goal_budget", "cancel", "close", "cancel_started", "close_started",
-        "cancel_completed", "close_completed", "rate_limit", "usage")
+        "cancel_completed", "close_completed", "rate_limit", "usage", "local_provider", "unknown_provider",
+        "parallel_unlimited", "retry_unlimited", "repair_unlimited", "small_unlimited", "local_provider_unlimited",
+        "unknown_provider_unlimited", "many_unlimited")
     private var index = 0
     private var current = Case(cases.first())
     private var finished: String? = null
@@ -60,7 +62,9 @@ internal class SchedulerRuntimeProbe(private val server: MinecraftServer, privat
             check(service.dismiss(handle, NpcDismissMode.ONLY_IF_EMPTY).status == NpcActionStatus.SUCCEEDED)
     }
 
-    private inner class Case(val name: String) : InferenceHost, AutoCloseable {
+    private inner class Case(caseId: String) : InferenceHost, AutoCloseable {
+        private val unlimited = caseId.endsWith("_unlimited")
+        val name = caseId.removeSuffix("_unlimited")
         val invocations = AtomicInteger()
         private val replies = ConcurrentHashMap<String, FakeOpenAiEndpoint.Reply>()
         val endpoint = FakeOpenAiEndpoint { request ->
@@ -77,6 +81,12 @@ internal class SchedulerRuntimeProbe(private val server: MinecraftServer, privat
             override fun complete(request: LlmRequest): LlmCall {
                 check(Thread.currentThread().id != serverThread)
                 invocations.incrementAndGet()
+                if (name == "local_provider" || name == "unknown_provider") {
+                    val future = java.util.concurrent.CompletableFuture.completedFuture<LlmResponse>(
+                        LlmResponse.Failed(request.requestId, LlmFailure.INVALID_REQUEST))
+                    return if (name == "local_provider") LlmCall(future, LlmSubmission.NOT_SENT) { true }
+                    else LlmCall(future) { true }
+                }
                 return transport.complete(request)
             }
             override fun close() = transport.close()
@@ -86,7 +96,8 @@ internal class SchedulerRuntimeProbe(private val server: MinecraftServer, privat
                 "emulator-fixture", "no-real-model", "test-byte-bound", "test-template", 256)
         private val budgets = handles.associate { it.npcUuid to InferenceBudget(InferenceBudgetLimits(
             attempts = if (name == "last" || name == "parallel") 1 else 4,
-            inputTokens = if (name == "goal_budget") 0 else 196608)) }
+            inputTokens = if (name == "goal_budget") 0 else 196608,
+            quotaMode = if (unlimited) InferenceQuotaMode.UNLIMITED else InferenceQuotaMode.LIMITED)) }
         private val goals = handles.associate { it.npcUuid to UUID.randomUUID() }
         private val admissions = handles.associate { it.npcUuid to DecisionAdmission() }
         private val starts = mutableMapOf<UUID, Int>()
@@ -95,7 +106,8 @@ internal class SchedulerRuntimeProbe(private val server: MinecraftServer, privat
         private val deferrals = mutableListOf<String>()
         private val gateA = CountDownLatch(1)
         private val gateB = CountDownLatch(1)
-        private val rates = InferenceRateGate()
+        private val rates = InferenceRateGate(ServerInferenceResources(
+            quotaMode = if (unlimited) InferenceQuotaMode.UNLIMITED else InferenceQuotaMode.LIMITED))
         private val scheduler = InferenceScheduler(provider, settings, profile,
             InferenceAllocation(inputTokens = if (name == "small") 1 else 16384), this, rates)
         private var now = 0L
@@ -166,10 +178,16 @@ internal class SchedulerRuntimeProbe(private val server: MinecraftServer, privat
 
         override fun completed(wake: InferenceWake, captured: CapturedContext, result: InferenceResult) {
             assertServer()
+            if (name == "local_provider" || name == "unknown_provider") {
+                check(result is InferenceResult.Failed && result.providerInvoked)
+                check(result.submission == if (name == "local_provider") LlmSubmission.NOT_SENT else LlmSubmission.UNKNOWN)
+            }
             if (name == "cancel_completed") scheduler.cancel(wake.npcUuid)
             if (name == "close_completed") scheduler.close()
             val budget = checkNotNull(budgets[wake.npcUuid])
-            check(budget.snapshot().inFlight != null && budget.contextRemainingCalls > 0)
+            check(budget.snapshot().inFlight != null)
+            if (unlimited) check(budget.contextRemainingCalls == null)
+            else check(checkNotNull(budget.contextRemainingCalls) > 0)
             when (result) {
                 is InferenceResult.Decoded -> {
                     check(result.requestBytes < 16384)
@@ -196,7 +214,7 @@ internal class SchedulerRuntimeProbe(private val server: MinecraftServer, privat
 
         fun poll(): Boolean {
             assertServer()
-            check(++ticks < 180) { "$name scheduler timeout starts=$starts failures=$failures deferrals=$deferrals" }
+            check(++ticks < if (name == "many") 1800 else 180) { "$name scheduler timeout starts=$starts failures=$failures deferrals=$deferrals" }
             scheduler.poll(now)
             check(scheduler.activeCount() <= 2 && scheduler.queuedCount() <= 32)
             if (name == "parallel") {
@@ -218,7 +236,7 @@ internal class SchedulerRuntimeProbe(private val server: MinecraftServer, privat
             when (name) {
                 "parallel" -> {
                     check(outcomes == listOf(handles[1].npcUuid, handles[2].npcUuid, handles[0].npcUuid))
-                    check(budgets.values.all { it.contextRemainingCalls == 0 })
+                    check(budgets.values.all { it.contextRemainingCalls == if (unlimited) null else 0 })
                 }
                 "retry" -> {
                     check(failures == listOf("PROVIDER_UNAVAILABLE") && outcomes.size == 1)
@@ -247,11 +265,38 @@ internal class SchedulerRuntimeProbe(private val server: MinecraftServer, privat
                 }
                 "unverified" -> check(failures == listOf("UNVERIFIED_TOKEN_PROFILE") && invocations.get() == 0)
                 "small" -> check(failures == listOf("INPUT_TOKEN_BOUND_EXCEEDED") && invocations.get() == 0)
+                "local_provider", "unknown_provider" -> {
+                    check(failures == listOf("PROVIDER_INVALID_REQUEST") && invocations.get() == 1)
+                    check(endpoint.received.isEmpty() && deferrals.isEmpty())
+                    val charge = budgets.getValue(handles[0].npcUuid).snapshot()
+                    check(charge.settledAttempts == if (name == "local_provider") 0 else 1)
+                    check(rates.reservedInCurrentWindow() == if (name == "local_provider") 0 else 1)
+                }
                 "goal_budget" -> check(deferrals == listOf("GOAL_INPUT_BUDGET_EXHAUSTED") && scheduler.reservedAttempts == 0L)
+                "many" -> {
+                    check(unlimited && failures.isEmpty() && deferrals.isEmpty())
+                    val count = outcomes.size
+                    check(count == invocations.get() && count == endpoint.received.size)
+                    check(budgets.getValue(handles[0].npcUuid).snapshot().settledAttempts == count)
+                    check(rates.reservedInCurrentWindow() == count && rates.retainedExactEntries() == 0)
+                    check(rates.retainedMinuteBuckets() <= 61 && rates.trackedNpcs() == 1)
+                    if (count < 40) {
+                        now += 10000
+                        check(scheduler.offer(wake(handles[0].npcUuid)) == null)
+                        return false
+                    }
+                    check(count == 40)
+                }
                 "cancel", "close" -> check(cancelled && outcomes.isEmpty() && failures.isEmpty() && invocations.get() == 1)
                 "cancel_started", "close_started" -> check(outcomes.isEmpty() && failures.isEmpty() && invocations.get() == 0)
             }
             check(budgets.values.all { it.snapshot().inFlight == null })
+            if (name in setOf("unverified", "small", "cancel_started", "close_started", "local_provider")) {
+                check(budgets.values.all { it.snapshot().settledAttempts == 0 && it.snapshot().chargedInputTokens == 0L }) {
+                    "$name charged a model call although no provider was invoked"
+                }
+                check(rates.reservedInCurrentWindow() == 0) { "$name retained an unsent hourly reservation" }
+            }
             return true
         }
 

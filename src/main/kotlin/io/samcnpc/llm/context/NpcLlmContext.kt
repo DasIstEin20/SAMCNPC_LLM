@@ -43,11 +43,15 @@ internal class ContextMemory(plan: List<String> = emptyList(), aliases: List<Con
 }
 
 internal class ContextGoal(val id: UUID, val revision: Long, val text: String, val mode: LlmMode,
-                           val deadlineTick: Long?, val remainingCalls: Int, val memory: ContextMemory = ContextMemory(),
+                           val deadlineTick: Long?, val remainingCalls: Int?, val memory: ContextMemory = ContextMemory(),
                            val supervision: io.samcnpc.llm.supervision.StockSupervision? = null,
-                           val planStepsCompleted: Int = 0) {
+                           val planStepsCompleted: Int = 0,
+                           val constraints: io.samcnpc.llm.intent.GoalConstraints? = null,
+                           val intentReservation: io.samcnpc.llm.intent.GoalIntentReservation = io.samcnpc.llm.intent.GoalIntentReservation()) {
     init {
-        require(revision >= 0 && text.length in 1..2048 && remainingCalls in 0..24)
+        require(constraints == null && intentReservation == io.samcnpc.llm.intent.GoalIntentReservation() ||
+            constraints != null && mode != LlmMode.SUPERVISOR && intentReservation.fits(constraints))
+        require(revision >= 0 && text.length in 1..2048 && (remainingCalls == null || remainingCalls in 0..24))
         require(deadlineTick == null || deadlineTick >= 0)
         require(planStepsCompleted in 0..8 && (mode == LlmMode.PLANNER || planStepsCompleted == 0))
     }

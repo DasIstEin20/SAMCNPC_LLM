@@ -23,13 +23,18 @@ internal object GoalAuthorityProbe {
         var checks = 0
         try {
             check(!stranger.hasPermissions(2))
+            for (action in listOf("stock_to", "take_more", "deliver_carried")) {
+                check(server.commands.dispatcher.execute("samcnpc llm $action $npc minecraft:cobblestone 32 0 64 0", stranger.createCommandSourceStack()) == 0)
+                checks++
+            }
             for (reply in listOf(controller.start(stranger, npc, "Steal this NPC", 0),
                 controller.status(stranger, npc), controller.answer(stranger, npc, "32", 0),
                 controller.stop(stranger, npc), controller.resume(stranger, npc, 0), controller.forget(stranger, npc),
                 controller.place(stranger, npc, "base", io.samcnpc.core.api.NpcBlockPosition(0, 64, 0)),
                 controller.place(stranger, npc, "base", null),
                 controller.start(stranger, npc, "Take over the plan", 0, planner = true),
-                controller.complete(stranger, npc))) {
+                controller.complete(stranger, npc), controller.compact(stranger, npc),
+                controller.startBounded(stranger, npc, "{}", 0), controller.startBounded(stranger, npc, "{}", 0, planner = true))) {
                 check(!reply.accepted && reply.record == null)
                 checks++
             }
@@ -69,7 +74,9 @@ internal object GoalAuthorityProbe {
             actor.setPos(position.x + 300, position.y, position.z)
             check(!controller.status(actor, npc).accepted)
             check(!controller.stop(actor, npc).accepted)
-            checks += 2
+            check(!controller.compact(actor, npc).accepted)
+            check(!controller.startBounded(actor, npc, "{}", 0).accepted)
+            checks += 4
         } finally { actor.setPos(position.x, position.y, position.z) }
         check(controller.store.get(npc) == before)
         check(!controller.start(actor, npc, "x".repeat(1025), 0).accepted)

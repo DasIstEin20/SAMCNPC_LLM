@@ -19,16 +19,22 @@ interface LlmProvider : AutoCloseable {
     override fun close()
 }
 
+/** SUBMITTED means accepted by transport, not proof of model execution. UNKNOWN must remain chargeable. */
+enum class LlmSubmission { NOT_SENT, SUBMITTED, UNKNOWN }
+
 class LlmCall internal constructor(
     future: CompletableFuture<LlmResponse>,
+    val submission: LlmSubmission,
     private val cancellation: () -> Boolean,
 ) {
+    internal constructor(future: CompletableFuture<LlmResponse>, cancellation: () -> Boolean) :
+        this(future, LlmSubmission.UNKNOWN, cancellation)
     val result: CompletionStage<LlmResponse> = future.minimalCompletionStage()
     fun cancel(): Boolean = cancellation()
 }
 
 sealed interface LlmResponse {
-    /** Untrusted candidate JSON, not a validated decision or a report of any world effect. */
+    /** Untrusted model text in the configured wire format; decisionJson is its retained API name. */
     class Candidate(val requestId: UUID, val decisionJson: String, val usage: LlmUsage?) : LlmResponse
     data class Failed(
         val requestId: UUID,

@@ -76,6 +76,23 @@ class OpenAiCompatibleProviderTest {
         }
     }
 
+    @Test fun callSubmissionDistinguishesProviderEntryFromHttpAndKeepsSentFailuresCharged() {
+        FakeOpenAiEndpoint().use { endpoint ->
+            val settings = ProviderSettings(enabled = true, baseUrl = endpoint.baseUrl, model = "fixture", apiKeyEnvironment = "")
+            OpenAiCompatibleProvider(settings).use { provider ->
+                val local = provider.complete(request("{broken"))
+                assertEquals(LlmSubmission.NOT_SENT, local.submission)
+                failure(local, LlmFailure.INVALID_REQUEST)
+                assertTrue(endpoint.received.isEmpty())
+                endpoint.enqueue(FakeOpenAiEndpoint.Reply("{}".toByteArray(), 503))
+                val sent = provider.complete(request())
+                assertEquals(LlmSubmission.SUBMITTED, sent.submission)
+                failure(sent, LlmFailure.UNAVAILABLE)
+                assertEquals(1, endpoint.received.size)
+            }
+        }
+    }
+
     @Test fun explicitJsonObjectProfileDoesNotSilentlyRetryWithAnotherFormat() {
         FakeOpenAiEndpoint().use { endpoint ->
             endpoint.enqueue()

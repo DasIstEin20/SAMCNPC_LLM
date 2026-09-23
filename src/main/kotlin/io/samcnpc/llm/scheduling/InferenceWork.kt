@@ -5,12 +5,9 @@ import io.samcnpc.llm.api.*
 import io.samcnpc.llm.config.ProviderSettings
 import io.samcnpc.llm.context.*
 import io.samcnpc.llm.decision.*
-import io.samcnpc.llm.provider.ChatCompletionCodec
 import java.io.IOException
 import java.util.UUID
 import java.util.concurrent.*
-import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicReference
 
 /** All inputs are detached values. This worker never accepts a server, player, entity or world callback. */
 internal class InferenceInput(val requestId: UUID, val captured: CapturedContext, val settings: ProviderSettings,
@@ -19,24 +16,42 @@ internal class InferenceInput(val requestId: UUID, val captured: CapturedContext
 
 internal sealed interface InferenceResult {
     val providerInvoked: Boolean
+    val metrics: RequestMetrics?
+    val submission: LlmSubmission
     data class Decoded(val decision: LlmDecision, val usage: LlmUsage?, val inputTokenUpperBound: Long,
-                       val requestBytes: Int) : InferenceResult { override val providerInvoked = true }
+                       val requestBytes: Int, override val metrics: RequestMetrics? = null,
+                       override val submission: LlmSubmission = LlmSubmission.UNKNOWN) : InferenceResult { override val providerInvoked = true }
     data class Failed(val code: String, val providerFailure: LlmFailure? = null,
-                      val retryAfterSeconds: Int? = null, override val providerInvoked: Boolean = false) : InferenceResult
+                      val retryAfterSeconds: Int? = null, override val providerInvoked: Boolean = false,
+                      override val metrics: RequestMetrics? = null,
+                      override val submission: LlmSubmission = LlmSubmission.UNKNOWN) : InferenceResult
 }
 
 /** Cancelling before/after call publication has the same effect; the physical worker is still drained. */
 internal class InferenceCancellation {
-    private val cancelled = AtomicBoolean()
-    private val call = AtomicReference<LlmCall?>()
-    fun isCancelled(): Boolean = cancelled.get()
+    private var cancelled = false
+    private var call: LlmCall? = null
+    private var submission = LlmSubmission.NOT_SENT
+    @Synchronized fun isCancelled(): Boolean = cancelled
+    @Synchronized fun submission(): LlmSubmission = submission
+    @Synchronized fun beginInvocation(): Boolean {
+        if (cancelled) return false
+        check(submission == LlmSubmission.NOT_SENT && call == null)
+        submission = LlmSubmission.UNKNOWN
+        return true
+    }
     fun cancel() {
-        cancelled.set(true)
-        call.get()?.cancel()
+        val active = synchronized(this) { cancelled = true; call }
+        active?.cancel()
     }
     fun attach(value: LlmCall) {
-        check(call.compareAndSet(null, value))
-        if (cancelled.get()) value.cancel()
+        val cancel = synchronized(this) {
+            check(call == null && submission == LlmSubmission.UNKNOWN)
+            call = value
+            submission = value.submission
+            cancelled
+        }
+        if (cancel) value.cancel()
     }
 }
 
@@ -45,77 +60,74 @@ internal object InferenceWork {
 
     fun run(input: InferenceInput, provider: LlmProvider, cancellation: InferenceCancellation): InferenceResult {
         var invoked = false
+        var metrics: RequestMetrics? = null
         try {
             if (cancellation.isCancelled()) return InferenceResult.Failed("CANCELLED", LlmFailure.CANCELLED)
             if (input.settings.problem() != null) return InferenceResult.Failed("INVALID_CONFIGURATION", LlmFailure.INVALID_CONFIGURATION)
             if (!input.settings.enabled) return InferenceResult.Failed("DISABLED", LlmFailure.DISABLED)
             if (input.settings.maxOutputTokens > input.allocation.outputTokens)
                 return InferenceResult.Failed("OUTPUT_ALLOCATION_TOO_SMALL")
-            val encoded = NpcContextEncoder.encode(input.captured)
-            if (encoded is ContextEncodingResult.Rejected) return InferenceResult.Failed(encoded.code)
-            check(encoded is ContextEncodingResult.Encoded)
-            val context = encoded.value
-            val prompt = DecisionPrompt.text + if (input.feedbackCode == null) "" else
-                "\nThe previous candidate was rejected with code " + input.feedbackCode +
-                    ". Produce a corrected decision using the current STATE and output contract."
-            val taskState = input.captured.inspection.operation.task?.state
-            val activeTask = taskState != null && taskState !in setOf(
-                io.samcnpc.behavior.api.OperationTaskState.COMPLETED,
-                io.samcnpc.behavior.api.OperationTaskState.CANCELLED,
-                io.samcnpc.behavior.api.OperationTaskState.FAILED)
-            val request = LlmRequest(input.requestId, prompt, context.stateJson,
-                DecisionSchema.forContext(context.binding.contextId, input.captured.policy,
-                    planner = input.captured.goal.mode == LlmMode.PLANNER, hasActiveTask = activeTask))
-            val bytes = ChatCompletionCodec.request(request, input.settings).size
-            if (bytes > input.settings.maxContextBytes) return InferenceResult.Failed("CONTEXT_TOO_LARGE")
-            val tokens = input.profile.upperBound(input.settings, bytes)
-                ?: return InferenceResult.Failed("UNVERIFIED_TOKEN_PROFILE")
-            if (tokens < 0) return InferenceResult.Failed("INVALID_TOKEN_PROFILE")
-            if (tokens > input.allocation.inputTokens) return InferenceResult.Failed("INPUT_TOKEN_BOUND_EXCEEDED")
-            if (cancellation.isCancelled()) return InferenceResult.Failed("CANCELLED", LlmFailure.CANCELLED)
+            val prepared = InferenceRequestPreparation.prepare(input)
+            metrics = prepared.metrics
+            if (prepared is RequestPreparation.Rejected) return InferenceResult.Failed(prepared.code, metrics = metrics)
+            check(prepared is RequestPreparation.Ready)
+            val request = prepared.request
+            val bytes = prepared.metrics.totalHttpRequestBytes
+            val tokens = checkNotNull(prepared.metrics.calculatedTokenUpperBound)
+            if (!cancellation.beginInvocation()) return InferenceResult.Failed("CANCELLED", LlmFailure.CANCELLED, metrics = metrics)
             invoked = true
             val call = provider.complete(request)
             cancellation.attach(call)
             val response = call.result.toCompletableFuture()
                 .get(input.settings.requestTimeoutSeconds.toLong() + 5L, TimeUnit.SECONDS)
-            if (cancellation.isCancelled()) return InferenceResult.Failed("CANCELLED", LlmFailure.CANCELLED, providerInvoked = true)
+            if (cancellation.isCancelled()) return InferenceResult.Failed("CANCELLED", LlmFailure.CANCELLED, providerInvoked = true, metrics = metrics)
+            val responseRequestId = when (response) {
+                is LlmResponse.Candidate -> response.requestId
+                is LlmResponse.Failed -> response.requestId
+            }
+            if (responseRequestId != input.requestId)
+                return InferenceResult.Failed("RESPONSE_REQUEST_MISMATCH", LlmFailure.INVALID_OUTPUT, providerInvoked = true, metrics = metrics)
             if (response is LlmResponse.Failed)
-                return InferenceResult.Failed("PROVIDER_" + response.code.name, response.code, response.retryAfterSeconds, true)
+                return InferenceResult.Failed("PROVIDER_" + response.code.name, response.code, response.retryAfterSeconds, true, metrics)
             check(response is LlmResponse.Candidate)
             val usage = response.usage
             if (usage?.promptTokens != null && usage.promptTokens.toLong() > tokens ||
                 usage?.completionTokens != null && usage.completionTokens > input.allocation.outputTokens)
-                return InferenceResult.Failed("PROFILE_USAGE_BOUND_VIOLATED", LlmFailure.INCOMPATIBLE, providerInvoked = true)
-            return when (val parsed = DecisionDecoder.decode(response.decisionJson)) {
-                is DecisionDecodeResult.Rejected -> InferenceResult.Failed(parsed.code, LlmFailure.INVALID_OUTPUT, providerInvoked = true)
+                return InferenceResult.Failed("PROFILE_USAGE_BOUND_VIOLATED", LlmFailure.INCOMPATIBLE, providerInvoked = true, metrics = metrics)
+            val decoded = if (input.settings.responseFormat == io.samcnpc.llm.config.ResponseFormat.SAM_EXPRESSION_V1)
+                io.samcnpc.llm.expression.SamExpressionDecoder.decode(response.decisionJson,
+                    input.captured.binding.contextId, input.captured.goal.mode == LlmMode.PLANNER)
+            else DecisionDecoder.decode(response.decisionJson)
+            return when (val parsed = decoded) {
+                is DecisionDecodeResult.Rejected -> InferenceResult.Failed(parsed.code, LlmFailure.INVALID_OUTPUT, providerInvoked = true, metrics = metrics)
                 is DecisionDecodeResult.Accepted -> {
-                    if (parsed.value.contextId != context.binding.contextId)
-                        InferenceResult.Failed("DECISION_CONTEXT_MISMATCH", LlmFailure.INVALID_OUTPUT, providerInvoked = true)
+                    if (parsed.value.contextId != input.captured.binding.contextId)
+                        InferenceResult.Failed("DECISION_CONTEXT_MISMATCH", LlmFailure.INVALID_OUTPUT, providerInvoked = true, metrics = metrics)
                     else {
                         val problem = DecisionPolicy.problem(parsed.value, input.captured)
-                        if (problem != null) InferenceResult.Failed(problem, LlmFailure.INVALID_OUTPUT, providerInvoked = true)
-                        else InferenceResult.Decoded(parsed.value, usage, tokens, bytes)
+                        if (problem != null) InferenceResult.Failed(problem, LlmFailure.INVALID_OUTPUT, providerInvoked = true, metrics = metrics)
+                        else InferenceResult.Decoded(parsed.value, usage, tokens, bytes, metrics)
                     }
                 }
             }
         } catch (_: IOException) {
             cancellation.cancel()
-            return InferenceResult.Failed("INVALID_REQUEST_ENCODING", LlmFailure.INVALID_REQUEST, providerInvoked = invoked)
+            return InferenceResult.Failed("INVALID_REQUEST_ENCODING", LlmFailure.INVALID_REQUEST, providerInvoked = invoked, metrics = metrics)
         } catch (_: InterruptedException) {
             cancellation.cancel()
             Thread.currentThread().interrupt()
-            return InferenceResult.Failed("CANCELLED", LlmFailure.CANCELLED, providerInvoked = invoked)
+            return InferenceResult.Failed("CANCELLED", LlmFailure.CANCELLED, providerInvoked = invoked, metrics = metrics)
         } catch (_: TimeoutException) {
             cancellation.cancel()
-            return InferenceResult.Failed("WORKER_PROVIDER_TIMEOUT", LlmFailure.TIMEOUT, providerInvoked = invoked)
+            return InferenceResult.Failed("WORKER_PROVIDER_TIMEOUT", LlmFailure.TIMEOUT, providerInvoked = invoked, metrics = metrics)
         } catch (error: ExecutionException) {
             cancellation.cancel()
             LOGGER.warn("LLM worker provider future failed request={} exception={}", input.requestId, error.javaClass.simpleName)
-            return InferenceResult.Failed("PROVIDER_FUTURE_FAILED", LlmFailure.UNAVAILABLE, providerInvoked = invoked)
+            return InferenceResult.Failed("PROVIDER_FUTURE_FAILED", LlmFailure.UNAVAILABLE, providerInvoked = invoked, metrics = metrics)
         } catch (error: RuntimeException) {
             cancellation.cancel()
             LOGGER.warn("LLM worker failed request={} exception={}", input.requestId, error.javaClass.simpleName)
-            return InferenceResult.Failed("INFERENCE_WORKER_FAILED", providerInvoked = invoked)
+            return InferenceResult.Failed("INFERENCE_WORKER_FAILED", providerInvoked = invoked, metrics = metrics)
         }
     }
 }

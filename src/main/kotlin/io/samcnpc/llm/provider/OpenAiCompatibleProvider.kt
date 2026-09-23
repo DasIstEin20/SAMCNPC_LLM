@@ -58,6 +58,7 @@ internal class OpenAiCompatibleProvider(
         if (!key.isNullOrEmpty()) builder.header("Authorization", "Bearer $key")
         val exchange = Exchange(request)
         active.add(exchange)
+        var submission = LlmSubmission.NOT_SENT
         try {
             var transport = client
             if (transport == null) {
@@ -66,9 +67,12 @@ internal class OpenAiCompatibleProvider(
                     .followRedirects(HttpClient.Redirect.NEVER).version(HttpClient.Version.HTTP_1_1).build()
                 client = transport
             }
-            val network = transport.sendAsync(builder.build(), HttpResponse.BodyHandler {
+            val httpRequest = builder.build()
+            submission = LlmSubmission.UNKNOWN
+            val network = transport.sendAsync(httpRequest, HttpResponse.BodyHandler {
                 BoundedBodySubscriber(settings.maxResponseBytes)
             })
+            submission = LlmSubmission.SUBMITTED
             exchange.network = network
             exchange.deadline = deadlines.schedule({
                 if (exchange.finish(LlmResponse.Failed(request.requestId, LlmFailure.TIMEOUT))) network.cancel(true)
@@ -77,7 +81,7 @@ internal class OpenAiCompatibleProvider(
                 if (error != null) {
                     exchange.finish(LlmResponse.Failed(request.requestId, classify(error)))
                 } else {
-                    val result = try { ChatCompletionCodec.response(request, response) }
+                    val result = try { ChatCompletionCodec.response(request, response, settings.responseFormat) }
                     catch (_: IllegalArgumentException) { LlmResponse.Failed(request.requestId, LlmFailure.INVALID_OUTPUT) }
                     catch (_: IOException) { LlmResponse.Failed(request.requestId, LlmFailure.INVALID_OUTPUT) }
                     catch (_: com.google.gson.JsonParseException) { LlmResponse.Failed(request.requestId, LlmFailure.INVALID_OUTPUT) }
@@ -92,7 +96,7 @@ internal class OpenAiCompatibleProvider(
             exchange.finish(LlmResponse.Failed(request.requestId, LlmFailure.INVALID_CONFIGURATION))
             exchange.network?.cancel(true)
         }
-        return LlmCall(exchange.result, exchange::cancel)
+        return LlmCall(exchange.result, submission, exchange::cancel)
     }
 
     override fun close() {
@@ -133,7 +137,7 @@ internal class OpenAiCompatibleProvider(
     }
 
     private fun failed(request: LlmRequest, code: LlmFailure): LlmCall =
-        LlmCall(CompletableFuture.completedFuture(LlmResponse.Failed(request.requestId, code))) { false }
+        LlmCall(CompletableFuture.completedFuture(LlmResponse.Failed(request.requestId, code)), LlmSubmission.NOT_SENT) { false }
 
     private fun classify(error: Throwable): LlmFailure {
         var cause = error

@@ -5,6 +5,9 @@ import io.netty.channel.embedded.EmbeddedChannel
 import io.samcnpc.core.api.*
 import io.samcnpc.behavior.api.OperationInspectionApi
 import io.samcnpc.behavior.api.OperationValue
+import io.samcnpc.behavior.api.OperationType
+import io.samcnpc.behavior.api.OperationWorkBox
+import io.samcnpc.llm.intent.*
 import io.samcnpc.llm.config.LlmConfig
 import io.samcnpc.llm.goal.*
 import net.minecraft.core.BlockPos
@@ -16,6 +19,7 @@ import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.item.ItemEntity
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
+import net.minecraft.world.item.enchantment.Enchantments
 import net.minecraft.world.level.GameType
 import net.minecraft.world.level.block.Blocks
 import net.minecraft.world.level.block.entity.ChestBlockEntity
@@ -41,7 +45,8 @@ internal object LiveModelServerSmoke {
     private var done = false
     private val evidence = mutableListOf<String>()
     private val failures = mutableListOf<String>()
-    private val names = listOf("missing_location", "deliver_en", "navigate_pl", "supply_pl", "lumberjack_pl", "supply_en", "supply_pl_repeat", "unsupported_bulk")
+    private val names = listOf("missing_location", "deliver_en", "navigate_pl", "supply_pl", "lumberjack_pl", "supply_en", "supply_pl_repeat", "unsupported_bulk", "rich_deliver_en",
+        "bounded_target_32_from_12_pl", "bounded_32_more_from_12_en", "bounded_oak_minimum_pl", "bounded_carried_delivery_en")
 
     @SubscribeEvent
     fun tick(event: TickEvent.ServerTickEvent) {
@@ -65,17 +70,36 @@ internal object LiveModelServerSmoke {
                     "${names[index]}: ${record.phase}/${record.code} question=${record.question}"
                 }
                 val body = checkNotNull(CoreNpcApi.service(server).runtime(npc))
-                if (index == 1) {
+                if (index == 8) {
+                    check(record.task?.operationId == "samcnpc:deliver")
+                    val chest = player.serverLevel().getBlockEntity(base.offset(8, 0, 0)) as ChestBlockEntity
+                    val delivered = (0 until chest.containerSize).map { chest.getItem(it) }.filter { it.item == Items.DIAMOND_SWORD }
+                    check(delivered.sumOf { it.count } == 1 && delivered.single().enchantmentTags.size == 7)
+                    val carried = checkNotNull(body.inspectBody()).inventory.filter { !it.stack.isEmpty }
+                    check(carried.size == 35 && carried.all { it.stack.itemId == "minecraft:diamond_sword" && it.enchantments.size == 7 })
+                    val report = checkNotNull(controller.status(player, npc.npcUuid).requestReport)
+                    check(checkNotNull(report.metrics).detailLevel == 1) { "Rich model fixture did not use lossless shared facts" }
+                    check(record.budget.settledAttempts == 1)
+                    evidence.add("richRequest=" + report.describe().replace('\n', ' '))
+                } else if (index == 1 || index == 12) {
                     check(record.task?.operationId == "samcnpc:deliver")
                     val chest = player.serverLevel().getBlockEntity(base.offset(8, 0, 0)) as ChestBlockEntity
                     check((0 until chest.containerSize).sumOf { if (chest.getItem(it).item == Items.COBBLESTONE) chest.getItem(it).count else 0 } == 32)
                     check(body.inventoryContents().sumOf { if (it.stack.itemId == "minecraft:cobblestone") it.stack.count else 0 } == 0)
+                    if (index == 12) check(record.constraints != null && record.intentReservation == GoalIntentReservation(delivered = 32))
+                } else if (index == 9 || index == 10) {
+                    check(record.task?.operationId == "samcnpc:inventory_work")
+                    val acquired = if (index == 9) 20 else 32
+                    val source = player.serverLevel().getBlockEntity(base.offset(3, 0, 0)) as ChestBlockEntity
+                    check((0 until source.containerSize).sumOf { if (source.getItem(it).item == Items.COBBLESTONE) source.getItem(it).count else 0 } == 64 - acquired)
+                    check(body.inventoryContents().sumOf { if (it.stack.itemId == "minecraft:cobblestone") it.stack.count else 0 } == 12 + acquired)
+                    check(record.constraints?.initialStock == 12 && record.intentReservation == GoalIntentReservation(acquired = acquired))
                 } else if (index == 3 || index == 5 || index == 6) {
                     check(record.task?.operationId == "samcnpc:inventory_work")
                     val source = player.serverLevel().getBlockEntity(base.offset(3, 0, 0)) as ChestBlockEntity
                     check((0 until source.containerSize).sumOf { if (source.getItem(it).item == Items.COBBLESTONE) source.getItem(it).count else 0 } == 32)
                     check(body.inventoryContents().sumOf { if (it.stack.itemId == "minecraft:cobblestone") it.stack.count else 0 } == 32)
-                } else if (index == 4) {
+                } else if (index == 4 || index == 11) {
                     check(record.task?.operationId == "samcnpc:lumberjack")
                     val definition = checkNotNull(OperationInspectionApi.inspect(server, player, npc.npcUuid).inspection)
                         .frames.single().definition.parameters
@@ -91,6 +115,7 @@ internal object LiveModelServerSmoke {
                     val chest = player.serverLevel().getBlockEntity(base.offset(3, 0, 0)) as ChestBlockEntity
                     check((0 until chest.containerSize).sumOf { if (chest.getItem(it).item == Items.OAK_LOG) chest.getItem(it).count else 0 } == 3)
                     check((0..2).all { player.serverLevel().getBlockState(base.offset(0, it, -1)).isAir })
+                    if (index == 11) check(record.constraints != null && record.intentReservation == GoalIntentReservation(3, 3))
                 } else {
                     check(record.task?.operationId == "samcnpc:navigate")
                     val position = body.snapshot().position
@@ -130,7 +155,7 @@ internal object LiveModelServerSmoke {
             net.minecraft.world.phys.AABB(base.offset(-3, -2, -3), base.offset(12, 5, 4))).forEach { it.discard() }
         if (++index == names.size) {
             val status = if (failures.isEmpty()) "PASS" else "FAIL"
-            Files.writeString(Path.of("live-model-result.txt"), "$status realEndpoint=true cases=8\n" +
+            Files.writeString(Path.of("live-model-result.txt"), "$status realEndpoint=true cases=${names.size}\n" +
                 evidence.joinToString("\n") + "\n" + failures.joinToString("\n") + "\n")
             done = true; server.halt(false)
         }
@@ -165,15 +190,25 @@ internal object LiveModelServerSmoke {
         val spawn = NpcPosition(base.x + 0.5, base.y.toDouble(), base.z + 0.5)
         val npc = checkNotNull(service.summon(NpcSummonRequest(player.uuid, "LiveSam", "minecraft:overworld", spawn, 0F)).handle)
         handle = npc; caseTicks = 0
-        if (index == 1) {
-            val item = ItemEntity(player.serverLevel(), spawn.x, spawn.y, spawn.z, ItemStack(Items.COBBLESTONE, 32))
+        if (index in setOf(1, 9, 10, 12)) {
+            val item = ItemEntity(player.serverLevel(), spawn.x, spawn.y, spawn.z, ItemStack(Items.COBBLESTONE, if (index == 9 || index == 10) 12 else 32))
             item.setNoPickUpDelay(); check(player.serverLevel().addFreshEntity(item))
             check(checkNotNull(service.runtime(npc)).pickupItem(item.uuid).status == NpcActionStatus.SUCCEEDED)
         }
         val source = player.serverLevel().getBlockEntity(base.offset(3, 0, 0)) as ChestBlockEntity
         source.clearContent()
-        if (index == 3 || index == 5 || index == 6) source.setItem(0, ItemStack(Items.COBBLESTONE, 64))
-        if (index == 4) {
+        if (index >= 9) (player.serverLevel().getBlockEntity(base.offset(8, 0, 0)) as ChestBlockEntity).clearContent()
+        if (index == 8) repeat(36) {
+            val stack = ItemStack(Items.DIAMOND_SWORD)
+            for ((enchantment, rank) in listOf(Enchantments.SHARPNESS to 5, Enchantments.UNBREAKING to 3, Enchantments.MENDING to 1,
+                Enchantments.MOB_LOOTING to 3, Enchantments.KNOCKBACK to 2, Enchantments.FIRE_ASPECT to 2,
+                Enchantments.SWEEPING_EDGE to 3)) stack.enchant(enchantment, rank)
+            val item = ItemEntity(player.serverLevel(), spawn.x, spawn.y, spawn.z, stack)
+            item.setNoPickUpDelay(); check(player.serverLevel().addFreshEntity(item))
+            check(checkNotNull(service.runtime(npc)).pickupItem(item.uuid).status == NpcActionStatus.SUCCEEDED)
+        }
+        if (index in setOf(3, 5, 6, 9, 10)) source.setItem(0, ItemStack(Items.COBBLESTONE, 64))
+        if (index == 4 || index == 11) {
             val item = ItemEntity(player.serverLevel(), spawn.x, spawn.y, spawn.z, ItemStack(Items.IRON_AXE))
             item.setNoPickUpDelay(); check(player.serverLevel().addFreshEntity(item))
             check(checkNotNull(service.runtime(npc)).pickupItem(item.uuid).status == NpcActionStatus.SUCCEEDED)
@@ -187,10 +222,26 @@ internal object LiveModelServerSmoke {
             3, 6 -> "Pobierz 32 sztuki minecraft:cobblestone z najbliższej widocznej skrzyni do swojego ekwipunku."
             4 -> "Zbierz 3 kłody dębu w obszarze ${base.x - 1},${base.y},${base.z - 2} do ${base.x + 1},${base.y + 4},${base.z} i dostarcz do najbliższej widocznej skrzyni."
             5 -> "Take 32 minecraft:cobblestone from the nearest visible chest into your inventory."
+            8 -> "Deliver exactly 1 minecraft:diamond_sword that you already carry to the chest at ${base.x + 8},${base.y},${base.z} in minecraft:overworld. Keep all other carried swords. Do not acquire or craft anything."
+            9 -> "Uzupełnij swój ekwipunek DO 32 minecraft:cobblestone ze skrzyni przy (${base.x + 3},${base.y},${base.z}). Masz już 12. Nie kop i nie dostarczaj ich nigdzie."
+            10 -> "Take 32 MORE minecraft:cobblestone from the chest at (${base.x + 3},${base.y},${base.z}) into your inventory, in addition to the 12 you already carry. Do not mine or deliver them elsewhere."
+            11 -> "Zbierz i dostarcz co najmniej 3 dębowe kłody. Ścinaj wyłącznie dąb w obszarze (${base.x - 1},${base.y},${base.z - 2}) do (${base.x + 1},${base.y + 4},${base.z}). Dostarcz do (${base.x + 3},${base.y},${base.z}). Masz siekierę; nie pobieraj wyposażenia i nie sadź drzew."
+            12 -> "Deliver exactly 32 minecraft:cobblestone that you already carry to the chest at (${base.x + 8},${base.y},${base.z}). Do not acquire or mine any new resources."
             else -> "Wyciągnij wszystko ze skrzyni w pobliżu i załóż zbroję."
         }
         val selector = when (index) { 0 -> "LiveSam"; 1 -> npc.npcUuid.toString().take(8); else -> "lives" }
-        check(server.commands.dispatcher.execute("samcnpc llm goal $selector $goal", player.createCommandSourceStack()) == 1)
+        if (index < 9) check(server.commands.dispatcher.execute("samcnpc llm goal $selector $goal", player.createCommandSourceStack()) == 1)
+        else {
+            val short = when (index) {
+                9 -> "stock_to $selector minecraft:cobblestone 32 ${base.x + 3} ${base.y} ${base.z}"
+                10 -> "take_more $selector minecraft:cobblestone 32 ${base.x + 3} ${base.y} ${base.z}"
+                11 -> "wood_min $selector samcnpc:oak 3 ${base.x - 1} ${base.y} ${base.z - 2} ${base.x + 1} ${base.y + 4} ${base.z} ${base.x + 3} ${base.y} ${base.z}"
+                else -> "deliver_carried $selector minecraft:cobblestone 32 ${base.x + 8} ${base.y} ${base.z}"
+            }
+            val command = "samcnpc llm $short"
+            check(command.length <= 255)
+            check(server.commands.dispatcher.execute(command, player.createCommandSourceStack()) == 1)
+        }
     }
 
     @SubscribeEvent

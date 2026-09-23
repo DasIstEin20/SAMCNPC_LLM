@@ -9,6 +9,8 @@ import io.samcnpc.core.api.*
 import io.samcnpc.llm.config.*
 import io.samcnpc.llm.goal.*
 import io.samcnpc.llm.provider.*
+import io.samcnpc.llm.scheduling.*
+import io.samcnpc.llm.intent.*
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.NbtIo
 import net.minecraft.network.Connection
@@ -89,7 +91,7 @@ internal object GoalRestartSmoke {
         if (phase == "load") return
         marker.putUUID("actor", actorId); marker.putLong("pid", ProcessHandle.current().pid())
         val service = CoreNpcApi.service(server)
-        for (index in 1..2) {
+        for (index in 1..3) {
             val spawn = NpcPosition(ground.x + 0.5, ground.y.toDouble(), ground.z + index * 3.0)
             val result = service.summon(NpcSummonRequest(actorId, "GoalRestart$index",
                 level.dimension().location().toString(), spawn, 0F))
@@ -112,9 +114,11 @@ internal object GoalRestartSmoke {
         original = LlmConfig.snapshot().values
         val settings = ProviderSettings(enabled = true, baseUrl = transport.baseUrl, model = "restart-emulator",
             apiKeyEnvironment = "", requestTimeoutSeconds = 4,
+            responseFormat = if (java.lang.Boolean.getBoolean("samcnpc.expressionSmoke")) ResponseFormat.SAM_EXPRESSION_V1 else ResponseFormat.JSON_SCHEMA,
             inference = InferenceSettings(true, transport.baseUrl, "restart-emulator", "emulator-v1",
                 "fixture", "test-byte-bound", "test-template", 256, 131072, 63488))
         configured = settings
+        marker.putString("protocol", settings.responseFormat.name)
         check(LlmConfig.update(LlmConfig.snapshot().revision, settings))
     }
 
@@ -130,7 +134,11 @@ internal object GoalRestartSmoke {
                 val previous = GoalRecord(id, player.uuid, UUID.randomUUID(), 1, "Previous goal", phase = GoalPhase.STOPPED)
                 check(controller.store.put(previous) == null)
                 check(server.commands.dispatcher.execute("samcnpc llm remember $id home 0 64 0", player.createCommandSourceStack()) == 1)
-                check(server.commands.dispatcher.execute("samcnpc llm goal $id $text", player.createCommandSourceStack()) == 1)
+                val constraints = GoalConstraints(setOf(OperationType.NAVIGATE), emptySet(), "minecraft:overworld",
+                    GoalQuantityMeaning.NONE, 0, 0, null, emptyList(), emptyList(), emptyList(),
+                    listOf(NpcPosition(marker.getDouble("x$index"), marker.getDouble("y$index"), marker.getDouble("z$index"))), false, false, false)
+                val document = JsonObject().also { it.addProperty("goal", text); it.add("constraints", GoalConstraintCodec.encode(constraints, persisted = false)) }
+                check(server.commands.dispatcher.execute("samcnpc llm goal_bounded $id $document", player.createCommandSourceStack()) == 1)
                 check(controller.store.get(id)?.memory?.aliases?.single()?.name == "home")
             }
             assigned = true
@@ -158,8 +166,20 @@ internal object GoalRestartSmoke {
             check(record.budget.settledAttempts == 1)
             marker.putUUID("task$index", checkNotNull(record.task).id)
         }
+        // Separate synthetic lost-request ledger exercises counts above old caps in real SavedData.
+        // It does not claim 2000 physical requests; SchedulerRuntimeProbe covers actual unlimited calls.
+        val unlimited = GoalRecord(marker.getUUID("npc3"), player.uuid, UUID.randomUUID(), 9, "Unlimited restart fixture",
+            phase = GoalPhase.ADMITTING, contextId = UUID.randomUUID(),
+            limits = InferenceBudgetLimits(quotaMode = InferenceQuotaMode.UNLIMITED),
+            budget = InferenceBudgetView(2000, 4_000_000, 2_000_000, 99, UUID.randomUUID()),
+            memory = GoalMemory(aliases = firstRecord.memory.aliases),
+            constraints = GoalConstraints(setOf(OperationType.DELIVER), setOf("minecraft:cobblestone"), "minecraft:overworld",
+                GoalQuantityMeaning.EXACT_ADDITIONAL, 32, 32, null, emptyList(), emptyList(), listOf(NpcBlockPosition(0, 64, 0)), emptyList(), false, false, false),
+            intentReservation = GoalIntentReservation(delivered = 32))
+        marker.put("unlimitedFixture", GoalRecordCodec.encode(unlimited))
         NbtIo.writeCompressed(marker, markerPath.toFile())
-        expectedReport = "PASS savePid=" + ProcessHandle.current().pid() + " httpCalls=2 realAssignments=2 lostReceiptInjection=true"
+        expectedReport = "PASS savePid=" + ProcessHandle.current().pid() +
+            " httpCalls=2 realAssignments=2 lostReceiptInjection=true unlimitedLedgerInjection=true"
         done = true
         server.halt(false)
     }
@@ -173,10 +193,20 @@ internal object GoalRestartSmoke {
         if (service.find(first)?.let(service::runtime) == null || service.find(second)?.let(service::runtime) == null) return
         for (id in listOf(first, second)) {
             val remembered = checkNotNull(controller.store.get(id))
+            check(remembered.constraints?.operations == setOf(OperationType.NAVIGATE))
+            check(remembered.intentReservation == GoalIntentReservation())
             check(remembered.memory.aliases.single().name == "home")
             check(remembered.memory.aliases.single().position == NpcBlockPosition(0, 64, 0))
         }
         if (!assigned) {
+            val unlimited = checkNotNull(controller.store.get(marker.getUUID("npc3")))
+            val injected = checkNotNull(GoalRecordCodec.decode(marker.getCompound("unlimitedFixture")))
+            check(unlimited == injected.recovered()) { "Unlimited saved ledger changed across JVM/configuration" }
+            check(unlimited.intentReservation == GoalIntentReservation(delivered = 32))
+            check(unlimited.intentReservation.reserve(GoalIntentReservation(delivered = 1), checkNotNull(unlimited.constraints)) == null)
+            check(unlimited.limits.quotaMode == InferenceQuotaMode.UNLIMITED && unlimited.budget.settledAttempts == 2001)
+            check(controller.settings.inference.goalQuotaMode == InferenceQuotaMode.LIMITED)
+            check(controller.resume(player, unlimited.npcUuid, LlmServerEvents.nowMillis()).code == "REVIEW_REQUIRES_NEW_GOAL")
             val uncertain = checkNotNull(controller.store.get(second))
             check(uncertain.phase == GoalPhase.REVIEW_REQUIRED && uncertain.manualHold)
             check(uncertain.code == "RESTART_REVIEW_REQUIRED" && uncertain.contextId == null)
@@ -202,13 +232,14 @@ internal object GoalRestartSmoke {
         check(healthy.memory.results.single().startsWith(marker.getUUID("task1").toString()))
         check(healthy.memory.results.single().endsWith("TASK_COMPLETED"))
         check(controller.store.get(second)?.memory?.results?.isEmpty() == true)
-        for (index in 1..2) {
+        for (index in 1..3) {
             val npc = marker.getUUID("npc$index")
             check(controller.store.remove(npc) == null)
             check(service.dismiss(checkNotNull(service.find(npc)), NpcDismissMode.ONLY_IF_EMPTY).status == NpcActionStatus.SUCCEEDED)
         }
-        expectedReport = "PASS newJvm=true knownTaskPhysicallyCompleted=true exactTaskIdsRetained=true " +
-            "uncertainAdmissionHeld=true heldBudgetSettledOnce=true providerDisabled=true replayAssignments=0 memoryRetained=true authoritativeResultRecorded=true"
+        expectedReport = "PASS protocol=" + marker.getString("protocol") + " newJvm=true knownTaskPhysicallyCompleted=true exactTaskIdsRetained=true " +
+            "uncertainAdmissionHeld=true heldBudgetSettledOnce=true providerDisabled=true replayAssignments=0 memoryRetained=true " +
+            "authoritativeResultRecorded=true unlimitedLedgerPreserved=true unlimitedHeldSettledOnce=true"
         done = true
         server.halt(false)
     }
@@ -222,6 +253,8 @@ internal object GoalRestartSmoke {
         if (phase == "save" && failure == null && expectedReport != null) {
             // Deliberate fault snapshot: real task already exists, but the LLM receipt was lost.
             check(LlmGoalStore.forServer(event.server).put(checkNotNull(held)) == null)
+            check(LlmGoalStore.forServer(event.server).put(checkNotNull(
+                GoalRecordCodec.decode(marker.getCompound("unlimitedFixture")))) == null)
         }
         actor?.let { event.server.playerList.remove(it) }
         channel?.finishAndReleaseAll()
@@ -249,6 +282,8 @@ internal object GoalRestartSmoke {
         result.addProperty("decision", "ASSIGN"); result.addProperty("summary", "Test-only navigation")
         for (name in listOf("change", "question", "wait")) result.add(name, JsonNull.INSTANCE)
         result.add("operation", LlmJson.parse(operations.getValue(state["identity"].asJsonObject["npcUuid"].asString), 16384))
-        return FakeOpenAiEndpoint.Reply(body = LlmJson.utf8(FakeOpenAiEndpoint.success(result.toString())), waitBeforeHeaders = gate)
+        val content = if (body.has("response_format")) result.toString() else
+            "assign(" + io.samcnpc.llm.expression.SamExpressionFixtures.order(result["operation"].asJsonObject) + ")"
+        return FakeOpenAiEndpoint.Reply(body = LlmJson.utf8(FakeOpenAiEndpoint.success(content)), waitBeforeHeaders = gate)
     }
 }

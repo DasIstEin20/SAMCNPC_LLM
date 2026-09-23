@@ -69,12 +69,21 @@ internal class InferenceScheduler(
         for (attempt in active.values.toList()) {
             if (!attempt.future.isDone) continue
             active.remove(attempt.wake.npcUuid)
-            val result = try { attempt.future.join() }
+            val completed = try { attempt.future.join() }
             catch (error: CompletionException) {
                 LOGGER.warn("LLM inference future failed request={} exception={}", attempt.input.requestId, error.javaClass.simpleName)
                 InferenceResult.Failed("INFERENCE_WORKER_FAILED")
             }
+            val submission = attempt.cancellation.submission()
+            val result = when (completed) {
+                is InferenceResult.Failed -> completed.copy(submission = submission)
+                is InferenceResult.Decoded -> completed.copy(submission = submission)
+            }
             if (result.providerInvoked) completedProviderInvocations++
+            val sent = when (submission) { LlmSubmission.NOT_SENT -> "false"; LlmSubmission.SUBMITTED -> "true"; LlmSubmission.UNKNOWN -> "unknown" }
+            LOGGER.info("LLM request={} code={} providerInvoked={} requestSent={} {}", attempt.input.requestId,
+                (result as? InferenceResult.Failed)?.code ?: "DECODED", result.providerInvoked, sent,
+                result.metrics?.describe() ?: "requestMetrics=UNAVAILABLE")
             val failure = (result as? InferenceResult.Failed)?.providerFailure
             circuit.complete(attempt.permit, nowMillis,
                 if (result is InferenceResult.Decoded) null else failure ?: LlmFailure.CANCELLED,
@@ -83,7 +92,9 @@ internal class InferenceScheduler(
             try {
                 if (!attempt.cancellation.isCancelled()) {
                     host.completed(attempt.wake, attempt.input.captured, result)
-                    if (!closed && !attempt.cancellation.isCancelled()) retry(attempt.wake, result, nowMillis)
+                    // Local preparation gets one attempt per wake and no automatic retry loop.
+                    if (!closed && !attempt.cancellation.isCancelled() && submission != LlmSubmission.NOT_SENT)
+                        retry(attempt.wake, result, nowMillis)
                 }
             } catch (error: RuntimeException) {
                 hostFailed(error)
@@ -132,16 +143,17 @@ internal class InferenceScheduler(
             circuit.complete(permit, now, LlmFailure.CANCELLED)
             defer(wake, budgetProblem, null); return
         }
-        when (val rate = rates.reserve(wake.npcUuid, now, allocation.charge())) {
+        val id = UUID.randomUUID()
+        when (val rate = rates.reserve(wake.npcUuid, now, allocation.charge(), id)) {
             is RatePermit.Deferred -> {
                 circuit.complete(permit, now, LlmFailure.CANCELLED)
                 defer(wake, rate.code, rate.earliestMillis); return
             }
             RatePermit.Granted -> reservedAttempts++
         }
-        val id = UUID.randomUUID()
         val problem = prepared.budget.reserve(id, allocation.charge())
         if (problem != null) {
+            rates.releaseUnsent(id)
             circuit.complete(permit, now, LlmFailure.CANCELLED)
             defer(wake, problem, null); return
         }
@@ -198,7 +210,14 @@ internal class InferenceScheduler(
     }
 
     private fun settle(attempt: Active) {
-        check(attempt.budget.settle(attempt.input.requestId))
+        val id = attempt.input.requestId
+        if (attempt.cancellation.submission() == LlmSubmission.NOT_SENT) {
+            check(attempt.budget.releaseUnsent(id))
+            rates.releaseUnsent(id)
+        } else {
+            check(attempt.budget.settle(id))
+            rates.completeSubmission(id)
+        }
         try { host.settled(attempt.wake, attempt.input.requestId, attempt.budget.snapshot()) }
         catch (error: RuntimeException) { hostFailed(error) }
     }

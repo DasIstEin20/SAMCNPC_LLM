@@ -118,6 +118,8 @@ class PlannerContractTest {
         val oldStore = LlmGoalStore.empty(); assertNull(oldStore.put(previous))
         val oldFile = oldStore.save(CompoundTag()); oldFile.putInt("version", 3)
         oldFile.getList("goals", 10).getCompound(0).remove("planSteps")
+        oldFile.getList("goals", 10).getCompound(0).remove("quotaMode")
+        oldFile.getList("goals", 10).getCompound(0).remove("intentMode")
         assertEquals(previous, LlmGoalStore.load(oldFile).get(previous.npcUuid))
         oldFile.getList("goals", 10).getCompound(0).putString("mode", "PLANNER")
         assertEquals("INVALID_GOAL_RECORD", LlmGoalStore.load(oldFile).problem)

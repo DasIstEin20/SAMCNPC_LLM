@@ -2,6 +2,7 @@ package io.samcnpc.llm.goal
 
 import io.samcnpc.llm.scheduling.*
 import io.samcnpc.llm.context.LlmMode
+import io.samcnpc.llm.intent.*
 import io.samcnpc.llm.supervision.StockSupervisionCodec
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.NbtIo
@@ -27,6 +28,12 @@ internal object GoalRecordCodec {
         tag.putString("mode", record.mode.name)
         tag.put("memory", GoalMemoryCodec.encode(record.memory))
         tag.putInt("planSteps", record.planStepsCompleted)
+        tag.putString("intentMode", if (record.constraints == null) "FREE_TEXT" else "BOUNDED_V1")
+        record.constraints?.let {
+            tag.putString("constraints", it.persistenceJson)
+            tag.putInt("acquiredIntent", record.intentReservation.acquired)
+            tag.putInt("deliveredIntent", record.intentReservation.delivered)
+        }
         record.supervision?.let { tag.put("supervisor", StockSupervisionCodec.encode(it)) }
         record.answer?.let { tag.putString("answer", it) }; record.question?.let { tag.putString("question", it) }
         record.contextId?.let { tag.putUUID("context", it) }
@@ -38,6 +45,7 @@ internal object GoalRecordCodec {
             tag.put("task", child)
         }
         tag.putInt("attemptLimit", record.limits.attempts)
+        tag.putString("quotaMode", record.limits.quotaMode.name)
         tag.putLong("inputLimit", record.limits.inputTokens); tag.putLong("outputLimit", record.limits.outputTokens)
         tag.putLong("costLimit", record.limits.costMicros)
         tag.putInt("attempts", record.budget.settledAttempts)
@@ -47,13 +55,20 @@ internal object GoalRecordCodec {
         return tag
     }
 
-    fun decode(tag: CompoundTag, version: Int = 4): GoalRecord? {
-        if (version !in 1..4) return null
+    fun decode(tag: CompoundTag, version: Int = 6): GoalRecord? {
+        if (version !in 1..6) return null
         val requiredFields = required + (if (version >= 2) setOf("mode") else emptySet()) +
             (if (version >= 3) setOf("memory") else emptySet()) +
-            (if (version >= 4) setOf("planSteps") else emptySet())
-        val optionalFields = if (version == 1) optional else optional + "supervisor"
+            (if (version >= 4) setOf("planSteps") else emptySet()) +
+            (if (version >= 5) setOf("quotaMode") else emptySet()) +
+            (if (version >= 6) setOf("intentMode") else emptySet())
+        val optionalFields = (if (version == 1) optional else optional + "supervisor") +
+            (if (version >= 6) setOf("constraints", "acquiredIntent", "deliveredIntent") else emptySet())
         if (!tag.allKeys.containsAll(requiredFields) || tag.allKeys.any { it !in requiredFields && it !in optionalFields }) return null
+        val quotaMode = if (version < 5) InferenceQuotaMode.LIMITED else {
+            if (!tag.contains("quotaMode", Tag.TAG_STRING.toInt())) return null
+            InferenceQuotaMode.entries.firstOrNull { it.name == tag.getString("quotaMode") } ?: return null
+        }
         val mode = if (version == 1) LlmMode.TRANSLATOR else {
             if (!tag.contains("mode", Tag.TAG_STRING.toInt())) return null
             LlmMode.entries.firstOrNull { it.name == tag.getString("mode") } ?: return null
@@ -79,6 +94,19 @@ internal object GoalRecordCodec {
         if (listOf("context", "inFlight").any { tag.contains(it) && !tag.hasUUID(it) }) return null
         val phase = GoalPhase.entries.firstOrNull { it.name == tag.getString("phase") } ?: return null
         return try {
+            val intentFields = setOf("constraints", "acquiredIntent", "deliveredIntent")
+            val bounded = if (version < 6) false else {
+                if (!tag.contains("intentMode", Tag.TAG_STRING.toInt())) return null
+                when (tag.getString("intentMode")) { "FREE_TEXT" -> false; "BOUNDED_V1" -> true; else -> return null }
+            }
+            if (!bounded && intentFields.any(tag::contains)) return null
+            val constraints = if (!bounded) null else {
+                if (!tag.contains("constraints", Tag.TAG_STRING.toInt()) ||
+                    !tag.contains("acquiredIntent", Tag.TAG_INT.toInt()) || !tag.contains("deliveredIntent", Tag.TAG_INT.toInt())) return null
+                GoalConstraintCodec.saved(tag.getString("constraints"))
+            }
+            val reservation = if (!bounded) GoalIntentReservation() else
+                GoalIntentReservation(tag.getInt("acquiredIntent"), tag.getInt("deliveredIntent"))
             val task = if (!tag.contains("task")) null else {
                 if (!tag.contains("task", Tag.TAG_COMPOUND.toInt())) return null
                 val child = tag.getCompound("task")
@@ -93,9 +121,9 @@ internal object GoalRecordCodec {
                 if (tag.contains("question")) tag.getString("question") else null, task,
                 if (tag.hasUUID("context")) tag.getUUID("context") else null,
                 InferenceBudgetLimits(tag.getInt("attemptLimit"), tag.getLong("inputLimit"),
-                    tag.getLong("outputLimit"), tag.getLong("costLimit")),
+                    tag.getLong("outputLimit"), tag.getLong("costLimit"), quotaMode),
                 InferenceBudgetView(tag.getInt("attempts"), tag.getLong("input"), tag.getLong("output"),
-                    tag.getLong("cost"), if (tag.hasUUID("inFlight")) tag.getUUID("inFlight") else null), mode, supervision, memory, planSteps)
+                    tag.getLong("cost"), if (tag.hasUUID("inFlight")) tag.getUUID("inFlight") else null), mode, supervision, memory, planSteps, constraints, reservation)
             if (fits(tag)) result else null
         } catch (_: IllegalArgumentException) { null }
     }

@@ -9,12 +9,14 @@ import io.samcnpc.llm.scheduling.*
 import io.samcnpc.llm.supervision.*
 import io.samcnpc.llm.context.LlmMode
 import io.samcnpc.llm.planning.PlannerOutcomes
+import io.samcnpc.llm.intent.*
 import net.minecraft.network.chat.Component
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.level.ServerPlayer
 import java.util.UUID
 
-internal data class GoalReply(val accepted: Boolean, val code: String, val record: GoalRecord? = null)
+internal data class GoalReply(val accepted: Boolean, val code: String, val record: GoalRecord? = null,
+    val requestReport: InferenceReport? = null, val compactionReport: CompactionReport? = null)
 
 /** Player-facing goal lifecycle; all world authorization uses the published Behavior gateway. */
 internal class LlmGoalController(
@@ -25,24 +27,44 @@ internal class LlmGoalController(
     provider: LlmProvider = OpenAiCompatibleProvider(settings),
 ) : AutoCloseable {
     private val runtime = TranslatorRuntime(server, store, settings, provider, rates, ::notify)
+    private val compaction = GoalCompaction(server, store, settings)
     private var closed = false
 
-    fun start(actor: ServerPlayer, npc: UUID, text: String, now: Long, stockTarget: StockTarget? = null, planner: Boolean = false): GoalReply {
+    fun startBounded(actor: ServerPlayer, npc: UUID, document: String, now: Long, planner: Boolean = false): GoalReply {
+        authorization(actor, npc)?.let { return it }
+        val request = try { GoalConstraintCodec.playerDocument(document) }
+            catch (_: IllegalArgumentException) { return rejected("INVALID_GOAL_CONSTRAINTS") }
+        return start(actor, npc, request.text, now, planner = planner, constraints = request.constraints)
+    }
+
+    fun start(actor: ServerPlayer, npc: UUID, text: String, now: Long, stockTarget: StockTarget? = null, planner: Boolean = false,
+              constraints: GoalConstraints? = null): GoalReply {
         authorization(actor, npc)?.let { return it }
         readiness()?.let { return rejected(it) }
         if (planner && stockTarget != null) return rejected("CONFLICTING_GOAL_MODES")
+        if (constraints != null && stockTarget != null) return rejected("CONFLICTING_GOAL_MODES")
         if (!GoalRecord.validText(text, 1024)) return rejected("INVALID_GOAL_TEXT")
         val previous = store.get(npc)
         if (previous != null && previous.phase !in finished) return rejected("ACTIVE_GOAL_REQUIRES_STOP")
         if (previous?.budget?.inFlight != null) return rejected("PREVIOUS_INFERENCE_DRAINING")
         if (activeTask(actor, npc)) return rejected("ACTIVE_BEHAVIOR_TASK_REQUIRES_REVIEW")
+        val bound = if (constraints == null) null else {
+            val read = OperationInspectionApi.inspect(server, actor, npc)
+            val inspection = read.inspection
+            if (read.result.status != NpcActionStatus.SUCCEEDED || inspection == null) return rejected("INTENT_INSPECTION_UNAVAILABLE")
+            if (constraints.dimensionId != inspection.physical.dimensionId) return rejected("INTENT_DIMENSION_NOT_ALLOWED")
+            val stock = GoalIntentPolicy.stock(inspection.body, constraints.resourceIds)
+            if (stock !in 0..65536) return rejected("INTENT_INITIAL_STOCK_OUT_OF_RANGE")
+            try { constraints.withInitialStock(stock) }
+            catch (_: IllegalArgumentException) { return rejected("INTENT_CONSTRAINTS_TOO_LARGE") }
+        }
         if (stockTarget != null && store.records().any { it.npcUuid != npc && it.phase !in finished &&
             it.supervision?.target?.sameStorage(stockTarget) == true }) return rejected("STOCK_ALREADY_SUPERVISED")
         val record = GoalRecord(npc, actor.uuid, UUID.randomUUID(), 1, text, limits = settings.inference.goalLimits(settings.maxOutputTokens),
             phase = if (stockTarget == null) GoalPhase.QUEUED else GoalPhase.WAITING,
             mode = if (planner) LlmMode.PLANNER else if (stockTarget == null) LlmMode.TRANSLATOR else LlmMode.SUPERVISOR,
             supervision = stockTarget?.let { StockSupervision(it) },
-            memory = previous?.memory?.placesOnly() ?: GoalMemory())
+            memory = previous?.memory?.placesOnly() ?: GoalMemory(), constraints = bound)
         if (stockTarget != null) {
             val (_, problem) = StockSupervisor.read(server, actor, record)
             if (problem != null) return rejected(problem)
@@ -81,6 +103,8 @@ internal class LlmGoalController(
             val view = checkNotNull(OperationSupervisionApi.observe(server, actor, npc).observation)
             val task = view.task
             if (task == null || task.taskId != known.id) return rejected("TASK_REVIEW_REQUIRED")
+            if (record.constraints != null && task.definitionRevision != known.definitionRevision)
+                return rejected("INTENT_TASK_CHANGED_REQUIRES_NEW_GOAL")
             if (record.supervision != null && task.state in setOf(OperationTaskState.COMPLETED, OperationTaskState.FAILED)) {
                 val (stock, problem) = StockSupervisor.read(server, actor, record)
                 if (stock == null) return rejected(checkNotNull(problem))
@@ -173,7 +197,15 @@ internal class LlmGoalController(
         authorization(actor, npc)?.let { return it }
         val record = store.get(npc) ?: return rejected("GOAL_NOT_FOUND")
         val current = runtime.observeKnown(record, actor)
-        return GoalReply(true, current.code, current)
+        return GoalReply(true, current.code, current, runtime.requestReport(npc, current.goalId), compaction.report(current))
+    }
+
+    fun compact(actor: ServerPlayer, npc: UUID): GoalReply {
+        authorization(actor, npc)?.let { return it }
+        val record = store.get(npc) ?: return rejected("GOAL_NOT_FOUND")
+        val reply = compaction.submit(actor, record)
+        if (reply.accepted) runtime.invalidateDecision(npc)
+        return reply
     }
 
     /** Editing a label is intent only and never observes or loads the named world position. */
@@ -202,6 +234,8 @@ internal class LlmGoalController(
         if (record.phase !in finished || record.budget.inFlight != null) return rejected("STOP_GOAL_BEFORE_FORGET")
         runtime.cancel(npc)
         store.remove(npc)?.let { return rejected(it) }
+        runtime.forgetReport(npc)
+        compaction.forget(npc)
         return GoalReply(true, "GOAL_FORGOTTEN")
     }
 
@@ -225,9 +259,14 @@ internal class LlmGoalController(
         if (closed || store.problem != null) return
         runtime.cancel(npc)
         check(store.remove(npc) == null)
+        runtime.forgetReport(npc)
+        compaction.forget(npc)
     }
 
-    fun poll(now: Long) { check(server.isSameThread); if (!closed) runtime.poll(now) }
+    fun poll(now: Long) {
+        check(server.isSameThread)
+        if (!closed) { runtime.poll(now); compaction.poll() }
+    }
 
     private fun queue(actor: ServerPlayer, record: GoalRecord, now: Long, reason: InferenceReason): GoalReply {
         if (InferenceBudget(record.limits, record.budget).availableCalls == 0) return rejected("GOAL_CALL_BUDGET_EXHAUSTED")
@@ -273,6 +312,7 @@ internal class LlmGoalController(
         check(server.isSameThread)
         if (closed) return
         closed = true
+        compaction.close()
         runtime.close()
     }
 

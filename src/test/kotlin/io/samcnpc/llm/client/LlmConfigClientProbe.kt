@@ -2,6 +2,7 @@ package io.samcnpc.llm.client
 
 import io.samcnpc.llm.SamcnpcLlm
 import io.samcnpc.llm.config.LlmConfig
+import io.samcnpc.llm.scheduling.InferenceQuotaMode
 import net.minecraft.client.Minecraft
 import net.minecraft.client.Screenshot
 import net.minecraft.client.gui.components.Button
@@ -94,6 +95,52 @@ internal object LlmConfigClientProbe {
                 field(mc, "baseUrl").value = address + "/alternate"
                 screen.resize(mc, mc.window.guiScaledWidth, mc.window.guiScaledHeight)
                 check(field(mc, "baseUrl").value == address + "/alternate") { "Resize lost draft" }
+                mc.screen?.onClose()
+                check(LlmConfig.update(LlmConfig.snapshot().revision, original.values))
+            }
+            4 -> {
+                val bounded = original.values.copy(maxOutputTokens = 1024,
+                    inference = original.values.inference.copy(contextWindow = 32768, inputTokens = 30000))
+                check(LlmConfig.update(LlmConfig.snapshot().revision, bounded))
+                open(mc)
+                click(mc, "advanced")
+                val before = LlmConfig.snapshot()
+                field(mc, "maxOutputTokens").value = "4096"
+                click(mc, "apply")
+                check(LlmConfig.snapshot() == before) { "GUI saved input plus output above the model window" }
+                check(field(mc, "maxOutputTokens").value == "4096") { "GUI silently changed the rejected allocation" }
+                field(mc, "maxOutputTokens").value = "2048"
+                click(mc, "apply")
+                check(LlmConfig.snapshot().values.maxOutputTokens == 2048)
+                check(LlmConfig.snapshot().values.inference.contextWindow == 32768)
+                mc.screen?.onClose()
+                check(LlmConfig.update(LlmConfig.snapshot().revision, original.values))
+            }
+            5 -> {
+                open(mc); click(mc, "quotas")
+                val screen = checkNotNull(mc.screen)
+                // Both buttons can share the translated value; position identifies the scope.
+                val modes = screen.children().filterIsInstance<Button>().filter {
+                    it.message.string == label("quotaMode.LIMITED")
+                }.sortedBy { it.y }
+                check(modes.size == 2)
+                modes[0].onPress()
+                screen.resize(mc, 320, 240)
+                click(mc, "apply")
+                val goalOnly = LlmConfig.snapshot()
+                check(goalOnly.values.inference.goalQuotaMode == InferenceQuotaMode.UNLIMITED)
+                check(goalOnly.values.inference.hourlyQuotaMode == InferenceQuotaMode.LIMITED)
+                click(mc, "quotaMode.LIMITED"); click(mc, "apply")
+                val both = LlmConfig.snapshot()
+                check(both.values.inference.goalQuotaMode == InferenceQuotaMode.UNLIMITED)
+                check(both.values.inference.hourlyQuotaMode == InferenceQuotaMode.UNLIMITED)
+                val config = Files.readString(Path.of("config/samcnpc-llm-common.toml"))
+                check(config.contains("goalQuotaMode = \"UNLIMITED\"") && config.contains("hourlyQuotaMode = \"UNLIMITED\""))
+                check(LlmConfig.update(both.revision, both.values.copy(inference = both.values.inference.copy(
+                    hourlyQuotaMode = InferenceQuotaMode.LIMITED))))
+                click(mc, "apply")
+                check(LlmConfig.snapshot().values.inference.hourlyQuotaMode == InferenceQuotaMode.LIMITED)
+                screen.resize(mc, mc.window.guiScaledWidth, mc.window.guiScaledHeight)
                 mc.screen?.onClose()
                 check(LlmConfig.update(LlmConfig.snapshot().revision, original.values))
             }

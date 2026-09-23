@@ -3,6 +3,7 @@ package io.samcnpc.llm.client
 import io.samcnpc.llm.config.LlmConfig
 import io.samcnpc.llm.config.ProviderSettings
 import io.samcnpc.llm.config.ResponseFormat
+import io.samcnpc.llm.scheduling.InferenceQuotaMode
 import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.components.Button
 import net.minecraft.client.gui.components.EditBox
@@ -44,6 +45,12 @@ internal class LlmConfigScreen(private val parent: Screen) : Screen(Component.li
         if (quotas) {
             field("npcCallsPerHour", 0, 3)
             field("serverCallsPerHour", 1, 3)
+            quotaMode("goalQuotaMode", 2, draft.inference.goalQuotaMode) {
+                draft = draft.copy(inference = draft.inference.copy(goalQuotaMode = it))
+            }
+            quotaMode("hourlyQuotaMode", 3, draft.inference.hourlyQuotaMode) {
+                draft = draft.copy(inference = draft.inference.copy(hourlyQuotaMode = it))
+            }
         } else if (advanced) {
             field("connectTimeoutSeconds", 0, 3)
             field("requestTimeoutSeconds", 1, 3)
@@ -94,6 +101,17 @@ internal class LlmConfigScreen(private val parent: Screen) : Screen(Component.li
         addRenderableWidget(box)
     }
 
+    private fun quotaMode(key: String, row: Int, mode: InferenceQuotaMode, change: (InferenceQuotaMode) -> Unit) {
+        label(key, row)
+        val button = Button.builder(tr("quotaMode.${mode.name}")) {
+            change(if (mode == InferenceQuotaMode.LIMITED) InferenceQuotaMode.UNLIMITED else InferenceQuotaMode.LIMITED)
+            init()
+        }.bounds(inputX(), rowY(row), inputWidth(), 20).build()
+        button.tooltip = Tooltip.create(tr("$key.hint"))
+        button.active = editable
+        addRenderableWidget(button)
+    }
+
     private fun resetText() {
         textValues["npcCallsPerHour"] = draft.inference.npcCallsPerHour.toString()
         textValues["serverCallsPerHour"] = draft.inference.serverCallsPerHour.toString()
@@ -124,7 +142,11 @@ internal class LlmConfigScreen(private val parent: Screen) : Screen(Component.li
         )
         val problem = candidate.problem()
         if (problem != null) {
-            status = tr("invalid", tr(problem)).string
+            status = if (problem == "inference.contextAllocation") tr("contextAllocationHint",
+                candidate.inference.inputTokens, candidate.maxOutputTokens, candidate.inference.contextWindow,
+                (candidate.inference.contextWindow - candidate.maxOutputTokens).coerceAtLeast(0),
+                (candidate.inference.contextWindow - candidate.inference.inputTokens).coerceAtLeast(0)).string
+                else tr("invalid", tr(problem)).string
             return
         }
         try {
@@ -160,6 +182,8 @@ internal class LlmConfigScreen(private val parent: Screen) : Screen(Component.li
             graphics.drawString(font, font.plainSubstrByWidth(status, panelWidth), left, footer - 12, 0xB8DDF2)
         }
         super.render(graphics, mouseX, mouseY, partialTick)
+        if (status.isNotEmpty() && mouseX in left..(left + panelWidth) && mouseY in (footer - 14)..footer)
+            graphics.renderTooltip(font, Component.literal(status), mouseX, mouseY)
     }
 
     override fun onClose() { minecraft?.setScreen(parent) }

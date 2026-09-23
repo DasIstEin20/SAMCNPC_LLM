@@ -22,14 +22,8 @@ internal class TranslatorRuntime(
     private val notify: (GoalRecord) -> Unit,
 ) : InferenceHost, AutoCloseable {
     private val sessions = linkedMapOf<UUID, GoalSession>()
-    private val translatorPolicy = ContextPolicy(1, OperationType.entries.toSet(), emptySet(), emptySet(), 72000, 16, 0)
-    private val supervisorPolicy = ContextPolicy(2, StockDecisionPolicy.operations, emptySet(), emptySet(), 72000, 16, 0)
-    private val plannerPolicy = ContextPolicy(3, PlannerPolicy.operations, emptySet(), emptySet(), 72000, 16, 0)
-    private fun policy(record: GoalRecord) = when (record.mode) {
-        LlmMode.TRANSLATOR -> translatorPolicy
-        LlmMode.SUPERVISOR -> supervisorPolicy
-        LlmMode.PLANNER -> plannerPolicy
-    }
+    private val requestReports = linkedMapOf<UUID, InferenceReport>()
+    private fun policy(record: GoalRecord) = GoalPolicies.forRecord(record)
     private val scheduler = InferenceScheduler(provider, settings, settings.inference.profile(settings),
         settings.inference.allocation(settings), this, rates)
     private var closed = false
@@ -60,11 +54,28 @@ internal class TranslatorRuntime(
 
     fun cancel(npcUuid: UUID) {
         check(server.isSameThread)
+        invalidateDecision(npcUuid)
+        val session = sessions[npcUuid] ?: return
+        if (session.budget.snapshot().inFlight == null) release(npcUuid)
+    }
+
+    /** Explicit projection changes its binding, while a healthy task keeps its event subscription. */
+    fun invalidateDecision(npcUuid: UUID) {
+        check(server.isSameThread)
         scheduler.cancel(npcUuid)
         val session = sessions[npcUuid] ?: return
         session.admission.invalidate()
         session.captured = null
-        if (session.budget.snapshot().inFlight == null) release(npcUuid)
+    }
+
+    fun requestReport(npcUuid: UUID, goalId: UUID): InferenceReport? {
+        check(server.isSameThread)
+        return requestReports[npcUuid]?.takeIf { it.goalId == goalId }
+    }
+
+    fun forgetReport(npcUuid: UUID) {
+        check(server.isSameThread)
+        requestReports.remove(npcUuid)
     }
 
     fun poll(now: Long) {
@@ -114,6 +125,11 @@ internal class TranslatorRuntime(
         val captured = NpcContextBuilder.capture(server, actor, record.npcUuid, contextGoal(record, session), policy(record))
         if (captured is ContextCaptureResult.Rejected) return InferencePreparation.Rejected(captured.code)
         check(captured is ContextCaptureResult.Captured)
+        val currentTask = captured.value.inspection.operation.task
+        if (record.constraints != null && currentTask != null && currentTask.state !in setOf(
+                OperationTaskState.COMPLETED, OperationTaskState.FAILED, OperationTaskState.CANCELLED) &&
+            (record.task?.id != currentTask.taskId || record.task.definitionRevision != currentTask.definitionRevision))
+            return InferencePreparation.Rejected("INTENT_TASK_CHANGED_REQUIRES_NEW_GOAL")
         if (record.supervision != null && checkNotNull(captured.value.stock).count >= record.supervision.target.target)
             return InferencePreparation.Rejected("STOCK_TARGET_REACHED")
         if (record.mode == LlmMode.PLANNER && record.planStepsCompleted >= 8)
@@ -138,10 +154,19 @@ internal class TranslatorRuntime(
             scheduler.cancel(wake.npcUuid)
             return
         }
+        requestReports.remove(wake.npcUuid)
+        requestReports[wake.npcUuid] = InferenceReport(record.goalId, record.revision, captured.binding.contextId,
+            result.providerInvoked, result.submission, result.metrics, (result as? InferenceResult.Decoded)?.usage)
+        while (requestReports.size > MAX_ACTIVE) requestReports.remove(requestReports.keys.first())
         if (result is InferenceResult.Failed) {
             session.failedInference = true
             val failed = record.copy(phase = GoalPhase.WAITING, code = result.code, question = null)
             persist(failed); notify(failed)
+            if (result.submission == io.samcnpc.llm.api.LlmSubmission.NOT_SENT) {
+                server.playerList.getPlayer(record.actorUuid)?.sendSystemMessage(net.minecraft.network.chat.Component.literal(
+                    "SAMCNPC LLM: requestSent=false; local preparation/preflight rejected: " + result.code +
+                        (result.metrics?.let { "\n" + it.describe() } ?: "")))
+            }
             return
         }
         check(result is InferenceResult.Decoded)
@@ -150,9 +175,18 @@ internal class TranslatorRuntime(
         // This dirty mark is conservative recovery metadata, not an atomic transaction with Behavior.
         val prepared = if (record.supervision == null) record else StockSupervisor.admitting(record, result.decision, captured)
         if (prepared.phase == GoalPhase.ASK_USER) { persist(prepared); notify(prepared); return }
-        val dispatching = prepared.copy(phase = GoalPhase.ADMITTING, code = "ADMISSION_STARTED")
+        var dispatching = prepared.copy(phase = GoalPhase.ADMITTING, code = "ADMISSION_STARTED")
         persist(dispatching)
-        val outcome = session.admission.admit(server, actor, result.decision, contextGoal(record, session), policy(record), record.manualHold)
+        val outcome = session.admission.admit(server, actor, result.decision, contextGoal(record, session), policy(record), record.manualHold) { charge ->
+            val constraints = dispatching.constraints
+            val current = store.get(record.npcUuid)
+            val reserved = constraints?.let { dispatching.intentReservation.reserve(charge, it) }
+            if (current != dispatching || reserved == null) false else {
+                val charged = dispatching.copy(intentReservation = reserved)
+                val problem = store.put(charged)
+                if (problem == null) { dispatching = charged; true } else false
+            }
+        }
         val next = when (record.mode) {
             LlmMode.TRANSLATOR -> TranslatorOutcomes.admitted(dispatching, result.decision, outcome)
             LlmMode.SUPERVISOR -> StockSupervisor.admitted(dispatching, result.decision, outcome, server.overworld().gameTime)
@@ -251,7 +285,7 @@ internal class TranslatorRuntime(
 
     private fun contextGoal(record: GoalRecord, session: GoalSession) = ContextGoal(record.goalId,
         record.revision, record.contextText(), record.mode, null, session.budget.contextRemainingCalls, memory = record.memory.context(), supervision = record.supervision,
-        planStepsCompleted = record.planStepsCompleted)
+        planStepsCompleted = record.planStepsCompleted, constraints = record.constraints, intentReservation = record.intentReservation)
 
     private fun isWatching(record: GoalRecord?): Boolean = PlannerOutcomes.boundary(record) ||
         record?.supervision != null && record.phase == GoalPhase.WAITING && !record.manualHold
@@ -295,6 +329,7 @@ internal class TranslatorRuntime(
                     question = null, contextId = null, budget = sessions.getValue(id).budget.snapshot()))
             release(id)
         }
+        requestReports.clear()
     }
 
     companion object {

@@ -133,7 +133,7 @@ class DecisionDecoderTest {
         Files.writeString(folder.resolve("valid-decisions.json"), corpus.toString())
     }
 
-    @Test fun completeSchemaFitsBothExplicitTransportProfilesAndBothPromptsReceiveParameters() {
+    @Test fun completeSchemaFitsEveryExplicitTransportProfileAndEveryPromptReceivesParameters() {
         val schema = DecisionSchema.forContext(id, policy())
         val request = LlmRequest(UUID.randomUUID(), DecisionPrompt.text,
             """{"contextId":"$id","goal":{"text":"Gather wood"}}""", schema)
@@ -143,7 +143,13 @@ class DecisionDecoderTest {
             assertTrue(bytes.size <= settings.maxContextBytes, "format=$format bytes=" + bytes.size)
             val payload = LlmJson.parse(LlmJson.decode(bytes), settings.maxContextBytes)
             val system = payload["messages"].asJsonArray[0].asJsonObject["content"].asString
-            assertTrue(system.contains(if (format != ResponseFormat.JSON_SCHEMA) "OUTPUT_CONTRACT_JSON_SCHEMA" else "OUTPUT_CONTRACT_TYPES"))
+            val marker = when (format) {
+                ResponseFormat.JSON_SCHEMA -> "OUTPUT_CONTRACT_TYPES"
+                ResponseFormat.JSON_OBJECT -> "OUTPUT_CONTRACT_JSON_SCHEMA"
+                ResponseFormat.SAM_EXPRESSION_V1 -> "SAM_EXPRESSION_V1_UNCONSTRAINED"
+            }
+            assertTrue(system.contains(marker))
+            if (format == ResponseFormat.SAM_EXPRESSION_V1) assertFalse(payload.has("response_format"))
             for (operation in OperationType.entries) assertTrue(system.contains(operation.operationId))
             assertTrue(system.contains("quantity"))
             assertTrue(system.contains("definitionVersion"))
@@ -169,5 +175,30 @@ class DecisionDecoderTest {
         assertTrue("CONTINUE" in activeChoices)
         val planner = LlmJson.parse(DecisionSchema.forContext(id, policy(), planner = true, hasActiveTask = false), 65536)
         assertTrue(planner["properties"].asJsonObject["decision"].asJsonObject["enum"].asJsonArray.any { it.asString == "CONTINUE" })
+    }
+
+    @Test fun sharedBackendShapesReduceCatalogWithoutChangingAnyEffectiveConstraint() {
+        val sizes = JsonArray()
+        for (planner in listOf(false, true)) for (operations in listOf(OperationType.entries.toSet()) +
+            OperationType.entries.map { setOf(it) }) {
+            val schema = DecisionSchema.forContext(id, policy(operations, setOf("REPLACE", "EXTEND_TIME")), planner)
+            val encoded = ChatCompletionCodec.encode(LlmRequest(id, DecisionPrompt.text, "{}", schema),
+                ProviderSettings(enabled = true, model = "emulator"))
+            val root = LlmJson.parse(LlmJson.decode(encoded.bytes), 131072)
+            val backend = root["response_format"].asJsonObject["json_schema"].asJsonObject["schema"].asJsonObject
+            assertEquals(io.samcnpc.llm.provider.SchemaEquivalence.expanded(LlmJson.parse(schema, 65536)),
+                io.samcnpc.llm.provider.SchemaEquivalence.expanded(backend), "planner=$planner operations=$operations")
+            sizes.add(JsonObject().also {
+                it.addProperty("planner", planner); it.addProperty("operationCount", operations.size)
+                it.addProperty("sourceSchemaBytes", LlmJson.utf8(schema).size)
+                it.addProperty("backendSchemaBytes", encoded.responseSchemaBytes)
+                it.addProperty("contractBytes", encoded.contractBytes); it.addProperty("requestBytes", encoded.bytes.size)
+            })
+        }
+        val directory = Path.of("build", "decision-contract")
+        Files.createDirectories(directory)
+        Files.writeString(directory.resolve("catalog-sizes.json"), sizes.toString())
+        for (value in sizes.filter { it.asJsonObject["operationCount"].asInt == OperationType.entries.size })
+            assertTrue(value.asJsonObject["backendSchemaBytes"].asInt < 24000, value.toString())
     }
 }

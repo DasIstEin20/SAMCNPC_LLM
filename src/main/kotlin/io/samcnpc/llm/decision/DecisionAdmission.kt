@@ -35,20 +35,22 @@ internal class DecisionAdmission(private val gateway: DecisionGateway = Decision
     fun invalidate() { invalidated = "CONTEXT_INVALIDATED" }
 
     fun admit(server: MinecraftServer, actor: ServerPlayer, decision: LlmDecision, goal: ContextGoal,
-              policy: ContextPolicy, manualHold: Boolean): DecisionOutcome {
+              policy: ContextPolicy, manualHold: Boolean,
+              reserveIntent: ((io.samcnpc.llm.intent.GoalIntentReservation) -> Boolean)? = null): DecisionOutcome {
         if (!server.isSameThread) return DecisionOutcome.rejected("SERVER_THREAD_REQUIRED")
         val source = captured ?: return DecisionOutcome.rejected("NO_ISSUED_CONTEXT")
         if (decision.contextId != source.binding.contextId) return DecisionOutcome.rejected("CONTEXT_MISMATCH")
         if (consumed) return DecisionOutcome.rejected("DECISION_ALREADY_CONSUMED")
         consumed = true
-        val result = admitOnce(server, actor, decision, source, goal, policy, manualHold)
+        val result = admitOnce(server, actor, decision, source, goal, policy, manualHold, reserveIntent)
         outcome = result
         return result
     }
 
     private fun admitOnce(server: MinecraftServer, actor: ServerPlayer, decision: LlmDecision,
                           source: CapturedContext, goal: ContextGoal, policy: ContextPolicy,
-                          manualHold: Boolean): DecisionOutcome {
+                          manualHold: Boolean,
+                          reserveIntent: ((io.samcnpc.llm.intent.GoalIntentReservation) -> Boolean)?): DecisionOutcome {
         invalidated?.let { return DecisionOutcome.rejected(it) }
         if (actor.uuid != source.binding.actorUuid) return DecisionOutcome.rejected("ACTOR_CHANGED")
         val reply = OperationInspectionApi.inspect(server, actor, source.binding.npcUuid)
@@ -59,6 +61,8 @@ internal class DecisionAdmission(private val gateway: DecisionGateway = Decision
             return DecisionOutcome.rejected(it)
         }
         DecisionPolicy.problem(decision, source)?.let { return DecisionOutcome.rejected(it) }
+        val intent = io.samcnpc.llm.intent.GoalIntentPolicy.check(decision.action, goal, current.body, current.physical.position)
+        intent.problem?.let { return DecisionOutcome.rejected(it) }
         decision.plan?.preconditionProblem(current.body)?.let { return DecisionOutcome.rejected(it) }
         val stockTarget = goal.supervision?.target
         if (stockTarget != null) {
@@ -82,6 +86,9 @@ internal class DecisionAdmission(private val gateway: DecisionGateway = Decision
             amendment = OperationAmendmentRequest(checkNotNull(binding.priorTaskId), binding.contextId,
                 checkNotNull(binding.definitionRevision), binding.issuedTick, binding.expiresTick, action.change)
         }
+        // Persist conservatively before any foreign mutation. No receipt, exception or rejection refunds intent.
+        if (goal.constraints != null && (reserveIntent == null || !reserveIntent(intent.charge)))
+            return DecisionOutcome.rejected("INTENT_RESERVATION_UNAVAILABLE")
         // Mark the outcome uncertain before crossing the mutation boundary, including an unexpected exception.
         outcome = DecisionOutcome(DecisionOutcomeState.UNCERTAIN, "ADMISSION_DISPATCH_STARTED")
         return try {

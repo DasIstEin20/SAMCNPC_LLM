@@ -1,11 +1,16 @@
 package io.samcnpc.llm.config
 
 import net.minecraftforge.common.ForgeConfigSpec
+import io.samcnpc.llm.scheduling.InferenceQuotaMode
 
 /** Advanced server-owned metering declaration in the existing COMMON config; no network/profile lookup. */
 internal class InferenceConfigFields(builder: ForgeConfigSpec.Builder) {
     private val defaults = InferenceSettings()
     init { builder.push("inference") }
+    private val goalMode = builder.comment("Call/token/cost quotas for NEW goals. Existing goals keep their saved mode.")
+        .defineEnum("goalQuotaMode", InferenceQuotaMode.LIMITED)
+    private val hourlyMode = builder.comment("Rolling call/token/cost quotas. UNLIMITED preserves cooldown, bounded queue and concurrency.")
+        .defineEnum("hourlyQuotaMode", InferenceQuotaMode.LIMITED)
     private val verified = builder.comment("Enable ONLY after verifying this exact byte-level tokenizer/chat-template tuple. Not a model-quality claim.")
         .define("verifiedByteLevel", false)
     private val endpoint = builder.define("verifiedBaseUrl", defaults.verifiedBaseUrl) {
@@ -31,9 +36,11 @@ internal class InferenceConfigFields(builder: ForgeConfigSpec.Builder) {
 
     fun read() = InferenceSettings(verified.get(), endpoint.get(), model.get(), backend.get(),
         modelDigest.get(), tokenizer.get(), template.get(), reserve.get(), window.get(), input.get(),
-        inputRate.get(), outputRate.get(), goalCost.get(), serverCost.get(), npcCalls.get(), serverCalls.get())
+        inputRate.get(), outputRate.get(), goalCost.get(), serverCost.get(), npcCalls.get(), serverCalls.get(),
+        goalMode.get(), hourlyMode.get())
 
     fun write(values: InferenceSettings) {
+        goalMode.set(values.goalQuotaMode); hourlyMode.set(values.hourlyQuotaMode)
         verified.set(values.verifiedByteLevel); endpoint.set(values.verifiedBaseUrl); model.set(values.verifiedModel)
         backend.set(values.backendVersion); modelDigest.set(values.modelDigest)
         tokenizer.set(values.tokenizerDigest); template.set(values.templateDigest)

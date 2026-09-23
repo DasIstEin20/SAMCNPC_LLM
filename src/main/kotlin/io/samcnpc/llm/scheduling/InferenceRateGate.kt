@@ -1,6 +1,5 @@
 package io.samcnpc.llm.scheduling
 
-import java.util.ArrayDeque
 import java.util.UUID
 
 internal sealed interface RatePermit {
@@ -9,84 +8,88 @@ internal sealed interface RatePermit {
 }
 internal data class ServerInferenceResources(val inputTokens: Long = 491520, val outputTokens: Long = 61440,
                                             val costMicros: Long = 0, val npcCallsPerHour: Int = 12,
-                                            val serverCallsPerHour: Int = 60) {
+                                            val serverCallsPerHour: Int = 60,
+                                            val quotaMode: InferenceQuotaMode = InferenceQuotaMode.LIMITED) {
     init {
         require(inputTokens >= 0 && outputTokens >= 0 && costMicros >= 0)
         require(npcCallsPerHour in 1..360 && serverCallsPerHour in 1..720)
     }
 }
 
-/** Server-thread attempt reservations, independent of wall clock/game ticks. No automatic refund. */
+/** Server-thread admission. Only exact, proven-unsent reservations can be refunded. */
 internal class InferenceRateGate(private var limits: ServerInferenceResources = ServerInferenceResources()) {
-    private data class Entry(val atMillis: Long, val charge: InferenceCharge)
-    private val global = ArrayDeque<Entry>()
-    private val byNpc = linkedMapOf<UUID, ArrayDeque<Long>>()
+    private val ledger = HourlyInferenceLedger()
     private var lastObservedMillis = 0L
 
-    /** Retain all reservations when configuration changes; a smaller limit blocks until they expire. */
-    fun reconfigure(resources: ServerInferenceResources) { limits = resources }
+    fun reconfigure(resources: ServerInferenceResources) {
+        limits = resources
+        if (limits.quotaMode == InferenceQuotaMode.UNLIMITED) ledger.compactSettled()
+    }
 
-    /** Cheap bounded preflight before capturing another context; expiry is the only mutation. */
     fun preview(npcUuid: UUID, nowMillis: Long, charge: InferenceCharge = ZERO): RatePermit =
-        evaluate(npcUuid, nowMillis, charge, false)
+        evaluate(npcUuid, nowMillis, charge, null)
 
-    fun reserve(npcUuid: UUID, nowMillis: Long, charge: InferenceCharge = ZERO): RatePermit =
-        evaluate(npcUuid, nowMillis, charge, true)
+    fun reserve(npcUuid: UUID, nowMillis: Long, charge: InferenceCharge = ZERO, requestId: UUID = UUID.randomUUID()): RatePermit =
+        evaluate(npcUuid, nowMillis, charge, requestId)
 
-    private fun evaluate(npcUuid: UUID, nowMillis: Long, charge: InferenceCharge, commit: Boolean): RatePermit {
+    fun releaseUnsent(requestId: UUID): Boolean = ledger.releaseUnsent(requestId)
+    fun completeSubmission(requestId: UUID): Boolean = ledger.settle(requestId, limits.quotaMode == InferenceQuotaMode.UNLIMITED)
+
+    private fun evaluate(npcUuid: UUID, nowMillis: Long, charge: InferenceCharge, requestId: UUID?): RatePermit {
         if (nowMillis < lastObservedMillis || nowMillis > Long.MAX_VALUE - WINDOW_MILLIS)
             return RatePermit.Deferred("INVALID_MONOTONIC_CLOCK", null)
         lastObservedMillis = nowMillis
-        while (global.isNotEmpty() && nowMillis - global.peekFirst().atMillis >= WINDOW_MILLIS) global.removeFirst()
-        val iterator = byNpc.values.iterator()
-        while (iterator.hasNext()) {
-            val history = iterator.next()
-            while (history.isNotEmpty() && nowMillis - history.peekFirst() >= WINDOW_MILLIS) history.removeFirst()
-            if (history.isEmpty()) iterator.remove()
-        }
-        val history = byNpc[npcUuid]
-        val last = history?.peekLast()
+        ledger.expire(nowMillis)
+        val last = ledger.latest(npcUuid)
         if (last != null && nowMillis - last < MIN_GAP_MILLIS)
             return RatePermit.Deferred("NPC_COOLDOWN", last + MIN_GAP_MILLIS)
-        if (history != null && history.size >= limits.npcCallsPerHour)
-            return RatePermit.Deferred("NPC_HOURLY_BUDGET", history.peekFirst() + WINDOW_MILLIS)
-        if (global.size >= limits.serverCallsPerHour)
-            return RatePermit.Deferred("SERVER_HOURLY_BUDGET", global.peekFirst().atMillis + WINDOW_MILLIS)
-        resources(charge)?.let { return it }
-        if (!commit) return RatePermit.Granted
-        // Even after a lower reconfiguration, retained reservations stay bounded by the hard cap.
-        check(byNpc.size <= 720)
-        val next = history ?: ArrayDeque<Long>().also { byNpc[npcUuid] = it }
-        next.addLast(nowMillis)
-        global.addLast(Entry(nowMillis, charge))
+        val spending = ledger.spending()
+        if (limits.quotaMode == InferenceQuotaMode.LIMITED) {
+            val npcSpending = ledger.spending(npcUuid)
+            if (npcSpending.sumOf { it.calls } >= limits.npcCallsPerHour)
+                return RatePermit.Deferred("NPC_HOURLY_BUDGET", npcSpending.first().expires)
+            if (spending.sumOf { it.calls } >= limits.serverCallsPerHour)
+                return RatePermit.Deferred("SERVER_HOURLY_BUDGET", spending.first().expires)
+        }
+        resources(charge, spending)?.let { return it }
+        val identities = ledger.identities()
+        if (ledger.exactSize() >= HourlyInferenceLedger.MAX_TRACKED ||
+            npcUuid !in identities && identities.size >= HourlyInferenceLedger.MAX_TRACKED)
+            return RatePermit.Deferred("SERVER_ACCOUNTING_CAPACITY", spending.firstOrNull()?.expires)
+        if (requestId != null) ledger.reserve(requestId, npcUuid, nowMillis, charge)
         return RatePermit.Granted
     }
 
-    private fun resources(charge: InferenceCharge): RatePermit.Deferred? {
+    private fun resources(charge: InferenceCharge, spending: List<HourlyInferenceLedger.Spending>): RatePermit.Deferred? {
+        var used = ZERO
+        for (entry in spending) used = HourlyInferenceLedger.add(used, entry.charge)
+        if (charge.inputTokens > Long.MAX_VALUE - used.inputTokens || charge.outputTokens > Long.MAX_VALUE - used.outputTokens ||
+            charge.costMicros > Long.MAX_VALUE - used.costMicros)
+            return RatePermit.Deferred("SERVER_ACCOUNTING_EXHAUSTED", spending.firstOrNull()?.expires)
+        if (limits.quotaMode == InferenceQuotaMode.UNLIMITED) return null
         if (charge.inputTokens > limits.inputTokens) return RatePermit.Deferred("SERVER_INPUT_BUDGET", null)
         if (charge.outputTokens > limits.outputTokens) return RatePermit.Deferred("SERVER_OUTPUT_BUDGET", null)
         if (charge.costMicros > limits.costMicros) return RatePermit.Deferred("SERVER_COST_BUDGET", null)
-        var input = limits.inputTokens; var output = limits.outputTokens; var cost = limits.costMicros
-        for (entry in global) {
-            input -= entry.charge.inputTokens; output -= entry.charge.outputTokens; cost -= entry.charge.costMicros
+        fun code(): String? = when {
+            used.inputTokens > limits.inputTokens - charge.inputTokens -> "SERVER_INPUT_BUDGET"
+            used.outputTokens > limits.outputTokens - charge.outputTokens -> "SERVER_OUTPUT_BUDGET"
+            used.costMicros > limits.costMicros - charge.costMicros -> "SERVER_COST_BUDGET"
+            else -> null
         }
-        val code = when {
-            charge.inputTokens > input -> "SERVER_INPUT_BUDGET"
-            charge.outputTokens > output -> "SERVER_OUTPUT_BUDGET"
-            charge.costMicros > cost -> "SERVER_COST_BUDGET"
-            else -> return null
-        }
-        for (entry in global) {
-            input += entry.charge.inputTokens; output += entry.charge.outputTokens; cost += entry.charge.costMicros
-            if (charge.inputTokens <= input && charge.outputTokens <= output && charge.costMicros <= cost)
-                return RatePermit.Deferred(code, entry.atMillis + WINDOW_MILLIS)
+        val problem = code() ?: return null
+        for (entry in spending) {
+            used = InferenceCharge(used.inputTokens - entry.charge.inputTokens,
+                used.outputTokens - entry.charge.outputTokens, used.costMicros - entry.charge.costMicros)
+            if (code() == null) return RatePermit.Deferred(problem, entry.expires)
         }
         error("Bounded resource history did not account for all reservations")
     }
 
     /** Metrics at the latest quota check; querying never advances time. */
-    fun reservedInCurrentWindow(): Int = global.size
-    fun trackedNpcs(): Int = byNpc.size
+    fun reservedInCurrentWindow(): Int = ledger.spending().sumOf { it.calls }
+    fun trackedNpcs(): Int = ledger.identities().size
+    fun retainedExactEntries(): Int = ledger.exactSize()
+    fun retainedMinuteBuckets(): Int = ledger.bucketSize()
 
     companion object {
         const val MIN_GAP_MILLIS = 10_000L

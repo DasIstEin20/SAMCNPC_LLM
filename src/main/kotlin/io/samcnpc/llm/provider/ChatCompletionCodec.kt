@@ -11,10 +11,16 @@ import java.net.http.HttpResponse
 internal object ChatCompletionCodec {
     const val MAX_DECISION_BYTES = 16_384
 
-    fun request(request: LlmRequest, settings: ProviderSettings): ByteArray {
-        require(request.systemPrompt.length <= settings.maxContextBytes)
-        val context = LlmJson.parse(request.contextJson, settings.maxContextBytes)
-        val schema = LlmJson.parse(request.responseSchemaJson, settings.maxContextBytes)
+    internal class Encoding(val bytes: ByteArray, val stateBytes: Int, val systemPromptBytes: Int,
+                            val contractBytes: Int, val responseSchemaBytes: Int)
+
+    fun request(request: LlmRequest, settings: ProviderSettings): ByteArray = encode(request, settings).bytes
+
+    fun encode(request: LlmRequest, settings: ProviderSettings): Encoding {
+        // Independent hard preparation bound permits measuring a request above its configured HTTP cap.
+        require(request.systemPrompt.length <= 65536)
+        val context = LlmJson.parse(request.contextJson, 262144)
+        val schema = LlmJson.parse(request.responseSchemaJson, 65536)
         val root = JsonObject()
         root.addProperty("model", settings.model)
         root.addProperty("stream", false)
@@ -23,25 +29,31 @@ internal object ChatCompletionCodec {
         root.addProperty("max_tokens", settings.maxOutputTokens)
         val messages = JsonArray()
         // Constrained decoding may enforce a grammar without showing it to the model.
-        // Both modes need the operation parameters in the actual prompt.
-        val contractText = if (settings.responseFormat != ResponseFormat.JSON_SCHEMA)
-            "OUTPUT_CONTRACT_JSON_SCHEMA\n" + schema.toString()
-        else SchemaPrompt.describe(schema)
+        // Every mode needs the operation parameters in the actual prompt.
+        val contractText = when (settings.responseFormat) {
+            ResponseFormat.JSON_SCHEMA -> SchemaPrompt.describe(schema)
+            ResponseFormat.JSON_OBJECT -> "OUTPUT_CONTRACT_JSON_SCHEMA\n" + schema.toString()
+            ResponseFormat.SAM_EXPRESSION_V1 -> io.samcnpc.llm.expression.SamExpressionContract.describe(schema)
+        }
         val system = request.systemPrompt + "\n" + contractText
         messages.add(message("system", system))
         messages.add(message("user", context.toString()))
         root.add("messages", messages)
         val format = JsonObject()
+        var responseSchemaBytes = 0
         if (settings.responseFormat == ResponseFormat.JSON_SCHEMA) {
             format.addProperty("type", "json_schema")
             val contract = JsonObject()
             contract.addProperty("name", "samcnpc_decision")
             contract.addProperty("strict", true)
-            contract.add("schema", validationSchema(schema))
+            val backendSchema = validationSchema(schema)
+            responseSchemaBytes = LlmJson.utf8(backendSchema.toString()).size
+            contract.add("schema", backendSchema)
             format.add("json_schema", contract)
-        } else format.addProperty("type", "json_object")
-        root.add("response_format", format)
-        return LlmJson.utf8(root.toString())
+        } else if (settings.responseFormat == ResponseFormat.JSON_OBJECT) format.addProperty("type", "json_object")
+        if (settings.responseFormat != ResponseFormat.SAM_EXPRESSION_V1) root.add("response_format", format)
+        return Encoding(LlmJson.utf8(root.toString()), LlmJson.utf8(context.toString()).size,
+            LlmJson.utf8(request.systemPrompt).size, LlmJson.utf8(contractText).size, responseSchemaBytes)
     }
 
     // Prompt annotations stay visible once. Internal definition names carry no validation meaning.
@@ -71,10 +83,10 @@ internal object ChatCompletionCodec {
             value.isJsonArray -> JsonArray().also { result -> value.asJsonArray.forEach { result.add(encode(it)) } }
             else -> value.deepCopy()
         }
-        return encode(schema, true)
+        return SharedSchemaShapes.compact(encode(schema, true).asJsonObject)
     }
 
-    fun response(request: LlmRequest, http: HttpResponse<ByteArray>): LlmResponse {
+    fun response(request: LlmRequest, http: HttpResponse<ByteArray>, format: ResponseFormat = ResponseFormat.JSON_SCHEMA): LlmResponse {
         val status = http.statusCode()
         fun failure(code: LlmFailure): LlmResponse.Failed {
             val retry = if (status == 429) http.headers().firstValue("Retry-After").orElse("")
@@ -117,7 +129,7 @@ internal object ChatCompletionCodec {
         val content = text(body.get("content")) ?: return failure(LlmFailure.INVALID_OUTPUT)
         if (content.length > MAX_DECISION_BYTES || LlmJson.utf8(content).size > MAX_DECISION_BYTES)
             return failure(LlmFailure.RESPONSE_TOO_LARGE)
-        LlmJson.parse(content, MAX_DECISION_BYTES)
+        if (format != ResponseFormat.SAM_EXPRESSION_V1) LlmJson.parse(content, MAX_DECISION_BYTES)
         val usage = root.get("usage")
         val counts = if (usage == null || usage.isJsonNull) null else {
             require(usage.isJsonObject) { "Invalid usage" }

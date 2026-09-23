@@ -22,7 +22,7 @@ internal object LlmConfig {
     private val maxOutputTokens = builder.defineInRange("maxOutputTokens", 1024, 64, 4096)
     private val maxContextBytes = builder.defineInRange("maxContextBytes", 65_536, 1024, 65_536)
     private val maxResponseBytes = builder.defineInRange("maxResponseBytes", 262_144, 1024, 262_144)
-    private val responseFormat = builder.comment("Explicit backend capability. Local validation is mandatory in both modes.")
+    private val responseFormat = builder.comment("Explicit model-facing format. JSON_SCHEMA is default; SAM_EXPRESSION_V1 is experimental unconstrained text. Local validation is mandatory in every mode.")
         .defineEnum("responseFormat", ResponseFormat.JSON_SCHEMA)
     private val inference = InferenceConfigFields(builder)
     val spec: ForgeConfigSpec = builder.build()

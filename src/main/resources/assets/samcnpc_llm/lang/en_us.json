@@ -19,6 +19,8 @@
   "samcnpc.llm.config.localHint": "Settings for this installation / singleplayer.",
   "samcnpc.llm.config.remoteHint": "Remote server: administrator edits its TOML.",
   "samcnpc.llm.config.invalid": "Invalid field: %s",
+  "samcnpc.llm.config.inference.contextAllocation": "Input plus output tokens exceed the declared model context window",
+  "samcnpc.llm.config.contextAllocationHint": "Input %s + output %s > window %s. Set input ≤ %s or output ≤ %s (minimum 64).",
   "samcnpc.llm.config.saved": "Saved. New requests use these settings.",
   "samcnpc.llm.config.conflict": "Settings changed. Reloaded; edit again.",
   "samcnpc.llm.config.saveFailed": "Could not save settings. Check the log.",
@@ -35,5 +37,11 @@
   "samcnpc.llm.config.npcCallsPerHour": "NPC calls / hour",
   "samcnpc.llm.config.serverCallsPerHour": "Server calls / hour",
   "samcnpc.llm.config.npcCallsPerHour.hint": "Rolling hour, 1–360. A 10-second cooldown and 24-call goal budget still apply.",
-  "samcnpc.llm.config.serverCallsPerHour.hint": "Rolling hour across all NPCs, 1–720. Existing charges remain after changes."
+  "samcnpc.llm.config.serverCallsPerHour.hint": "Rolling hour across all NPCs, 1–720. Existing charges remain after changes.",
+  "samcnpc.llm.config.goalQuotaMode": "New goal quotas",
+  "samcnpc.llm.config.hourlyQuotaMode": "Hourly quotas",
+  "samcnpc.llm.config.quotaMode.LIMITED": "Enabled",
+  "samcnpc.llm.config.quotaMode.UNLIMITED": "No quotas",
+  "samcnpc.llm.config.goalQuotaMode.hint": "Call, token and cost quotas for new goals. Existing goals retain their saved choice.",
+  "samcnpc.llm.config.hourlyQuotaMode.hint": "Rolling call, token and cost quotas. Cooldown, queue, concurrency and request bounds remain active."
 }

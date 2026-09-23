@@ -9,6 +9,8 @@ import io.samcnpc.llm.context.ContextPolicy
 internal object DecisionPolicy {
     fun problem(decision: LlmDecision, captured: CapturedContext): String? {
         io.samcnpc.llm.planning.PlannerPolicy.problem(decision, captured)?.let { return it }
+        io.samcnpc.llm.intent.GoalIntentPolicy.check(decision.action, captured.goal, captured.inspection.body,
+            captured.inspection.physical.position).problem?.let { return it }
         val stockTarget = captured.goal.supervision?.target
         if (stockTarget != null) {
             val stock = captured.stock ?: return "STOCK_OBSERVATION_MISSING"

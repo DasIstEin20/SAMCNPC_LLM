@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit
 class FrozenEvaluationTest {
     private val policy = ContextPolicy(1, OperationType.entries.toSet(), emptySet(), emptySet(), 72000, 16, 0)
     private fun bytes(name: String): ByteArray =
-        checkNotNull(javaClass.getResourceAsStream((if (name == "profile.json") "/evaluation/v2/" else "/evaluation/v1/") + name)).use { it.readBytes() }
+        checkNotNull(javaClass.getResourceAsStream((if (name == "profile.json") "/evaluation/v6/" else "/evaluation/v1/") + name)).use { it.readBytes() }
     private fun json(name: String): JsonObject = LlmJson.parse(bytes(name).toString(Charsets.UTF_8), 131072)
     private fun sha(bytes: ByteArray): String = MessageDigest.getInstance("SHA-256").digest(bytes)
         .joinToString("") { "%02x".format(it) }
@@ -30,9 +30,19 @@ class FrozenEvaluationTest {
         assertEquals(profile["corpusSha256"].asString, sha(bytes("corpus.json")))
         assertEquals(profile["promptSha256"].asString, sha(DecisionPrompt.text.toByteArray(Charsets.UTF_8)))
         assertEquals(DecisionPrompt.VERSION, profile["promptVersion"].asInt)
+        assertEquals(io.samcnpc.llm.context.NpcContextEncoder.VERSION, profile["contextVersion"].asInt)
+        assertEquals(LlmGoalStore.VERSION, profile["goalStoreVersion"].asInt)
         assertEquals("PENDING_FULL_MODEL_EVALUATION", profile["realModelStatus"].asString)
-        val oldProfile = checkNotNull(javaClass.getResourceAsStream("/evaluation/v1/profile.json")).use { it.readBytes() }
-        assertEquals(profile["previousProfileSha256"].asString, sha(oldProfile))
+        val intentProfile = checkNotNull(javaClass.getResourceAsStream("/evaluation/v5/profile.json")).use { it.readBytes() }
+        assertEquals(profile["previousProfileSha256"].asString, sha(intentProfile))
+        val quotaProfile = checkNotNull(javaClass.getResourceAsStream("/evaluation/v4/profile.json")).use { it.readBytes() }
+        assertEquals(LlmJson.parse(intentProfile.toString(Charsets.UTF_8), 131072)["previousProfileSha256"].asString, sha(quotaProfile))
+        val oldProfile = checkNotNull(javaClass.getResourceAsStream("/evaluation/v3/profile.json")).use { it.readBytes() }
+        assertEquals(LlmJson.parse(quotaProfile.toString(Charsets.UTF_8), 131072)["previousProfileSha256"].asString, sha(oldProfile))
+        val secondProfile = checkNotNull(javaClass.getResourceAsStream("/evaluation/v2/profile.json")).use { it.readBytes() }
+        assertEquals(LlmJson.parse(oldProfile.toString(Charsets.UTF_8), 131072)["previousProfileSha256"].asString, sha(secondProfile))
+        val firstProfile = checkNotNull(javaClass.getResourceAsStream("/evaluation/v1/profile.json")).use { it.readBytes() }
+        assertEquals(LlmJson.parse(secondProfile.toString(Charsets.UTF_8), 131072)["previousProfileSha256"].asString, sha(firstProfile))
         assertEquals("SCRIPTED_WIRE_CONTRACT_NOT_MODEL_QUALITY", corpus["scope"].asString)
         val rows = corpus["cases"].asJsonArray.map { it.asJsonObject }
         assertEquals(56, rows.size)

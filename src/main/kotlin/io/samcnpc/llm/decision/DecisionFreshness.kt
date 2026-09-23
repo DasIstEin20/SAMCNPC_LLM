@@ -17,6 +17,7 @@ internal object DecisionFreshness {
             current.physical.npcUuid != binding.npcUuid -> "NPC_CHANGED"
             goal.id != binding.goalId || goal.revision != binding.goalRevision -> "GOAL_CHANGED"
             goal.mode != captured.goal.mode || goal.supervision != captured.goal.supervision -> "GOAL_POLICY_CHANGED"
+            goal.constraints != captured.goal.constraints || goal.intentReservation != captured.goal.intentReservation -> "GOAL_INTENT_CHANGED"
             goal.planStepsCompleted != captured.goal.planStepsCompleted -> "GOAL_PLAN_CHANGED"
             goal.memory.plan != captured.goal.memory.plan || goal.memory.aliases != captured.goal.memory.aliases ||
                 goal.memory.confirmedResults != captured.goal.memory.confirmedResults -> "GOAL_MEMORY_CHANGED"

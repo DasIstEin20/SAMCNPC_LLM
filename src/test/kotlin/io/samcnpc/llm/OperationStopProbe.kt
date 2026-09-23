@@ -20,7 +20,8 @@ internal object OperationStopProbe {
     private var npcUuid: UUID? = null
     private var http: DecisionHttpProbe? = null
     private var scheduler: SchedulerRuntimeProbe? = null
-    private var translator: TranslatorRuntimeProbe? = null
+    private var translator: ProtocolRuntimeProbe? = null
+    private var richContext: RichContextRuntimeProbe? = null
     private var origin: NpcPosition? = null
     private var subscription: OperationSubscription? = null
     val started: Boolean get() = subscription != null
@@ -52,7 +53,9 @@ internal object OperationStopProbe {
         player = actor
         channel = embedded
         npcUuid = id
-        admissionReport = DecisionAdmissionProbe.verify(server, actor, position)
+        admissionReport = DecisionAdmissionProbe.verify(server, actor, position) + " " + GoalIntentAdmissionProbe.verify(server, actor, position)
+        admissionReport += " boundedCommandChecks=" + BoundedGoalCommandProbe.verify(actor)
+        admissionReport += " " + SamExpressionBindingProbe.verify(server, actor, position)
         ContextRuntimeProbe.start(server, actor, position)
     }
 
@@ -63,6 +66,18 @@ internal object OperationStopProbe {
             return null
         }
         return current.poll()
+    }
+
+    fun pollRichContext(server: MinecraftServer): String? {
+        val current = richContext
+        if (current == null) {
+            richContext = RichContextRuntimeProbe(server, checkNotNull(player), checkNotNull(origin))
+            return null
+        }
+        return try { current.poll() } catch (failure: RuntimeException) {
+            current.close()
+            throw failure
+        }
     }
 
     fun pollScheduler(server: MinecraftServer): String? {
@@ -77,7 +92,7 @@ internal object OperationStopProbe {
     fun pollTranslator(server: MinecraftServer): String? {
         val current = translator
         if (current == null) {
-            translator = TranslatorRuntimeProbe(server, checkNotNull(player), checkNotNull(origin))
+            translator = ProtocolRuntimeProbe(server, checkNotNull(player), checkNotNull(origin))
             return null
         }
         return try { current.poll() } catch (failure: RuntimeException) {
@@ -94,6 +109,8 @@ internal object OperationStopProbe {
         check(checkNotNull(subscription).state == OperationSubscriptionState.SERVER_STOPPED)
         stopped = true
         translator?.close()
+        richContext?.close()
+        richContext = null
         translator = null
         scheduler?.close()
         scheduler = null

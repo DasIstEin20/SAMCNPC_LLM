@@ -2,7 +2,7 @@ package io.samcnpc.llm.client
 
 import io.samcnpc.core.api.NpcPosition
 import io.samcnpc.llm.SamcnpcLlm
-import io.samcnpc.llm.TranslatorRuntimeProbe
+import io.samcnpc.llm.ProtocolRuntimeProbe
 import io.samcnpc.llm.SupervisorRuntimeProbe
 import io.samcnpc.llm.PlannerRuntimeProbe
 import io.samcnpc.llm.GoalRuntimeProbe
@@ -79,7 +79,7 @@ internal object LlmGoalsClientSmoke {
             }
             val outcome = result ?: return
             check(outcome.startsWith("PASS")) { outcome }
-            check(names.size == (if (planner) PlannerRuntimeProbe.CASES.size else if (supervisor) SupervisorRuntimeProbe.CASES.size else 8) && frames.values.all { it.get() >= 2 })
+            check(names.size == (if (planner) PlannerRuntimeProbe.CASES.size else if (supervisor) SupervisorRuntimeProbe.CASES.size else ProtocolRuntimeProbe.CASES.size) && frames.values.all { it.get() >= 2 })
             check(names.filterValues { it in movingCases }.keys.all { (walking[it]?.get() ?: 0) >= 2 })
             Files.writeString(Path.of(report), outcome + "\nrenderedCases=" + names.size +
                 " frames=" + names.entries.associate { it.value to frames[it.key]?.get() } +
@@ -114,7 +114,7 @@ internal object LlmGoalsClientSmoke {
                 }
                 current = if (planner) PlannerRuntimeProbe(server, actor, origin, canFinish)
                     else if (supervisor) SupervisorRuntimeProbe(server, actor, origin, canFinish)
-                    else TranslatorRuntimeProbe(server, actor, origin, canFinish)
+                    else ProtocolRuntimeProbe(server, actor, origin, canFinish)
                 probe = current
             }
             val outcome = current.poll()
@@ -144,5 +144,8 @@ internal object LlmGoalsClientSmoke {
             walking.computeIfAbsent(current.npc) { AtomicInteger() }.incrementAndGet()
     }
 
-    private val movingCases = if (planner) PlannerRuntimeProbe.MOVING else if (supervisor) SupervisorRuntimeProbe.MOVING else setOf("clarify", "deliver", "lumberjack", "pause", "offline")
+    private val movingCases = if (planner) PlannerRuntimeProbe.MOVING else if (supervisor) SupervisorRuntimeProbe.MOVING else {
+        val names = setOf("clarify", "deliver", "lumberjack", "pause", "offline")
+        names + names.map { "expression_$it" }
+    }
 }

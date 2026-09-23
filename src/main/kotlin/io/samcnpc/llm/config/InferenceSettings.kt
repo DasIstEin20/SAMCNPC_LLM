@@ -20,6 +20,8 @@ internal data class InferenceSettings(
     val hourlyCostMicros: Long = 0,
     val npcCallsPerHour: Int = 12,
     val serverCallsPerHour: Int = 60,
+    val goalQuotaMode: InferenceQuotaMode = InferenceQuotaMode.LIMITED,
+    val hourlyQuotaMode: InferenceQuotaMode = InferenceQuotaMode.LIMITED,
 ) {
     fun problem(): String? = when {
         !ProviderSettings.validBaseUrl(verifiedBaseUrl) -> "verifiedBaseUrl"
@@ -40,8 +42,8 @@ internal data class InferenceSettings(
         verifiedBaseUrl != settings.baseUrl || verifiedModel != settings.model -> "TOKEN_PROFILE_ENDPOINT_MODEL_MISMATCH"
         listOf(verifiedModel, backendVersion, modelDigest, tokenizerDigest, templateDigest).any(String::isBlank) -> "TOKEN_PROFILE_EVIDENCE_REQUIRED"
         inputTokens.toLong() + settings.maxOutputTokens > contextWindow -> "MODEL_CONTEXT_WINDOW_EXCEEDED"
-        allocation(settings).charge().costMicros > goalCostMicros -> "GOAL_COST_BUDGET_EXHAUSTED"
-        allocation(settings).charge().costMicros > hourlyCostMicros -> "SERVER_COST_BUDGET"
+        goalQuotaMode == InferenceQuotaMode.LIMITED && allocation(settings).charge().costMicros > goalCostMicros -> "GOAL_COST_BUDGET_EXHAUSTED"
+        hourlyQuotaMode == InferenceQuotaMode.LIMITED && allocation(settings).charge().costMicros > hourlyCostMicros -> "SERVER_COST_BUDGET"
         else -> null
     }
 
@@ -55,10 +57,12 @@ internal data class InferenceSettings(
     // A verified request may reserve much more than the historical 8192-token default.
     // Token quotas must fund the declared call count; cost caps can still stop it earlier.
     fun goalLimits(outputTokens: Int = 1024) = InferenceBudgetLimits(
-        inputTokens = inputTokens.toLong() * 24, outputTokens = outputTokens.toLong() * 24, costMicros = goalCostMicros)
+        inputTokens = inputTokens.toLong() * 24, outputTokens = outputTokens.toLong() * 24, costMicros = goalCostMicros,
+        quotaMode = goalQuotaMode)
     fun serverResources(outputTokens: Int = 1024) = ServerInferenceResources(
         inputTokens = inputTokens.toLong() * serverCallsPerHour, outputTokens = outputTokens.toLong() * serverCallsPerHour,
-        costMicros = hourlyCostMicros, npcCallsPerHour = npcCallsPerHour, serverCallsPerHour = serverCallsPerHour)
+        costMicros = hourlyCostMicros, npcCallsPerHour = npcCallsPerHour, serverCallsPerHour = serverCallsPerHour,
+        quotaMode = hourlyQuotaMode)
 
     companion object {
         fun validEvidence(value: String): Boolean = value.length <= 256 && value == value.trim() && value.none(Char::isISOControl)

@@ -7,6 +7,7 @@ import io.samcnpc.core.api.*
 import io.samcnpc.llm.config.*
 import io.samcnpc.llm.goal.*
 import io.samcnpc.llm.provider.*
+import io.samcnpc.llm.intent.*
 import net.minecraft.core.BlockPos
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.level.ServerPlayer
@@ -23,7 +24,8 @@ import java.util.concurrent.atomic.AtomicInteger
 /** Real registered commands, real provider configuration and actual container transfers. No model process. */
 internal class TranslatorRuntimeProbe(private val server: MinecraftServer, private val actor: ServerPlayer,
                                       origin: NpcPosition,
-                                      private val canFinish: (java.util.UUID) -> Boolean = { true }) : GoalRuntimeProbe {
+                                      private val canFinish: (java.util.UUID) -> Boolean = { true },
+                                      private val format: ResponseFormat = ResponseFormat.JSON_OBJECT) : GoalRuntimeProbe {
     private val original = LlmConfig.snapshot().values
     private val level = actor.serverLevel()
     private val base = BlockPos.containing(origin.x + 16, origin.y, origin.z + 8)
@@ -32,13 +34,13 @@ internal class TranslatorRuntimeProbe(private val server: MinecraftServer, priva
     private val spawn = NpcPosition(base.x + 2.5, base.y.toDouble(), base.z + 0.5)
     private val savedBlocks = linkedMapOf<BlockPos, BlockState>()
     private val service = CoreNpcApi.service(server)
-    private val cases = listOf("clarify", "deliver", "lumberjack", "pause", "offline", "missing", "full", "cancel")
-    private val script = Script(operation(), delivery(), lumberjack())
+    private val cases = CASES
+    private val script = Script(operation(), delivery(), lumberjack(), supply(), format)
     private val endpoint = FakeOpenAiEndpoint(script::reply)
-    // Nine fault/command attempts fit the unchanged rolling quota with the single-schema JSON_OBJECT wire.
+    // Fault/command attempts fit the unchanged rolling quota with the single-schema JSON_OBJECT wire.
     // JSON_SCHEMA is independently exercised by DecisionHttpProbe and opt-in LiveModelServerSmoke.
     private val settings = ProviderSettings(enabled = true, baseUrl = endpoint.baseUrl, model = "translator-emulator",
-        apiKeyEnvironment = "", requestTimeoutSeconds = 4, responseFormat = ResponseFormat.JSON_OBJECT,
+        apiKeyEnvironment = "", requestTimeoutSeconds = 4, responseFormat = format,
         inference = InferenceSettings(true, endpoint.baseUrl, "translator-emulator", "emulator-v1",
             "scripted-fixture", "test-byte-bound", "test-template", 256, 131072, 63488))
     private var index = 0
@@ -58,6 +60,7 @@ internal class TranslatorRuntimeProbe(private val server: MinecraftServer, priva
     private var final: String? = null
     private var authorityChecks = 0
     private var stockReads = 0
+    private var healthyCompacted = false
 
     override fun renderView(): Pair<java.util.UUID, String>? = current?.let { it.npcUuid to cases[index] }
 
@@ -80,10 +83,12 @@ internal class TranslatorRuntimeProbe(private val server: MinecraftServer, priva
             if (!restored) { configure(original); restored = true; return null }
             if (controller.settings != original) return null
             val calls = endpoint.received.size
-            check(stockReads == 5)
+            check(stockReads == 6)
             close()
-            final = "translatorCases=8 translatorHttpCalls=$calls translatorMaxRequestBytes=${script.maxRequestBytes.get()} registeredGoalCommands=true goalAuthorityChecks=$authorityChecks physicalStockReads=$stockReads physicalTransport=true physicalDeliver=true physicalLumberjack=true manualPauseHeld=true " +
-                "memoryCommands=true memoryContext=true confirmedResults=true clarificationBudgetRetained=true offlineBehaviorContinues=true missingResourceFailed=true fullDestinationFailed=true userCancelNoLateAssign=true"
+            check(healthyCompacted)
+            final = "translatorFormat=$format translatorCases=${cases.size} translatorHttpCalls=$calls translatorMaxRequestBytes=${script.maxRequestBytes.get()} registeredGoalCommands=true goalAuthorityChecks=$authorityChecks physicalStockReads=$stockReads physicalTransport=true physicalDeliver=true physicalLumberjack=true manualPauseHeld=true " +
+                "manualCompactHealthyTask=true manualCompactInflight=true manualCompactNoExtraCall=true " +
+                "physicalSupply12Plus32Equals44=true memoryCommands=true memoryContext=true confirmedResults=true clarificationBudgetRetained=true offlineBehaviorContinues=true missingResourceFailed=true fullDestinationFailed=true userCancelNoLateAssign=true"
             return final
         }
         if (current == null) {
@@ -129,6 +134,12 @@ internal class TranslatorRuntimeProbe(private val server: MinecraftServer, priva
                     view.observedTick, view.observedTick + 100, OperationControl.PAUSE)).result.status == NpcActionStatus.SUCCEEDED)
             pausedAt = caseTicks
         }
+        if (name == "lumberjack" && record.phase == GoalPhase.EXECUTING && !healthyCompacted) {
+            check(command("compact", handle) == 1)
+            val next = checkNotNull(controller.store.get(handle.npcUuid))
+            check(next.revision == record.revision + 1 && next.copy(revision = record.revision) == record)
+            healthyCompacted = true
+        }
         val pausedTick = pausedAt
         if (name == "pause" && pausedTick != null && caseTicks - pausedTick >= 12 && !resumed) {
             check(record.manualHold && record.phase == GoalPhase.WAITING && record.code == "MANUAL_TASK_CHANGE")
@@ -141,29 +152,37 @@ internal class TranslatorRuntimeProbe(private val server: MinecraftServer, priva
             offline = true
             configure(settings.copy(enabled = false))
         }
-        if (name == "cancel" && script.calls.get() > callsBefore && !cancelled) {
-            check(command("stop", handle) == 1)
+        if (name in setOf("cancel", "compact") && script.calls.get() > callsBefore && !cancelled) {
+            check(command(if (name == "compact") "compact" else "stop", handle) == 1)
             cancelled = true
             script.release.countDown()
         }
-        if (name == "cancel") {
+        if (name in setOf("cancel", "compact")) {
             if (!cancelled || record.budget.inFlight != null || caseTicks < 12) return null
-            check(record.phase == GoalPhase.STOPPED && record.manualHold)
+            check(record.phase == (if (name == "compact") GoalPhase.WAITING else GoalPhase.STOPPED) && record.manualHold)
+            if (name == "compact") {
+                check(record.budget.settledAttempts == 1 && record.budget.chargedInputTokens == 63488L)
+                checkNotNull(controller.status(actor, handle.npcUuid).compactionReport)
+            }
             check(observed?.task == null)
             check(count(source(), Items.COBBLESTONE) == 64 && count(destination(), Items.COBBLESTONE) == 0)
         } else {
             if (record.phase !in setOf(GoalPhase.COMPLETED, GoalPhase.FAILED)) return null
-            if (name in setOf("clarify", "deliver", "lumberjack", "pause", "offline")) {
+            if (name in setOf("clarify", "deliver", "lumberjack", "pause", "offline", "more")) {
                 check(record.phase == GoalPhase.COMPLETED) { "$name failed $reasons" }
                 if (name == "lumberjack") {
                     check(count(destination(), Items.OAK_LOG) == 3)
                     check((0..2).all { level.getBlockState(base.offset(0, it, -1)).isAir })
                 } else {
                     check(count(source(), Items.COBBLESTONE) == if (name == "deliver") 0 else 32)
-                    check(count(destination(), Items.COBBLESTONE) == 32)
+                    check(count(destination(), Items.COBBLESTONE) == if (name == "more") 0 else 32)
                 }
                 if (name == "pause") check(resumed)
-                check(carried(handle) == 0)
+                check(carried(handle) == if (name == "more") 44 else 0)
+                if (name == "more") {
+                    check(record.constraints?.initialStock == 12)
+                    check(record.intentReservation == GoalIntentReservation(acquired = 32))
+                }
                 if (name == "clarify") check(answered && record.budget.settledAttempts == 2)
                 if (name == "offline") check(offline && !controller.settings.enabled && record.budget.settledAttempts == 1)
             } else {
@@ -173,7 +192,7 @@ internal class TranslatorRuntimeProbe(private val server: MinecraftServer, priva
                 if (name == "full") check(count(source(), Items.COBBLESTONE) + carried(handle) == 64)
             }
         }
-        if (name != "cancel") {
+        if (name !in setOf("cancel", "compact")) {
             check(record.memory.results.size == 1)
             val expected = checkNotNull(record.task).id.toString() + " " + record.task.operationId + " " + record.code
             check(record.memory.results.single() == expected)
@@ -183,14 +202,32 @@ internal class TranslatorRuntimeProbe(private val server: MinecraftServer, priva
         if (!canFinish(handle.npcUuid)) return null
         if (record.phase == GoalPhase.COMPLETED) {
             val itemId = if (name == "lumberjack") "minecraft:oak_log" else "minecraft:cobblestone"
+            val inspectedChest = if (name == "more") sourcePos else destinationPos
             val stock = OperationStockApi.inspect(server, actor, handle.npcUuid, level.dimension().location().toString(),
-                NpcStockQuery(NpcBlockPosition(destinationPos.x, destinationPos.y, destinationPos.z), itemId))
+                NpcStockQuery(NpcBlockPosition(inspectedChest.x, inspectedChest.y, inspectedChest.z), itemId))
             val value = stock.stock
             check(stock.result.status == NpcActionStatus.SUCCEEDED && value is NpcStockRead.Observed) { "Physical stock unavailable: $stock" }
             check(value.count == if (name == "lumberjack") 3 else 32)
             stockReads++
         }
         check(command("status", handle) == 1)
+        if (name == "deliver") {
+            check(record.constraints != null && !record.constraints.allowAcquisition)
+            check(record.constraints.initialStock == 32 && record.intentReservation == GoalIntentReservation(delivered = 32))
+            val report = checkNotNull(controller.status(actor, handle.npcUuid).requestReport)
+            check(report.goalId == record.goalId && report.goalRevision == record.revision)
+            check(report.providerInvoked && report.submission == io.samcnpc.llm.api.LlmSubmission.SUBMITTED)
+            val metrics = checkNotNull(report.metrics)
+            val actual = endpoint.received.single { it.body.contains(report.contextId.toString()) }
+            check(metrics.totalHttpRequestBytes == LlmJson.utf8(actual.body).size)
+            check(metrics.templateTokenReserve == 256 && metrics.configuredContextWindow == 131072)
+            check(metrics.calculatedTokenUpperBound == metrics.totalHttpRequestBytes.toLong() + 256)
+            check(report.describe().contains("requestSent=true"))
+            check(endpoint.received.size - callsBefore == 1) { "Reading request diagnostics must not infer" }
+        }
+        if (name == "offline") check(controller.status(actor, handle.npcUuid).requestReport == null)
+        if (name == "lumberjack") checkNotNull(controller.status(actor, handle.npcUuid).compactionReport)
+        if (name == "compact") check(command("stop", handle) == 1)
         check(command("forget", handle) == 1)
         check(controller.store.get(handle.npcUuid) == null)
         check(service.dismiss(handle, NpcDismissMode.DROP_INVENTORY).status == NpcActionStatus.SUCCEEDED)
@@ -212,6 +249,7 @@ internal class TranslatorRuntimeProbe(private val server: MinecraftServer, priva
         val handle = checkNotNull(summoned.handle)
         current = handle
         if (name == "deliver") give(handle, ItemStack(Items.COBBLESTONE, 32))
+        if (name == "more") give(handle, ItemStack(Items.COBBLESTONE, 12))
         if (name == "lumberjack") {
             give(handle, ItemStack(Items.IRON_AXE))
             level.setBlockAndUpdate(base.offset(0, -1, -1), Blocks.DIRT.defaultBlockState())
@@ -230,7 +268,14 @@ internal class TranslatorRuntimeProbe(private val server: MinecraftServer, priva
             "lumberjack" -> "Zbierz 3 kłody dębu w obszarze podanym w poleceniu i dostarcz do ${destinationPos.x},${destinationPos.y},${destinationPos.z}. Obszar: ${base.x-1},${base.y},${base.z-2} do ${base.x+1},${base.y+4},${base.z}."
             else -> transportText
         }
-        check(command("goal", handle, text) == 1)
+        if (name in setOf("deliver", "pause")) {
+            val arguments = "minecraft:cobblestone 32 " +
+                (if (name == "pause") "${sourcePos.x} ${sourcePos.y} ${sourcePos.z} " else "") +
+                "${destinationPos.x} ${destinationPos.y} ${destinationPos.z}"
+            check(command(if (name == "deliver") "deliver_carried" else "transport_exact", handle, arguments) == 1)
+        } else if (name == "more") {
+            check(command("take_more", handle, "minecraft:cobblestone 32 ${sourcePos.x} ${sourcePos.y} ${sourcePos.z}") == 1)
+        } else check(command("goal", handle, text) == 1)
         if (index == 0) authorityChecks = GoalAuthorityProbe.verify(server, actor, handle.npcUuid, checkNotNull(LlmServerEvents.controller(server)))
     }
 
@@ -261,6 +306,20 @@ internal class TranslatorRuntimeProbe(private val server: MinecraftServer, priva
         return order.toString()
     }
 
+    private fun supply(): String {
+        val order = LlmJson.parse(operation(), 16384)
+        order.addProperty("type", "samcnpc:inventory_work")
+        val p = order["parameters"].asJsonObject
+        val work = LlmJson.parse("""{"kind":"SUPPLY","needs":[{"itemId":"minecraft:cobblestone","minimum":32,"target":44}]}""", 1024)
+        work.add("sources", p.remove("sources"))
+        p.add("work", work)
+        p.remove("destinations"); p.remove("quantity"); p.remove("itemId")
+        p.add("anchor", LlmJson.parse("""{"x":${spawn.x},"y":${spawn.y},"z":${spawn.z}}""", 1024))
+        p.remove("budget") // Inventory defaults include enough time for its work and return phases.
+        check(OperationDocumentApi.decodeOrder(order.toString()) is OperationDocumentResult.Accepted)
+        return order.toString()
+    }
+
     private fun source(): ChestBlockEntity = chest(sourcePos)
     private fun destination(): ChestBlockEntity = chest(destinationPos)
     private fun chest(position: BlockPos): ChestBlockEntity {
@@ -272,9 +331,11 @@ internal class TranslatorRuntimeProbe(private val server: MinecraftServer, priva
     private fun carried(handle: NpcHandle) = checkNotNull(service.runtime(handle)).inventoryContents()
         .sumOf { if (it.stack.itemId == "minecraft:cobblestone") it.stack.count else 0 }
     private fun bounds() = AABB(base.offset(-3, -2, -3), base.offset(12, 5, 4))
-    private fun command(action: String, handle: NpcHandle, text: String = ""): Int =
-        server.commands.dispatcher.execute("samcnpc llm $action ${selector(handle)}" + if (text.isEmpty()) "" else " $text",
-            actor.createCommandSourceStack())
+    private fun command(action: String, handle: NpcHandle, text: String = ""): Int {
+        val value = "samcnpc llm $action ${selector(handle)}" + if (text.isEmpty()) "" else " $text"
+        check(value.length <= 255) { "Native player command must fit the vanilla chat field" }
+        return server.commands.dispatcher.execute(value, actor.createCommandSourceStack())
+    }
     private fun selector(handle: NpcHandle): String = when (index % 4) {
         0 -> handle.displayName
         1 -> handle.displayName.dropLast(2).uppercase()
@@ -320,8 +381,13 @@ internal class TranslatorRuntimeProbe(private val server: MinecraftServer, priva
         for ((position, state) in savedBlocks) level.setBlockAndUpdate(position, state)
     }
 
+    companion object {
+        val CASES = listOf("clarify", "deliver", "lumberjack", "pause", "offline", "missing", "full", "cancel", "compact", "more")
+    }
+
     /** Worker emulator holds immutable operation text and test synchronization only, never the world. */
-    private class Script(private val operation: String, private val delivery: String, private val lumberjack: String) {
+    private class Script(private val operation: String, private val delivery: String, private val lumberjack: String, private val supply: String,
+                         private val format: ResponseFormat) {
         @Volatile var caseName = ""
         @Volatile var release = CountDownLatch(1)
         val calls = AtomicInteger()
@@ -329,11 +395,12 @@ internal class TranslatorRuntimeProbe(private val server: MinecraftServer, priva
         fun reply(request: FakeOpenAiEndpoint.Received): FakeOpenAiEndpoint.Reply {
             calls.incrementAndGet()
             if (caseName in setOf("clarify", "deliver", "lumberjack"))
-                java.nio.file.Files.writeString(java.nio.file.Path.of("translator-wire-" + caseName + ".json"), request.body)
+                java.nio.file.Files.writeString(java.nio.file.Path.of("translator-wire-" + format.name + "-" + caseName + ".json"), request.body)
             val bytes = LlmJson.utf8(request.body).size
             check(bytes + 256 <= 63488)
             maxRequestBytes.getAndUpdate { previous -> maxOf(previous, bytes) }
             val http = LlmJson.parse(request.body, 65536)
+            check(http.has("response_format") == (format != ResponseFormat.SAM_EXPRESSION_V1))
             val state = LlmJson.parse(http["messages"].asJsonArray[1].asJsonObject["content"].asString, 24576)
             val ask = caseName == "clarify" && !state["goal"].asJsonObject["text"].asString.contains("Latest user clarification:")
             if (caseName == "clarify" && !ask) {
@@ -349,9 +416,13 @@ internal class TranslatorRuntimeProbe(private val server: MinecraftServer, priva
             result.addProperty("summary", "Emulator statement is never an execution receipt")
             for (field in listOf("operation", "change", "question", "wait")) result.add(field, JsonNull.INSTANCE)
             if (ask) result.addProperty("question", "Ile bloków przetransportować?")
-            else result.add("operation", LlmJson.parse(when (caseName) { "deliver" -> delivery; "lumberjack" -> lumberjack; else -> operation }, 16384))
-            return FakeOpenAiEndpoint.Reply(body = LlmJson.utf8(FakeOpenAiEndpoint.success(result.toString())),
-                waitBeforeHeaders = if (caseName == "cancel") release else null)
+            else result.add("operation", LlmJson.parse(when (caseName) { "deliver" -> delivery; "lumberjack" -> lumberjack; "more" -> supply; else -> operation }, 16384))
+            val content = if (format == ResponseFormat.SAM_EXPRESSION_V1) {
+                if (ask) "ask_user(\"Ile bloków przetransportować?\")"
+                else "assign(" + io.samcnpc.llm.expression.SamExpressionFixtures.order(result["operation"].asJsonObject) + ")"
+            } else result.toString()
+            return FakeOpenAiEndpoint.Reply(body = LlmJson.utf8(FakeOpenAiEndpoint.success(content)),
+                waitBeforeHeaders = if (caseName in setOf("cancel", "compact")) release else null)
         }
     }
 }

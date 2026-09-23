@@ -5,6 +5,20 @@ import org.junit.jupiter.api.Test
 import java.util.UUID
 
 class InferenceBudgetTest {
+    @Test fun provenUnsentReservationReturnsExactResourcesAndCannotBeReleasedTwiceOrAfterRestore() {
+        val budget = InferenceBudget(); val id = UUID.randomUUID()
+        val before = budget.snapshot()
+        assertNull(budget.reserve(id, InferenceCharge(100, 10, 0)))
+        val restored = InferenceBudget(budget.limits, budget.snapshot())
+        assertFalse(restored.releaseUnsent(id))
+        assertFalse(budget.releaseUnsent(UUID.randomUUID()))
+        assertTrue(budget.releaseUnsent(id))
+        assertEquals(before, budget.snapshot())
+        assertFalse(budget.releaseUnsent(id))
+        assertTrue(restored.settle(id))
+        assertEquals(1, restored.snapshot().settledAttempts)
+    }
+
     @Test fun lastReservedCallCanBeAdmittedBeforeSettlementButCannotStartAnotherRequest() {
         val budget = InferenceBudget(InferenceBudgetLimits(attempts = 1)); val id = UUID.randomUUID()
         assertNull(budget.reserve(id, InferenceCharge(100, 10, 0)))

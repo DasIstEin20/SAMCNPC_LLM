@@ -9,6 +9,30 @@ import org.junit.jupiter.api.Test
 import java.util.UUID
 
 class LlmGoalStoreTest {
+    @Test fun versionFourMigrationRetainsPolicyAndOutstandingChargesWhileUnlimitedRoundTripsPastOldCaps() {
+        val old = record().copy(phase = GoalPhase.INFERENCING, manualHold = true,
+            budget = InferenceBudgetView(3, 32000, 4096, 0, UUID.randomUUID()))
+        val legacy = file(old); legacy.putInt("version", 4)
+        legacy.getList("goals", 10).getCompound(0).remove("intentMode")
+        legacy.getList("goals", 10).getCompound(0).remove("quotaMode")
+        val restored = checkNotNull(LlmGoalStore.load(legacy).get(old.npcUuid))
+        assertEquals(old.recovered(), restored)
+        assertEquals(InferenceQuotaMode.LIMITED, restored.limits.quotaMode)
+        val unlimited = old.copy(limits = old.limits.copy(quotaMode = InferenceQuotaMode.UNLIMITED),
+            budget = InferenceBudgetView(2000, 4_000_000, 2_000_000, 999, UUID.randomUUID()))
+        val first = LlmGoalStore.load(file(unlimited))
+        val value = checkNotNull(first.get(unlimited.npcUuid))
+        assertEquals(unlimited.recovered(), value); assertEquals(2001, value.budget.settledAttempts)
+        assertEquals(value, LlmGoalStore.load(first.save(CompoundTag())).get(value.npcUuid))
+        assertTrue(value.manualHold); assertNull(InferenceBudget(value.limits, value.budget).availableCalls)
+        for (bad in listOf("", "unlimited", "AUTO", "LIMITED ")) {
+            val source = file(unlimited)
+            source.getList("goals", 10).getCompound(0).putString("quotaMode", bad)
+            assertEquals("INVALID_GOAL_RECORD", LlmGoalStore.load(source).problem)
+        }
+        assertNull(GoalRecordCodec.decode(GoalRecordCodec.encode(unlimited).also { it.remove("quotaMode") }))
+    }
+
     private fun record() = GoalRecord(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), 1,
         "Przynieś 32 kłody do wskazanej skrzyni", phase = GoalPhase.WAITING)
     private fun file(vararg records: GoalRecord): CompoundTag {
@@ -23,12 +47,14 @@ class LlmGoalStoreTest {
             task = GoalTask(UUID.randomUUID(), 2, 3, "samcnpc:transport"),
             budget = InferenceBudgetView(2, 32000, 2048, 0, null))
         val legacy = file(value); legacy.putInt("version", 1)
+        legacy.getList("goals", 10).getCompound(0).remove("intentMode")
         legacy.getList("goals", 10).getCompound(0).remove("mode")
         legacy.getList("goals", 10).getCompound(0).remove("memory")
         legacy.getList("goals", 10).getCompound(0).remove("planSteps")
+        legacy.getList("goals", 10).getCompound(0).remove("quotaMode")
         val restored = LlmGoalStore.load(legacy)
         assertNull(restored.problem); assertEquals(value, restored.get(value.npcUuid))
-        assertEquals(4, restored.save(CompoundTag()).getInt("version"))
+        assertEquals(6, restored.save(CompoundTag()).getInt("version"))
         assertEquals(value, LlmGoalStore.load(restored.save(CompoundTag())).get(value.npcUuid))
         val disguised = file(value); disguised.putInt("version", 1)
         assertEquals("INVALID_GOAL_RECORD", LlmGoalStore.load(disguised).problem)

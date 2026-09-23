@@ -1,0 +1,39 @@
+{
+  "frozenUtc": "2026-09-23T00:19:59.396186+00:00",
+  "expansionSha256": "04dc39485a19ba5b98b36eb6f51ee88f91cb42ec24e87ca2c5f62914065333b5",
+  "baselineSha256": "15d8c10786dbf59924a154b9e8e5f55641b5ab779b53476bc0891e70e36bc12a",
+  "baselineCases": 56,
+  "developmentCases": 24,
+  "holdoutCases": 12,
+  "totalCases": 92,
+  "repetitions": 3,
+  "protocols": [
+    "JSON_SCHEMA",
+    "SAM_EXPRESSION_V1_UNCONSTRAINED"
+  ],
+  "defaultProtocol": "JSON_SCHEMA",
+  "maxRepairCalls": 1,
+  "order": "alternate A/B by case and repetition; reverse initial protocol on odd repetition",
+  "warmup": "one excluded fixed request per protocol; record cache support, no selective retries",
+  "metrics": [
+    "syntax",
+    "family",
+    "resource",
+    "quantitySemantics",
+    "area",
+    "source",
+    "destination",
+    "clarification",
+    "firstPass",
+    "repairCalls",
+    "promptBytes",
+    "inputTokenUpperBound",
+    "measuredInputTokens",
+    "outputTokens",
+    "latency",
+    "physicalSuccess",
+    "unauthorizedEffects"
+  ],
+  "promotionGate": "Zero unauthorized effects/code execution/duplication/false success; no regression in admission/restart/healthy task/clarification. Ambiguous or incomplete evidence retains JSON_SCHEMA.",
+  "status": "FROZEN_NOT_EXECUTED"
+}

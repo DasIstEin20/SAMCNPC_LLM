@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory
 @Mod(SamcnpcLlm.MOD_ID)
 class SamcnpcLlm {
     init {
+        RuntimeCompatibility.verify()
         io.samcnpc.llm.config.LlmConfig.register()
         LOGGER.info("SAMCNPC LLM configuration registered; startup does not contact a provider.")
     }
