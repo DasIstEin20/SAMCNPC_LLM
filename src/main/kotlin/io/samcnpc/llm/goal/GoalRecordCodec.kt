@@ -28,7 +28,7 @@ internal object GoalRecordCodec {
         tag.putString("mode", record.mode.name)
         tag.put("memory", GoalMemoryCodec.encode(record.memory))
         tag.putInt("planSteps", record.planStepsCompleted)
-        tag.putString("intentMode", if (record.constraints == null) "FREE_TEXT" else "BOUNDED_V1")
+        tag.putString("intentMode", if (record.constraints == null) "FREE_TEXT" else "BOUNDED_V${record.constraints.version}")
         record.constraints?.let {
             tag.putString("constraints", it.persistenceJson)
             tag.putInt("acquiredIntent", record.intentReservation.acquired)
@@ -55,8 +55,8 @@ internal object GoalRecordCodec {
         return tag
     }
 
-    fun decode(tag: CompoundTag, version: Int = 6): GoalRecord? {
-        if (version !in 1..6) return null
+    fun decode(tag: CompoundTag, version: Int = LlmGoalStore.VERSION): GoalRecord? {
+        if (version !in 1..LlmGoalStore.VERSION) return null
         val requiredFields = required + (if (version >= 2) setOf("mode") else emptySet()) +
             (if (version >= 3) setOf("memory") else emptySet()) +
             (if (version >= 4) setOf("planSteps") else emptySet()) +
@@ -95,15 +95,21 @@ internal object GoalRecordCodec {
         val phase = GoalPhase.entries.firstOrNull { it.name == tag.getString("phase") } ?: return null
         return try {
             val intentFields = setOf("constraints", "acquiredIntent", "deliveredIntent")
-            val bounded = if (version < 6) false else {
+            val intentVersion = if (version < 6) 0 else {
                 if (!tag.contains("intentMode", Tag.TAG_STRING.toInt())) return null
-                when (tag.getString("intentMode")) { "FREE_TEXT" -> false; "BOUNDED_V1" -> true; else -> return null }
+                when (tag.getString("intentMode")) {
+                    "FREE_TEXT" -> 0
+                    "BOUNDED_V1" -> 1
+                    "BOUNDED_V2" -> if (version >= 7) 2 else return null
+                    else -> return null
+                }
             }
+            val bounded = intentVersion != 0
             if (!bounded && intentFields.any(tag::contains)) return null
             val constraints = if (!bounded) null else {
                 if (!tag.contains("constraints", Tag.TAG_STRING.toInt()) ||
                     !tag.contains("acquiredIntent", Tag.TAG_INT.toInt()) || !tag.contains("deliveredIntent", Tag.TAG_INT.toInt())) return null
-                GoalConstraintCodec.saved(tag.getString("constraints"))
+                GoalConstraintCodec.saved(tag.getString("constraints"),intentVersion)
             }
             val reservation = if (!bounded) GoalIntentReservation() else
                 GoalIntentReservation(tag.getInt("acquiredIntent"), tag.getInt("deliveredIntent"))

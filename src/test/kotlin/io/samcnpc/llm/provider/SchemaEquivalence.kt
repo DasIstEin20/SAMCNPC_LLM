@@ -19,7 +19,13 @@ internal object SchemaEquivalence {
                     val path = ref.value.asString
                     check(path.startsWith("#/$" + "defs/") && !path.removePrefix("#/$" + "defs/").contains('/'))
                     expand(checkNotNull(definitions[path.substringAfterLast('/')]))
-                } else JsonObject().also { result -> for ((key, child) in fields) result.add(key, expand(child)) }
+                } else JsonObject().also { result ->
+                    for ((key, child) in fields) result.add(key, expand(child))
+                    val choices=result["enum"]
+                    if(result["type"]?.isJsonPrimitive == true && result["type"].asString == "string" &&
+                        choices?.isJsonArray == true && !choices.asJsonArray.isEmpty &&
+                        choices.asJsonArray.all { it.isJsonPrimitive && it.asJsonPrimitive.isString }) result.remove("type")
+                }
             }
             value.isJsonArray -> JsonArray().also { result -> value.asJsonArray.forEach { result.add(expand(it)) } }
             else -> value.deepCopy()

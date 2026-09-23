@@ -9,7 +9,8 @@ import io.samcnpc.llm.goal.GoalMemory
 
 internal object PlannerPolicy {
     val operations = setOf(OperationType.FOOD, OperationType.LUMBERJACK, OperationType.INVENTORY,
-        OperationType.NAVIGATE, OperationType.TRANSPORT, OperationType.DELIVER)
+        OperationType.NAVIGATE, OperationType.TRANSPORT, OperationType.DELIVER,
+        OperationType.MINING, OperationType.FARM, OperationType.FIELD_PREPARATION)
 
     fun problem(decision: LlmDecision, captured: CapturedContext): String? {
         val goal = captured.goal

@@ -23,12 +23,17 @@ class SamExpressionDecoderTest {
 
     @Test fun everyFrozenOperationFamilyMapsToExactlyTheSameDocumentAndTypedDefaults() {
         val json = checkNotNull(javaClass.getResourceAsStream("/evaluation/v1/corpus.json")).use { it.readBytes().toString(Charsets.UTF_8) }
-        val cases = LlmJson.parse(json, 131072)["cases"].asJsonArray.map { it.asJsonObject }.filter { !it["expectedOperation"].isJsonNull }
+        val original=LlmJson.parse(json,131072)["cases"].asJsonArray.map { it.asJsonObject }.filter { !it["expectedOperation"].isJsonNull }
+        assertEquals(32,original.size)
+        val extension=checkNotNull(javaClass.getResourceAsStream("/evaluation/v16/field-extension.json")).use { LlmJson.parse(it.readBytes().toString(Charsets.UTF_8),131072) }
+        val cases=original+extension["cases"].asJsonArray.map { it.asJsonObject }.filter { !it["expectedOperation"].isJsonNull }
         val families = mutableSetOf<String>()
         for (case in cases) {
             val original = case["expectedOperation"].asJsonObject
             val expression = SamExpressionFixtures.order(original)
-            assertEquals(original, SamExpressionCatalog.order(SamExpressionSyntax.parse(expression)), case["id"].asString)
+            val currentDocument = original.deepCopy()
+            currentDocument.addProperty("definitionVersion", OperationType.entries.single { it.operationId == original["type"].asString }.definitionVersion)
+            assertEquals(currentDocument, SamExpressionCatalog.order(SamExpressionSyntax.parse(expression)), case["id"].asString)
             val actual = (accepted("assign($expression)").action as DecisionAction.Assign).order
             val expected = OperationDocumentApi.decodeOrder(original.toString()) as OperationDocumentResult.Accepted
             assertEquals(Gson().toJsonTree(expected.value), Gson().toJsonTree(actual), case["id"].asString)
@@ -36,7 +41,7 @@ class SamExpressionDecoderTest {
             assertEquals("", accepted("assign($expression)").summary)
             families.add(actual.type.operationId)
         }
-        assertEquals(32, cases.size)
+        assertEquals(34, cases.size)
         assertEquals(OperationType.entries.map { it.operationId }.toSet(), families)
     }
 
@@ -93,6 +98,11 @@ class SamExpressionDecoderTest {
     }
 
     @Test fun discriminatedWorkAndBoxTuplesKeepSemanticValidation() {
+        val collect = "inventory_work(dimension_id='minecraft:overworld',anchor=(0,64,0),work=collect(source=chest(-2,64,0),max_items=144))"
+        val order = (accepted("assign($collect)").action as DecisionAction.Assign).order as OperationInventoryOrder
+        assertEquals(OperationInventoryWork.Collect(io.samcnpc.core.api.NpcBlockPosition(-2, 64, 0), 144), order.work)
+        rejected("assign(" + collect.replace("max_items=144", "max_items=2305") + ")")
+        rejected("assign(" + collect.replace("max_items=144", "max_items=144,item_id='minecraft:dirt'") + ")")
         val operation = "inventory_work(dimension_id='minecraft:overworld',anchor=(0,64,0),work=supply(needs=[need(item_id='minecraft:cobblestone',minimum=32,target=44)],sources=containers(positions=[chest(-2,64,0)])))"
         assertEquals(OperationType.INVENTORY, (accepted("assign($operation)").action as DecisionAction.Assign).order.type)
         rejected("assign(" + operation.replace("minimum=32,target=44", "minimum=45,target=44") + ")")

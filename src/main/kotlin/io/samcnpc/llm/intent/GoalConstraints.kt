@@ -15,6 +15,8 @@ internal class GoalConstraints(
     val workBox: OperationWorkBox?, exclusions: List<OperationWorkBox>,
     sources: List<NpcBlockPosition>, destinations: List<NpcBlockPosition>, navigation: List<NpcPosition>,
     val allowAcquisition: Boolean, val allowDestruction: Boolean, val allowAuxiliaryBlockWork: Boolean,
+    val requiredReturnTo: NpcPosition? = null,
+    val version: Int = 2,
 ) {
     val operations: Set<OperationType> = java.util.Set.copyOf(operations)
     val resourceIds: Set<String> = java.util.Set.copyOf(resourceIds)
@@ -22,7 +24,6 @@ internal class GoalConstraints(
     val sources: List<NpcBlockPosition> = java.util.List.copyOf(sources)
     val destinations: List<NpcBlockPosition> = java.util.List.copyOf(destinations)
     val navigation: List<NpcPosition> = java.util.List.copyOf(navigation)
-    val version: Int get() = 1
     val allowPlayers: Boolean get() = false
     val acquisitionLimit: Int get() = when {
         !allowAcquisition -> 0
@@ -33,9 +34,11 @@ internal class GoalConstraints(
 
     fun withInitialStock(value: Int) = GoalConstraints(operations, resourceIds, dimensionId, quantityMeaning,
         quantity, value, workBox, exclusions, sources, destinations, navigation,
-        allowAcquisition, allowDestruction, allowAuxiliaryBlockWork)
+        allowAcquisition, allowDestruction, allowAuxiliaryBlockWork, requiredReturnTo, version)
 
     init {
+        require(version in 1..2)
+        require(version != 1 || requiredReturnTo == null && OperationType.FIELD_PREPARATION !in operations)
         require(operations.isNotEmpty() && operations.all { it in SUPPORTED })
         require(resourceIds.size <= 16 && resourceIds.all(::validId) && validId(dimensionId))
         require(quantity in 0..65536 && initialStock in 0..65536)
@@ -47,6 +50,7 @@ internal class GoalConstraints(
         require(sources.all(::validPosition) && destinations.all(::validPosition))
         require(navigation.all { it.x.isFinite() && it.y.isFinite() && it.z.isFinite() &&
             it.x in -29999984.0..29999984.0 && it.z in -29999984.0..29999984.0 && it.y in -2048.0..2048.0 })
+        require(requiredReturnTo == null || requiredReturnTo in navigation) { "required return must be an explicitly permitted navigation point" }
         require(workBox == null || validBox(workBox))
         require(exclusions.all { validBox(it) && workBox != null && contains(workBox, it) })
         require(workBox != null || exclusions.isEmpty())
@@ -62,13 +66,13 @@ internal class GoalConstraints(
     /** Structural identity is independent of collection insertion order and model-supplied text. */
     private fun identity(): List<Any?> = listOf(operations, resourceIds, dimensionId, quantityMeaning, quantity,
         initialStock, workBox, exclusions, sources, destinations, navigation, allowAcquisition,
-        allowDestruction, allowAuxiliaryBlockWork)
+        allowDestruction, allowAuxiliaryBlockWork, requiredReturnTo, version)
     override fun equals(other: Any?): Boolean = other is GoalConstraints && identity() == other.identity()
     override fun hashCode(): Int = identity().hashCode()
 
     companion object {
         val SUPPORTED = setOf(OperationType.NAVIGATE, OperationType.DELIVER, OperationType.TRANSPORT,
-            OperationType.INVENTORY, OperationType.MINING, OperationType.LUMBERJACK)
+            OperationType.INVENTORY, OperationType.MINING, OperationType.LUMBERJACK, OperationType.FIELD_PREPARATION)
         fun validId(value: String): Boolean = value.length in 1..256 && ResourceLocation.tryParse(value)?.toString() == value
         fun validPosition(p: NpcBlockPosition): Boolean = p.x in -29999984..29999984 &&
             p.z in -29999984..29999984 && p.y in -2048..2048

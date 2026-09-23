@@ -60,13 +60,18 @@ internal object ChatCompletionCodec {
     private fun validationSchema(schema: JsonObject): JsonElement {
         val definitionsKey = "$" + "defs"
         val referenceKey = "$" + "ref"
-        val names = schema.getAsJsonObject(definitionsKey)?.keySet()?.mapIndexed { index, name -> name to "d$index" }?.toMap()
+        val names = schema.getAsJsonObject(definitionsKey)?.keySet()?.mapIndexed { index, name -> name to index.toString(36) }?.toMap()
             ?: emptyMap()
         val prefix = "#/$definitionsKey/"
         fun encode(value: JsonElement, root: Boolean = false): JsonElement = when {
             value.isJsonObject -> JsonObject().also { result ->
+                val enumeration=value.asJsonObject["enum"]
+                val stringChoices=enumeration?.isJsonArray == true && !enumeration.asJsonArray.isEmpty &&
+                    enumeration.asJsonArray.all { it.isJsonPrimitive && it.asJsonPrimitive.isString }
                 for ((key, child) in value.asJsonObject.entrySet()) {
                     if (key == "default" || key == "uniqueItems" && child.isJsonPrimitive && !child.asBoolean) continue
+                    // Membership in a nonempty string enum already excludes every non-string value.
+                    if(key == "type" && child.isJsonPrimitive && child.asString == "string" && stringChoices) continue
                     if (root && key == definitionsKey) {
                         val definitions = JsonObject()
                         for ((name, definition) in child.asJsonObject.entrySet())

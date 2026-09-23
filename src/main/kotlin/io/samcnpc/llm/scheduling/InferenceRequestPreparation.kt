@@ -18,7 +18,9 @@ internal object InferenceRequestPreparation {
         val activeTask = taskState != null && taskState !in setOf(
             OperationTaskState.COMPLETED, OperationTaskState.CANCELLED, OperationTaskState.FAILED)
         val schema = DecisionSchema.forContext(input.captured.binding.contextId, input.captured.policy,
-            planner = input.captured.goal.mode == LlmMode.PLANNER, hasActiveTask = activeTask)
+            planner = input.captured.goal.mode == LlmMode.PLANNER, hasActiveTask = activeTask,
+            plannerInventory = input.captured.inspection.body,
+            remainingPlanSteps = 8 - input.captured.goal.planStepsCompleted)
         return WholeRequestBudget.prepare(input.requestId, prompt, schema, input.settings,
             input.profile, input.allocation, levels) { level -> NpcContextEncoder.encodeProjection(input.captured, level) }
     }

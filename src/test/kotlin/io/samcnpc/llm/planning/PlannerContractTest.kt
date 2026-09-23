@@ -29,6 +29,22 @@ class PlannerContractTest {
         mode = LlmMode.PLANNER, phase = GoalPhase.WAITING)
     private fun applied() = DecisionOutcome(DecisionOutcomeState.APPLIED, "ASSIGNED", UUID.randomUUID(), 0, 0)
 
+    @Test fun plannerAdmitsPublishedMiningAndFarmOrdersWithTheSameBehaviorValidation() {
+        val policy = GoalPolicies.forRecord(record())
+        val corpus = checkNotNull(javaClass.getResourceAsStream("/translator-corpus.json")).use {
+            JsonParser.parseString(it.readBytes().toString(Charsets.UTF_8)).asJsonObject
+        }
+        val orders = corpus["cases"].asJsonArray.map { it.asJsonObject["operation"].asJsonObject }
+        for (type in listOf(OperationType.MINING, OperationType.FARM)) {
+            val document = orders.single { it["type"].asString == type.operationId }
+            val decoded = OperationDocumentApi.decodeOrder(document.toString()) as OperationDocumentResult.Accepted
+            assertNull(DecisionPolicy.orderProblem(decoded.value, policy, "minecraft:overworld"))
+            assertEquals("DIMENSION_MISMATCH", DecisionPolicy.orderProblem(decoded.value, policy, "minecraft:the_nether"))
+        }
+        assertFalse(OperationType.ATTACK in policy.operations)
+        assertTrue(policy.controls.isEmpty() && policy.changes.isEmpty())
+    }
+
     @Test fun plannerEnvelopeIsClosedAndCannotInjectAccomplishmentsOrASequenceOfOrders() {
         val accepted = DecisionDecoder.decode(envelope().toString()) as DecisionDecodeResult.Accepted
         assertEquals(2, accepted.value.schemaVersion)
@@ -57,6 +73,14 @@ class PlannerContractTest {
         assertFalse(schema["additionalProperties"].asBoolean)
         assertTrue(schema["required"].asJsonArray.any { it.asString == "plan" })
         assertFalse(JsonParser.parseString(DecisionSchema.forContext(contextId, policy)).asJsonObject["properties"].asJsonObject.has("plan"))
+        val lastStep = JsonParser.parseString(DecisionSchema.forContext(contextId, policy, planner = true,
+            hasActiveTask = false, remainingPlanSteps = 1)).asJsonObject["properties"].asJsonObject
+        assertEquals(1, lastStep["plan"].asJsonObject["anyOf"].asJsonArray[0].asJsonObject["properties"].asJsonObject
+            ["steps"].asJsonObject["maxItems"].asInt)
+        val exhausted = JsonParser.parseString(DecisionSchema.forContext(contextId, policy, planner = true,
+            hasActiveTask = false, remainingPlanSteps = 0)).asJsonObject["properties"].asJsonObject
+        assertEquals("null", exhausted["plan"].asJsonObject["type"].asString)
+        assertFalse(exhausted["decision"].asJsonObject["enum"].asJsonArray.any { it.asString == "ASSIGN" })
     }
 
     @Test fun preconditionsCountOnlyRealInventoryAndRejectFreshResourceLossOrSpaceChanges() {
@@ -67,6 +91,19 @@ class PlannerContractTest {
             List(36) { if (hasApples && it == 4) apples else empty }, NpcInspectionSlot.entries.associateWith { apples }, 0)
         assertNull(proposal().preconditionProblem(body(true)))
         assertEquals("PLAN_REQUIRED_ITEM_MISSING", proposal().preconditionProblem(body(false)))
+        fun planSchema(hasApples: Boolean) = JsonParser.parseString(DecisionSchema.forContext(contextId,
+            GoalPolicies.forRecord(record()), planner = true, hasActiveTask = false, plannerInventory = body(hasApples)))
+            .asJsonObject["properties"].asJsonObject["plan"].asJsonObject["anyOf"].asJsonArray[0]
+            .asJsonObject["properties"].asJsonObject
+        val emptySchema = planSchema(false)
+        assertEquals(0, emptySchema["requiredItems"].asJsonObject["maxItems"].asInt)
+        assertEquals(36, emptySchema["minimumEmptySlots"].asJsonObject["maximum"].asInt)
+        val suppliedSchema = planSchema(true)
+        assertEquals(35, suppliedSchema["minimumEmptySlots"].asJsonObject["maximum"].asInt)
+        val allowedItem = suppliedSchema["requiredItems"].asJsonObject["items"].asJsonObject["oneOf"].asJsonArray.single()
+            .asJsonObject["properties"].asJsonObject
+        assertEquals("minecraft:apple", allowedItem["itemId"].asJsonObject["enum"].asJsonArray.single().asString)
+        assertEquals(3, allowedItem["minimum"].asJsonObject["maximum"].asInt)
         assertEquals("PLAN_INVENTORY_SPACE_CHANGED", PlanProposal(listOf("step"), emptyList(), 36).preconditionProblem(body(true)))
         assertEquals("PLAN_REQUIRED_ITEM_MISSING", PlanProposal(listOf("step"),
             listOf(RequiredItem("minecraft:apple", 4)), 0).preconditionProblem(body(true)))

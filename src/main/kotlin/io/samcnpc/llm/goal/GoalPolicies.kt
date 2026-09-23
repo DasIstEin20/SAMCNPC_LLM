@@ -9,7 +9,7 @@ import io.samcnpc.llm.supervision.StockDecisionPolicy
 internal object GoalPolicies {
     private val translator = ContextPolicy(1, OperationType.entries.toSet(), emptySet(), emptySet(), 72000, 16, 0)
     private val supervisor = ContextPolicy(2, StockDecisionPolicy.operations, emptySet(), emptySet(), 72000, 16, 0)
-    private val planner = ContextPolicy(3, PlannerPolicy.operations, emptySet(), emptySet(), 72000, 16, 0)
+    private val planner = ContextPolicy(5, PlannerPolicy.operations, emptySet(), emptySet(), 72000, 16, 0)
     fun forRecord(record: GoalRecord): ContextPolicy {
         val base = when (record.mode) {
             LlmMode.TRANSLATOR -> translator

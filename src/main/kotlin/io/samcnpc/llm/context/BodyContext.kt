@@ -13,7 +13,9 @@ import io.samcnpc.llm.context.ContextJson.vector
 internal object BodyContext {
     fun body(physical: NpcSnapshot, body: NpcBodyInspection): JsonElement = obj(
         "observedTick" to number(body.observedTick),
-        "position" to position(physical.position), "eyePosition" to position(physical.eyePosition),
+        // Planning uses feet coordinates. Eye coordinates belong to Core's visibility mechanics;
+        // presenting both made a real model use its eye height as an inventory return destination.
+        "position" to position(physical.position), "positionReference" to text("FEET"),
         "velocity" to vector(physical.velocity), "yaw" to number(physical.yaw), "pitch" to number(physical.pitch),
         "grounded" to flag(physical.onGround), "inWater" to flag(physical.inWater), "inLava" to flag(physical.inLava),
         "climbing" to flag(physical.climbing), "riding" to flag(physical.riding),

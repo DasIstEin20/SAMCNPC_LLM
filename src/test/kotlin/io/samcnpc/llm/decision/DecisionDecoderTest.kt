@@ -111,7 +111,7 @@ class DecisionDecoderTest {
     @Test fun schemasReusePublishedConstraintsAndPruneOnlyUnreachableDefinitions() {
         val full = LlmJson.parse(DecisionSchema.forContext(id, policy()), 65_536)
         val key = "$" + "defs"
-        assertEquals(16, full[key].asJsonObject["orderDocument"].asJsonObject["oneOf"].asJsonArray.size())
+        assertEquals(17, full[key].asJsonObject["orderDocument"].asJsonObject["oneOf"].asJsonArray.size())
         val narrow = LlmJson.parse(DecisionSchema.forContext(id, policy(setOf(OperationType.NAVIGATE), emptySet())), 65_536)
         assertEquals(1, narrow[key].asJsonObject["orderDocument"].asJsonObject["oneOf"].asJsonArray.size())
         assertFalse(narrow[key].asJsonObject.has("order_LUMBERJACK"))
@@ -174,7 +174,22 @@ class DecisionDecoderTest {
         assertFalse("ASSIGN" in activeChoices)
         assertTrue("CONTINUE" in activeChoices)
         val planner = LlmJson.parse(DecisionSchema.forContext(id, policy(), planner = true, hasActiveTask = false), 65536)
-        assertTrue(planner["properties"].asJsonObject["decision"].asJsonObject["enum"].asJsonArray.any { it.asString == "CONTINUE" })
+        assertFalse(planner["properties"].asJsonObject["decision"].asJsonObject["enum"].asJsonArray.any { it.asString == "CONTINUE" })
+    }
+
+    @Test fun constrainedWaitSchemaCannotOfferATimerForAUserOrTaskEvent() {
+        for (active in listOf(false, true)) {
+            val schema = JsonParser.parseString(DecisionSchema.forContext(id, policy(), hasActiveTask = active)).asJsonObject
+            val variants = schema["properties"].asJsonObject["wait"].asJsonObject["anyOf"].asJsonArray[0]
+                .asJsonObject["oneOf"].asJsonArray.map { it.asJsonObject["properties"].asJsonObject }
+            val event = variants.single { it["ticks"].asJsonObject["type"].asString == "null" }
+            assertEquals(if (active) setOf("USER_UPDATE", "TASK_TERMINAL") else setOf("USER_UPDATE"),
+                event["trigger"].asJsonObject["enum"].asJsonArray.map { it.asString }.toSet())
+            val timer = variants.single { it["ticks"].asJsonObject["type"].asString == "integer" }
+            assertEquals(listOf("DEADLINE"), timer["trigger"].asJsonObject["enum"].asJsonArray.map { it.asString })
+            assertEquals(20, timer["ticks"].asJsonObject["minimum"].asInt)
+            assertEquals(1200, timer["ticks"].asJsonObject["maximum"].asInt)
+        }
     }
 
     @Test fun sharedBackendShapesReduceCatalogWithoutChangingAnyEffectiveConstraint() {
@@ -185,6 +200,10 @@ class DecisionDecoderTest {
             val encoded = ChatCompletionCodec.encode(LlmRequest(id, DecisionPrompt.text, "{}", schema),
                 ProviderSettings(enabled = true, model = "emulator"))
             val root = LlmJson.parse(LlmJson.decode(encoded.bytes), 131072)
+            if(operations.size == OperationType.entries.size) {
+                Files.createDirectories(Path.of("build/decision-contract"))
+                Files.writeString(Path.of("build/decision-contract/source-$planner.json"),schema)
+            }
             val backend = root["response_format"].asJsonObject["json_schema"].asJsonObject["schema"].asJsonObject
             assertEquals(io.samcnpc.llm.provider.SchemaEquivalence.expanded(LlmJson.parse(schema, 65536)),
                 io.samcnpc.llm.provider.SchemaEquivalence.expanded(backend), "planner=$planner operations=$operations")

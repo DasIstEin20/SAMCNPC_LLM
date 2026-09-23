@@ -21,7 +21,7 @@ internal object DecisionPolicy {
         val task = inspection.operation.task
         val active = task != null && task.state !in terminalStates
         return when (val action = decision.action) {
-            DecisionAction.Continue -> if (!active && captured.goal.mode == io.samcnpc.llm.context.LlmMode.TRANSLATOR)
+            DecisionAction.Continue -> if (!active && captured.goal.mode != io.samcnpc.llm.context.LlmMode.SUPERVISOR)
                 "CONTINUE_REQUIRES_ACTIVE_TASK" else null
             is DecisionAction.AskUser -> null
             is DecisionAction.Assign -> {

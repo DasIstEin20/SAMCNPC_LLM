@@ -17,7 +17,7 @@ internal object SharedSchemaShapes {
             if (value.isJsonObject) {
                 val node = value.asJsonObject
                 val type = node["type"]
-                if (!node.has(DEFS) && (type?.isJsonPrimitive == true || node["anyOf"]?.isJsonArray == true)) {
+                if (!node.has(DEFS) && (type?.isJsonPrimitive == true || node["anyOf"]?.isJsonArray == true || node["enum"]?.isJsonArray == true)) {
                     val key = node.toString()
                     if (key.length > 24) {
                         counts[key] = (counts[key] ?: 0) + 1

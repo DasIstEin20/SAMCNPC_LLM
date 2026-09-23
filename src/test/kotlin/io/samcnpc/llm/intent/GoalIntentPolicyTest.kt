@@ -31,6 +31,31 @@ class GoalIntentPolicyTest {
     private fun transport() = OperationOrder.Transport(dimension, OperationContainers(listOf(source)),
         OperationContainers(listOf(destination)), "minecraft:cobblestone", 32, origin)
 
+    @Test fun soilPreparationRequiresExplicitBlockWorkAreaAndReturnPermissionWithoutYield() {
+        fun constraints(allow: Boolean)=GoalConstraints(setOf(OperationType.FIELD_PREPARATION),emptySet(),dimension,
+            GoalQuantityMeaning.NONE,0,0,box,listOf(exclusion),emptyList(),emptyList(),listOf(origin),false,allow,allow)
+        val d=OperationPrepareFieldOrder(dimension,OperationWorkArea(OperationWorkBox(NpcBlockPosition(-8,63,-4),NpcBlockPosition(-6,63,-2))),origin,returnTo=origin)
+        assertEquals(GoalIntentReservation(),check(d,constraints(true)).charge)
+        assertNull(check(d,constraints(true)).problem)
+        assertEquals("INTENT_SOIL_CHANGE_NOT_ALLOWED",check(d,constraints(false)).problem)
+        assertEquals("INTENT_AREA_NOT_ALLOWED",check(d.copy(area=OperationWorkArea(box)),constraints(true)).problem)
+        assertEquals("INTENT_DESTINATION_NOT_ALLOWED",check(d.copy(returnTo=origin.copy(x=2.0)),constraints(true)).problem)
+        assertEquals("INTENT_QUANTITY_MEANING",check(d,contract(harvest=true)).problem)
+    }
+
+    @Test fun requiredReturnCannotBeOmittedSubstitutedOrClaimedByAnAnchor() {
+        val area=OperationWorkArea(OperationWorkBox(NpcBlockPosition(-8,63,-4),NpcBlockPosition(-6,63,-2)))
+        val c=GoalConstraints(setOf(OperationType.FIELD_PREPARATION),emptySet(),dimension,GoalQuantityMeaning.NONE,0,0,
+            box,listOf(exclusion),emptyList(),emptyList(),listOf(origin,origin.copy(x=-5.5)),false,true,true,requiredReturnTo=origin)
+        val d=OperationPrepareFieldOrder(dimension,area,origin,returnTo=origin)
+        assertNull(check(d,c).problem)
+        for(target in listOf(null,origin.copy(x=-5.5)))
+            assertEquals("INTENT_REQUIRED_RETURN_NOT_SATISFIED",check(d.copy(returnTo=target),c).problem)
+        val copied=c.withInitialStock(1)
+        assertEquals(origin,copied.requiredReturnTo);assertEquals(2,copied.version)
+        assertEquals(origin,GoalConstraintCodec.saved(GoalConstraintCodec.encode(copied).toString()).requiredReturnTo)
+    }
+
     @Test fun validJsonDoesNotAuthorizeDifferentResourcesChestsDimensionOrQuantity() {
         assertNull(check(transport()).problem)
         assertEquals(GoalIntentReservation(32, 32), check(transport()).charge)
@@ -42,6 +67,19 @@ class GoalIntentPolicyTest {
         assertEquals("INTENT_QUANTITY_ALREADY_RESERVED", check(transport(), spent = GoalIntentReservation(32, 32)).problem)
     }
 
+    @Test fun trustedIdentityIncludesReturnAndVersionAndLegacyCannotAcquireANewFamily() {
+        val second = origin.copy(x = origin.x + 1)
+        fun constraints(point: NpcPosition?, version: Int = 2, family: OperationType = OperationType.NAVIGATE) =
+            GoalConstraints(setOf(family), emptySet(), dimension, GoalQuantityMeaning.NONE, 0, 0,
+                null, emptyList(), emptyList(), emptyList(), listOf(origin, second), false, false, false,
+                requiredReturnTo = point, version = version)
+        assertEquals(constraints(origin), constraints(origin))
+        assertNotEquals(constraints(origin), constraints(null))
+        assertNotEquals(constraints(origin), constraints(second))
+        assertNotEquals(constraints(null, 1), constraints(null, 2))
+        assertThrows(IllegalArgumentException::class.java) { constraints(null, 1, OperationType.FIELD_PREPARATION) }
+    }
+
     @Test fun carriedDeliveryCannotBecomeAcquisitionAndInsufficientCarriedStockIsExplicit() {
         val c = contract(acquire = false)
         val deliver = OperationOrder.Deliver(dimension, destination, "minecraft:cobblestone", 32, origin)
@@ -49,6 +87,12 @@ class GoalIntentPolicyTest {
         assertEquals("INTENT_CARRIED_STOCK_INSUFFICIENT", check(deliver, c, 31).problem)
         assertEquals(GoalIntentReservation(delivered = 32), check(deliver, c, 32).charge)
         assertEquals("INTENT_CARRIED_STOCK_INSUFFICIENT", check(deliver.copy(keepAtLeast = 1), c, 32).problem)
+    }
+
+    @Test fun wholeContainerCollectionCannotBypassAnExistingItemAndQuantityConstraint() {
+        val collect = OperationInventoryOrder(dimension, OperationInventoryWork.Collect(source), origin)
+        assertEquals("INTENT_INVENTORY_VARIANT_NOT_SUPPORTED", check(collect).problem)
+        assertEquals(GoalIntentReservation(), check(collect).charge)
     }
 
     @Test fun twelveToThirtyTwoAndThirtyTwoMoreHaveDifferentTargetsAndPersistentAcquisitionGrants() {

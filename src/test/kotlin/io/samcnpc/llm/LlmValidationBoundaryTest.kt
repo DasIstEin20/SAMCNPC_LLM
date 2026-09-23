@@ -67,7 +67,7 @@ class LlmValidationBoundaryTest {
     @Test
     fun componentCatalogUsesOnlyPublishedValueTypes() {
         val catalog = BehaviorCatalogApi.snapshot()
-        assertTrue(catalog.conditions.size == 14 && catalog.actions.size == 23)
+        assertTrue(catalog.conditions.size == 14 && catalog.actions.size == 24)
         val move = catalog.actions.single { it.id == "samcnpc:move_to_target" }
         val speed = move.parameters.single { it.name == "speed" } as BehaviorParameter.Numeric
         assertTrue(speed.required && speed.minimum == 0.1 && speed.maximum == 1.5)

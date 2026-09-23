@@ -105,6 +105,9 @@ internal object DecisionAdmissionProbe {
             val plannerCapture = NpcContextBuilder.capture(server, actor, handle.npcUuid, plannerGoal, policy)
             check(plannerCapture is ContextCaptureResult.Captured)
             val plannerSource = plannerCapture.value
+            check(slot(plannerSource).admit(server, actor,
+                candidate(plannerSource, DecisionAction.Continue).copy(schemaVersion = 2),
+                plannerGoal, policy, false).code == "CONTINUE_REQUIRES_ACTIVE_TASK"); checks++
             check(slot(plannerSource).admit(server, actor, candidate(plannerSource, DecisionAction.Continue),
                 plannerGoal, policy, false).code == "PLANNER_ENVELOPE_REQUIRED"); checks++
             reject(plannerSource, "GOAL_PLAN_CHANGED", ContextGoal(goal.id, goal.revision, goal.text,

@@ -26,8 +26,8 @@ internal object AllModsLoadingCheck {
         check(io.samcnpc.behavior.api.OperationSupervisionApi.validateOrder(order).status ==
             io.samcnpc.core.api.NpcActionStatus.SUCCEEDED)
         val catalog = BehaviorCatalogApi.snapshot()
-        check(catalog.documentVersion == 1 && catalog.conditions.size == 14 && catalog.actions.size == 23)
+        check(catalog.documentVersion == 1 && catalog.conditions.size == 14 && catalog.actions.size == 24)
         check(catalog.actions.single { it.id == "samcnpc:stop_movement" }.channels == listOf("movement"))
-        return "mods=${loaded.sorted()} behaviorValidation=true componentCatalog=14/23 registeredSchema=true typedOrders=true configLoaded=true defaultDisabled=true"
+        return "mods=${loaded.sorted()} behaviorValidation=true componentCatalog=14/24 registeredSchema=true typedOrders=true configLoaded=true defaultDisabled=true"
     }
 }

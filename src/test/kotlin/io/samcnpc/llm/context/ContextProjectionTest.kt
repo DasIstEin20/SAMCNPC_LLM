@@ -34,6 +34,16 @@ class ContextProjectionTest {
         assertEquals(4, main["inventorySlotAlias"].asInt)
     }
 
+    @Test fun plannerCoordinatesKeepExactFeetHeightWithoutAnEyeHeightAlternative() {
+        val feet = NpcPosition(-39.5, 63.875, -78.5)
+        val eyes = feet.copy(y = feet.y + 1.53)
+        val projected = BodyContext.body(snapshot().copy(position = feet, eyePosition = eyes), body()).asJsonObject
+        assertEquals(listOf(feet.x, feet.y, feet.z), projected["position"].asJsonArray.map { it.asDouble })
+        assertEquals("FEET", projected["positionReference"].asString)
+        assertFalse(projected.has("eyePosition"))
+        assertTrue(projected["grounded"].asBoolean)
+    }
+
     @Test fun enchantmentCompactionKeepsCountsRolesAndExplicitOmissions() {
         val item = NpcItemInspection(NpcItemStackSnapshot("minecraft:bow", 1, 1, 10, 384),
             NpcItemKnowledge("minecraft:bow", setOf(NpcItemRole.RANGED_WEAPON)),

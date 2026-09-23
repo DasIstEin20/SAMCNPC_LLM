@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "id": "cpu-scripted-evaluation-v8",
+  "corpusSha256": "15d8c10786dbf59924a154b9e8e5f55641b5ab779b53476bc0891e70e36bc12a",
+  "promptVersion": 9,
+  "promptSha256": "f123b2912823cfabba5c4759b54566ccf1665b458328975dfb29af2cb6d7327f",
+  "contextVersion": 8,
+  "decisionVersions": [
+    1,
+    2
+  ],
+  "goalStoreVersion": 6,
+  "backend": "FakeOpenAiEndpoint",
+  "backendVersion": "emulator-v1",
+  "model": "corpus-emulator",
+  "modelDigest": "scripted-fixed-candidates-v1",
+  "quantization": "NOT_APPLICABLE_NO_WEIGHTS",
+  "seed": "NOT_APPLICABLE_NO_SAMPLING",
+  "repetitions": 3,
+  "temperature": 0.1,
+  "responseFormat": "JSON_SCHEMA",
+  "maxOutputTokens": 1024,
+  "realModelStatus": "PENDING_FULL_MODEL_EVALUATION",
+  "scoring": {
+    "json": "Strict decoder accepted candidate",
+    "operation": "Expected typed semantic operation for complete prompts; scripted coverage only",
+    "rejection": "Ambiguous/adversarial fixtures produce ASK_USER without an executable payload; live authority tested separately",
+    "physical": "NOT_MEASURED_IN_CORPUS; use native runtime evidence separately",
+    "realLanguageUnderstanding": "NOT_MEASURED_NO_REAL_MODEL"
+  },
+  "actualModelProfileRequired": [
+    "baseUrlWithoutCredentials",
+    "backendVersion",
+    "modelId",
+    "modelDigest",
+    "quantization",
+    "tokenizerDigest",
+    "templateDigest",
+    "contextWindow",
+    "promptSha256",
+    "schemaHash",
+    "corpusSha256",
+    "temperature",
+    "seedSupport",
+    "repetitions"
+  ],
+  "previousProfileSha256": "9458834189fb4da5c484520130a8882dd616d1e46dff8d07ed5d2a638d9df6bf",
+  "corpusResource": "/evaluation/v1/corpus.json"
+}

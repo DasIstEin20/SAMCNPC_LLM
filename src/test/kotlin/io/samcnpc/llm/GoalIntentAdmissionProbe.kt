@@ -46,6 +46,34 @@ internal object GoalIntentAdmissionProbe {
         fun slot(source: CapturedContext, gateway: DecisionGateway = DecisionGateway.BEHAVIOR) = DecisionAdmission(gateway).also { check(it.bind(source)) }
         var checks = 0
         try {
+            val soil=NpcBlockPosition(kotlin.math.floor(position.x).toInt()+2,kotlin.math.floor(position.y).toInt()-1,kotlin.math.floor(position.z).toInt())
+            val box=OperationWorkBox(soil,soil)
+            val otherReturn = position.copy(x = position.x + 1)
+            fun fieldContract(requiredReturn: NpcPosition?) = GoalConstraints(
+                setOf(OperationType.FIELD_PREPARATION), emptySet(), dimension, GoalQuantityMeaning.NONE,
+                0, 0, box, emptyList(), emptyList(), emptyList(), listOf(position, otherReturn),
+                false, true, true, requiredReturnTo = requiredReturn)
+            val fieldGoal=goal(fieldContract(position));val fieldContext=capture(fieldGoal)
+            val order=OperationPrepareFieldOrder(dimension,OperationWorkArea(box),position,returnTo=position)
+            val actualSoil=net.minecraft.core.BlockPos(soil.x,soil.y,soil.z)
+            val before=actor.serverLevel().getBlockState(actualSoil)
+            for(target in listOf(null,position.copy(x=position.x+1))) {
+                val proposal=decision(fieldContext,order.copy(returnTo=target))
+                val rejected=slot(fieldContext).admit(server,actor,proposal,fieldGoal,policy,false) { error("invalid return reserved effects") }
+                check(rejected.code=="INTENT_REQUIRED_RETURN_NOT_SATISFIED")
+                check(OperationSupervisionApi.observe(server,actor,handle.npcUuid).observation?.task==null)
+                check(actor.serverLevel().getBlockState(actualSoil)==before);checks++
+            }
+            check(DecisionPolicy.problem(decision(fieldContext,order),fieldContext)==null);checks++
+            for (changedReturn in listOf(null, otherReturn)) {
+                val changedGoal = goal(fieldContract(changedReturn))
+                val rejected = slot(fieldContext).admit(server, actor, decision(fieldContext, order), changedGoal, policy, false) {
+                    error("changed trusted return reserved effects")
+                }
+                check(rejected.code == "GOAL_INTENT_CHANGED")
+                check(OperationSupervisionApi.observe(server, actor, handle.npcUuid).observation?.task == null)
+                check(actor.serverLevel().getBlockState(actualSoil) == before); checks++
+            }
             give(12)
             val g = goal(supplyContract)
             val source = capture(g)
@@ -102,7 +130,7 @@ internal object GoalIntentAdmissionProbe {
             val retry = capture(spent)
             check(slot(retry).admit(server, actor, decision(retry, delivery), spent, policy, false) { error("new step renewed quantity") }.code == "INTENT_QUANTITY_ALREADY_RESERVED"); checks++
             check(store.get(handle.npcUuid)?.intentReservation == GoalIntentReservation(delivered = 32))
-            return "intentAdmissionChecks=$checks freshInventory=true persistentReservationBeforeDispatch=true uncertainIntentNotRefunded=true repeatedStepDenied=true"
+            return "intentAdmissionChecks=$checks requiredReturnRejectedBeforeMutation=true freshInventory=true persistentReservationBeforeDispatch=true uncertainIntentNotRefunded=true repeatedStepDenied=true"
         } finally {
             // Real drop semantics, then remove only this fixture's emitted items at its exact test location.
             check(service.dismiss(handle, NpcDismissMode.DROP_INVENTORY).status == NpcActionStatus.SUCCEEDED)

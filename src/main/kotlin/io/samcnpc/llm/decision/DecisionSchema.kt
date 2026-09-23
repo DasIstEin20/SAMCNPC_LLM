@@ -2,6 +2,7 @@ package io.samcnpc.llm.decision
 
 import com.google.gson.*
 import io.samcnpc.behavior.api.OperationDocumentApi
+import io.samcnpc.core.api.NpcBodyInspection
 import io.samcnpc.llm.context.ContextPolicy
 import java.util.ArrayDeque
 import java.util.UUID
@@ -16,7 +17,9 @@ internal object DecisionSchema {
         compact(exported.getAsJsonObject(DEFS)).toString()
     }
 
-    fun forContext(contextId: UUID, policy: ContextPolicy, planner: Boolean = false, hasActiveTask: Boolean? = null): String {
+    fun forContext(contextId: UUID, policy: ContextPolicy, planner: Boolean = false, hasActiveTask: Boolean? = null,
+                   plannerInventory: NpcBodyInspection? = null, remainingPlanSteps: Int = 8): String {
+        require(remainingPlanSteps in 0..8)
         val defs = JsonParser.parseString(definitions).asJsonObject
         val operations = policy.operations.sortedBy { it.ordinal }
         if (operations.isNotEmpty()) {
@@ -27,8 +30,8 @@ internal object DecisionSchema {
         props.add("schemaVersion", typed("integer").also { it.addProperty("const", if (planner) 2 else DecisionDecoder.VERSION) })
         props.add("contextId", typed("string").also { it.add("enum", strings(listOf(contextId.toString()))) })
         val decisions = DecisionKind.entries.filter { kind -> when (kind) {
-            DecisionKind.CONTINUE -> hasActiveTask != false || planner
-            DecisionKind.ASSIGN -> operations.isNotEmpty() && hasActiveTask != true
+            DecisionKind.CONTINUE -> hasActiveTask != false
+            DecisionKind.ASSIGN -> operations.isNotEmpty() && hasActiveTask != true && (!planner || remainingPlanSteps > 0)
             DecisionKind.AMEND -> changes.isNotEmpty() && hasActiveTask != false
             DecisionKind.PAUSE, DecisionKind.RESUME, DecisionKind.CANCEL ->
                 policy.controls.any { it.name == kind.name } && hasActiveTask != false
@@ -39,13 +42,18 @@ internal object DecisionSchema {
         props.add("operation", if (operations.isEmpty()) typed("null") else nullable(reference("orderDocument")))
         props.add("change", if (changes.isEmpty()) typed("null") else nullable(alternatives(changes.map { reference("change_" + it) })))
         props.add("question", nullable(boundedText(256).also { it.addProperty("minLength", 1) }))
-        val waitProperties = JsonObject()
-        waitProperties.add("trigger", typed("string").also { it.add("enum", strings(WaitTrigger.entries.map { trigger -> trigger.name })) })
-        waitProperties.add("ticks", nullable(typed("integer").also {
+        val eventWait = JsonObject()
+        val events = WaitTrigger.entries.filter { it != WaitTrigger.DEADLINE &&
+            (it != WaitTrigger.TASK_TERMINAL || hasActiveTask != false) }
+        eventWait.add("trigger", typed("string").also { it.add("enum", strings(events.map { trigger -> trigger.name })) })
+        eventWait.add("ticks", typed("null"))
+        val deadlineWait = JsonObject()
+        deadlineWait.add("trigger", typed("string").also { it.add("enum", strings(listOf("DEADLINE"))) })
+        deadlineWait.add("ticks", typed("integer").also {
             it.addProperty("minimum", 20); it.addProperty("maximum", 1200)
-        }))
-        props.add("wait", nullable(record(waitProperties)))
-        if (planner) props.add("plan", nullable(planSchema()))
+        })
+        props.add("wait", nullable(alternatives(listOf(record(eventWait), record(deadlineWait)))))
+        if (planner) props.add("plan", if (remainingPlanSteps == 0) typed("null") else nullable(planSchema(plannerInventory, remainingPlanSteps)))
         val root = record(props)
 
         val pending = ArrayDeque<String>()
@@ -93,20 +101,29 @@ internal object DecisionSchema {
         return result
     }
 
-    private fun planSchema(): JsonObject {
+    private fun planSchema(body: NpcBodyInspection?, remainingSteps: Int): JsonObject {
         val props = JsonObject()
         props.add("steps", typed("array").also {
-            it.addProperty("minItems", 1); it.addProperty("maxItems", 8)
+            it.addProperty("minItems", 1); it.addProperty("maxItems", remainingSteps)
             it.add("items", boundedText(256).also { text -> text.addProperty("minLength", 1) })
         })
         val item = JsonObject()
         item.add("itemId", boundedText(256).also { it.addProperty("minLength", 1) })
         item.add("minimum", typed("integer").also { it.addProperty("minimum", 1); it.addProperty("maximum", 2304) })
+        val carried = body?.inventory?.filter { !it.stack.isEmpty }?.groupBy { checkNotNull(it.stack.itemId) }
+            ?.mapValues { (_, rows) -> rows.sumOf { it.stack.count.toLong() }.coerceAtMost(2304).toInt() }
+        val observedItems = carried?.entries?.sortedBy { it.key }?.map { (id, count) ->
+            val fields = JsonObject()
+            fields.add("itemId", typed("string").also { it.add("enum", strings(listOf(id))) })
+            fields.add("minimum", typed("integer").also { it.addProperty("minimum", 1); it.addProperty("maximum", count) })
+            record(fields)
+        }
         props.add("requiredItems", typed("array").also {
-            it.addProperty("maxItems", 8); it.add("items", record(item))
+            it.addProperty("maxItems", minOf(8, carried?.size ?: 8))
+            it.add("items", if (observedItems.isNullOrEmpty()) record(item) else alternatives(observedItems))
         })
         props.add("minimumEmptySlots", typed("integer").also {
-            it.addProperty("minimum", 0); it.addProperty("maximum", 36)
+            it.addProperty("minimum", 0); it.addProperty("maximum", body?.inventory?.count { slot -> slot.stack.isEmpty } ?: 36)
         })
         return record(props)
     }

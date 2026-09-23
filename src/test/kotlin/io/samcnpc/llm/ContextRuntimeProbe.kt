@@ -64,6 +64,12 @@ internal object ContextRuntimeProbe {
             val largeGoal = ContextGoal(goal.id, goal.revision, "漢".repeat(2048), goal.mode, null, 24,
                 ContextMemory(List(8) { "漢".repeat(256) }, confirmedResults = List(16) { "漢".repeat(256) }))
             val tooLarge = capture(largeGoal)
+            val running = checkNotNull(captured.inspection.operation.task)
+            val cancelled = OperationSupervisionApi.control(server, actor, handle.npcUuid,
+                OperationControlRequest(running.taskId, running.controlRevision, running.definitionRevision,
+                    captured.binding.issuedTick, captured.binding.expiresTick, OperationControl.CANCEL))
+            check(cancelled.result.status == NpcActionStatus.SUCCEEDED)
+            val historical = capture(goal)
             actor.teleportTo(level, position.x + 300, position.y, position.z, 0F, 0F)
             val denied = NpcContextBuilder.capture(server, actor, handle.npcUuid, goal, policy, worldRequest = world)
             check(denied == ContextCaptureResult.Rejected("OBSERVATION_OUT_OF_RANGE"))
@@ -73,7 +79,17 @@ internal object ContextRuntimeProbe {
             val captureThreadId = Thread.currentThread().id
             result = CompletableFuture.supplyAsync {
                 check(Thread.currentThread().id != captureThreadId)
-                verify(captured, invalidText, tooLarge, goal)
+                val result = verify(captured, invalidText, tooLarge, goal)
+                val encodedHistory = NpcContextEncoder.encode(historical)
+                check(encodedHistory is ContextEncodingResult.Encoded)
+                val history = LlmJson.parse(encodedHistory.value.stateJson, NpcContextEncoder.MAX_STATE_BYTES)
+                check(history["task"].asJsonObject["state"].asString == "NO_TASK")
+                check(history["lastTerminalTask"].asJsonObject["state"].asString == "CANCELLED")
+                check(history["lastTerminalTask"].asJsonObject["taskId"].asString == running.taskId.toString())
+                check(!history["lastTerminalTask"].asJsonObject["frames"].asJsonArray[0].asJsonObject.has("parameters"))
+                check(historical.binding.priorTaskId == running.taskId)
+                check(historical.binding.controlRevision == running.controlRevision + 1)
+                result + " terminalTaskIsHistory=true bindingRetainsTerminalRevision=true"
             }
         } finally {
             level.setBlockAndUpdate(hidden, oldBlock)
@@ -97,6 +113,9 @@ internal object ContextRuntimeProbe {
         check(context.utf8Bytes == LlmJson.utf8(context.stateJson).size)
         check(context.utf8Bytes > context.stateJson.length)
         check(json["inventory"].asJsonArray.size() == 36)
+        check(json["body"].asJsonObject["positionReference"].asString == "FEET")
+        check(!json["body"].asJsonObject.has("eyePosition"))
+        check(json["body"].asJsonObject["position"].asJsonArray[1].asDouble == captured.inspection.physical.position.y)
         check(json["goal"].asJsonObject["text"].asString == goal.text)
         check(json["authority"].asJsonObject["summoner"].asBoolean)
         check(json["task"].asJsonObject["state"].asString == "RUNNING")
@@ -106,7 +125,8 @@ internal object ContextRuntimeProbe {
         check(json["world"].asJsonObject["blocks"].asJsonArray[0].asJsonObject["observation"].asJsonObject["state"].asString == "UNAVAILABLE")
         check(!context.stateJson.contains("minecraft:diamond_ore"))
         check(json["history"].asJsonObject["state"].asString == "NOT_RECORDED")
-        check(json["capabilities"].asJsonObject["operations"].asJsonArray.size() == 16)
+        check(json["capabilities"].asJsonObject["operations"].asJsonArray.map { it.asJsonObject["id"].asString }.toSet() ==
+            io.samcnpc.behavior.api.OperationType.entries.map { it.operationId }.toSet())
         check(NpcContextEncoder.encode(captured, 1) == ContextEncodingResult.Rejected("CONTEXT_TOO_LARGE"))
         check(NpcContextEncoder.encode(tooLarge) == ContextEncodingResult.Rejected("CONTEXT_TOO_LARGE"))
         check(NpcContextEncoder.encode(invalidText) == ContextEncodingResult.Rejected("INVALID_CONTEXT_ENCODING"))

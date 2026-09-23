@@ -17,12 +17,13 @@ first-party SAMCNPC mod.
 2. Replace the SAMCNPC JARs as a matched set in `mods/`. Older development
    snapshots also used version 0.1.0; the recorded hashes and repository pins
    identify this candidate. Mixed old/new snapshots are not a validated set.
-   Audit builds also advertise API versions and source/build fingerprints in
+   Builds advertise API versions and source/build fingerprints in
    `META-INF/mods.toml`. Behavior checks Core; LLM checks Behavior and Core before
    initializing dependent code, even when inference is disabled. A legacy/mismatched
-   JAR stops startup with a message such as `LLM requires Behavior API 2, installed
+   JAR stops startup with a message such as `LLM requires Behavior API 5, installed
    missing/invalid`. Install a matched set; do not edit the identifiers to suppress
    this check. Fingerprints are diagnostics, separate from release JAR hashes.
+   This integration requires Core API 2 and Behavior API 5.
 3. Start normally. LLM integration defaults to disabled and does not contact a
    provider at startup. NPC operations remain available through Behavior.
 4. When a model is available, configure its address and exact model ID under

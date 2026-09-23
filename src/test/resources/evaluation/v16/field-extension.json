@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "scope": "SCRIPTED_WIRE_CONTRACT_NOT_MODEL_QUALITY",
+  "cases": [
+    {
+      "id": "prepare_field-pl",
+      "language": "pl",
+      "family": "samcnpc:prepare_field",
+      "kind": "complete",
+      "goal": "Przygotuj motyką poletko z ziemi od (-8,62,-4) do (-6,62,-2) i wróć do (-10.5,63,-3.5). Bez siania, zbierania i rozszerzania obszaru. Kotwica (-10.5,63,-3.5), minecraft:overworld.",
+      "worldText": [],
+      "expectedDecision": "ASSIGN",
+      "expectedOperation": {
+        "documentVersion": 1,
+        "type": "samcnpc:prepare_field",
+        "definitionVersion": 1,
+        "parameters": {
+          "dimensionId": "minecraft:overworld",
+          "area": {
+            "bounds": {
+              "min": {
+                "x": -8,
+                "y": 62,
+                "z": -4
+              },
+              "max": {
+                "x": -6,
+                "y": 62,
+                "z": -2
+              }
+            }
+          },
+          "anchor": {
+            "x": -10.5,
+            "y": 63,
+            "z": -3.5
+          },
+          "returnTo": {
+            "x": -10.5,
+            "y": 63,
+            "z": -3.5
+          }
+        }
+      },
+      "question": null
+    },
+    {
+      "id": "prepare_field-en",
+      "language": "en",
+      "family": "samcnpc:prepare_field",
+      "kind": "complete",
+      "goal": "Hoe the soil plane from (-8,62,-4) to (-6,62,-2), anchor and return (-10.5,63,-3.5), minecraft:overworld. Do not sow seeds, harvest crops or enlarge the area.",
+      "worldText": [],
+      "expectedDecision": "ASSIGN",
+      "expectedOperation": {
+        "documentVersion": 1,
+        "type": "samcnpc:prepare_field",
+        "definitionVersion": 1,
+        "parameters": {
+          "dimensionId": "minecraft:overworld",
+          "area": {
+            "bounds": {
+              "min": {
+                "x": -8,
+                "y": 62,
+                "z": -4
+              },
+              "max": {
+                "x": -6,
+                "y": 62,
+                "z": -2
+              }
+            }
+          },
+          "anchor": {
+            "x": -10.5,
+            "y": 63,
+            "z": -3.5
+          },
+          "returnTo": {
+            "x": -10.5,
+            "y": 63,
+            "z": -3.5
+          }
+        }
+      },
+      "question": null
+    },
+    {
+      "id": "prepare_field-clarify",
+      "language": "pl",
+      "family": "samcnpc:prepare_field",
+      "kind": "ambiguous",
+      "goal": "Zrób mi gdzieś poletko.",
+      "worldText": [],
+      "expectedDecision": "ASK_USER",
+      "expectedOperation": null,
+      "question": "Wskaż obszar ziemi przeznaczony na poletko."
+    }
+  ]
+}

@@ -54,7 +54,7 @@ class LlmGoalStoreTest {
         legacy.getList("goals", 10).getCompound(0).remove("quotaMode")
         val restored = LlmGoalStore.load(legacy)
         assertNull(restored.problem); assertEquals(value, restored.get(value.npcUuid))
-        assertEquals(6, restored.save(CompoundTag()).getInt("version"))
+        assertEquals(7, restored.save(CompoundTag()).getInt("version"))
         assertEquals(value, LlmGoalStore.load(restored.save(CompoundTag())).get(value.npcUuid))
         val disguised = file(value); disguised.putInt("version", 1)
         assertEquals("INVALID_GOAL_RECORD", LlmGoalStore.load(disguised).problem)

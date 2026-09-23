@@ -52,6 +52,8 @@ def supervisorDirectory = "run-server-supervisor-smoke-${goalRestartId}"
 def supervisorFaultsDirectory = "run-server-supervisor-faults-${goalRestartId}"
 def supervisorRestartDirectory = "run-server-supervisor-restart-${goalRestartId}"
 def corpusCaptureDirectory = "run-server-corpus-capture-${goalRestartId}"
+def showtimeDirectory = "run-server-showtime-smoke-${goalRestartId}"
+def loadingDirectory = "run-server-loading-smoke-${goalRestartId}"
 
 minecraft {
     mappings channel: 'official', version: minecraft_version
@@ -166,6 +168,15 @@ minecraft {
             property 'samcnpc.liveModelSmoke', 'true'
             mods { samcnpc_llm { source sourceSets.test } }
         }
+        serverShowtimeSmoke {
+            parent runs.server
+            workingDirectory project.file(showtimeDirectory)
+            property 'samcnpc.showtimeSmoke', 'true'
+            property 'samcnpc.fieldSmoke', providers.gradleProperty('llmFieldSmoke').orElse('false').get()
+            property 'samcnpc.sequenceSmoke', providers.gradleProperty('llmSequenceSmoke').orElse('false').get()
+            property 'samcnpc.boundedFieldSmoke', providers.gradleProperty('llmBoundedFieldSmoke').orElse('false').get()
+            mods { samcnpc_llm { source sourceSets.test } }
+        }
         serverCorpusCapture {
             parent runs.server
             workingDirectory project.file(corpusCaptureDirectory)
@@ -174,7 +185,7 @@ minecraft {
         }
         serverLoadingSmoke {
             parent runs.server
-            workingDirectory project.file('run-server-loading-smoke')
+            workingDirectory project.file(loadingDirectory)
             property 'samcnpc.serverLoadingSmoke', 'true'
             mods { samcnpc_llm { source sourceSets.test } }
         }
@@ -213,10 +224,28 @@ tasks.named('jar', Jar).configure {
 // Real loading checks use test-only drivers and isolated run directories.
 ['Client', 'Server'].each { side ->
     tasks.matching { it.name == "run${side}LoadingSmoke" }.configureEach {
-        def report = layout.projectDirectory.file("run-${side.toLowerCase()}-loading-smoke/${side.toLowerCase()}-loading-result.txt").asFile
+        def folder = side == 'Server' ? loadingDirectory : 'run-client-loading-smoke'
+        def report = layout.projectDirectory.file("${folder}/${side.toLowerCase()}-loading-result.txt").asFile
         doFirst {
             report.parentFile.mkdirs()
             report.text = 'RUNNING\n'
+            if (side == 'Server') {
+                new File(report.parentFile, 'eula.txt').text = 'eula=true\n'
+                def settings = new File(report.parentFile, 'server.properties')
+                if (!settings.exists()) settings.text = '''server-ip=127.0.0.1
+server-port=25574
+online-mode=true
+level-name=loading-smoke-world
+level-type=minecraft:flat
+generator-settings={"layers":[{"block":"minecraft:bedrock","height":1},{"block":"minecraft:dirt","height":2},{"block":"minecraft:grass_block","height":1}],"biome":"minecraft:plains"}
+level-seed=0
+generate-structures=false
+difficulty=peaceful
+view-distance=4
+simulation-distance=4
+spawn-protection=0
+'''
+            }
         }
         doLast {
             if (!report.text.startsWith('PASS ')) throw new GradleException("Three-mod ${side} loading failed: ${report}")
@@ -225,7 +254,38 @@ tasks.named('jar', Jar).configure {
 }
 
 // Command-line userdev needs the exact bundled Behavior data staged under its game directory.
-['Run': 'run', 'ClientLoadingSmoke': 'run-client-loading-smoke', 'ServerLoadingSmoke': 'run-server-loading-smoke', 'ServerLiveModelSmoke': 'run-server-live-model-smoke', 'ServerCorpusCapture': corpusCaptureDirectory, 'ClientGoalsSmoke': 'run-client-goals-smoke', 'ServerGoalsSaveSmoke': goalRestartDirectory, 'ServerGoalsLoadSmoke': goalRestartDirectory, 'ClientSupervisorSmoke': 'run-client-supervisor-smoke', 'ServerSupervisorSmoke': supervisorDirectory, 'ServerSupervisorSaveSmoke': supervisorRestartDirectory, 'ServerSupervisorLoadSmoke': supervisorRestartDirectory, 'ClientSupervisorFaultsSmoke': 'run-client-supervisor-faults-smoke', 'ServerSupervisorFaultsSmoke': supervisorFaultsDirectory, 'ClientPlannerSmoke': 'run-client-planner-smoke', 'ServerPlannerSmoke': plannerDirectory, 'ServerPlannerSaveSmoke': plannerRestartDirectory, 'ServerPlannerLoadSmoke': plannerRestartDirectory].each { suffix, folder ->
+def stageShowtimeData = tasks.register('stageBehaviorDataServerShowtimeSmoke', Copy) {
+    from project(':samcnpc-behavior').layout.projectDirectory.dir('src/main/resources/data')
+    into layout.projectDirectory.dir("${showtimeDirectory}/data")
+}
+tasks.matching { it.name == 'runServerShowtimeSmoke' }.configureEach {
+    dependsOn stageShowtimeData
+    doFirst {
+        def directory = layout.projectDirectory.dir(showtimeDirectory).asFile
+        directory.mkdirs()
+        new File(directory, 'eula.txt').text = 'eula=true\n'
+        new File(directory, 'showtime-result.txt').text = 'RUNNING\n'
+        if (!new File(directory, 'server.properties').exists()) {
+            new File(directory, 'server.properties').text = '''server-ip=127.0.0.1
+server-port=25578
+online-mode=true
+level-name=showtime-regression-world
+level-type=minecraft:flat
+generator-settings={"layers":[{"block":"minecraft:bedrock","height":1},{"block":"minecraft:dirt","height":2},{"block":"minecraft:grass_block","height":1}],"biome":"minecraft:plains"}
+generate-structures=false
+difficulty=peaceful
+view-distance=4
+simulation-distance=4
+spawn-protection=0
+'''
+        }
+    }
+    doLast {
+        def report = layout.projectDirectory.file("${showtimeDirectory}/showtime-result.txt").asFile
+        if (!report.text.startsWith('PASS ')) throw new GradleException("Real Qwen showtime regression failed: ${report}")
+    }
+}
+['Run': 'run', 'ClientLoadingSmoke': 'run-client-loading-smoke', 'ServerLoadingSmoke': loadingDirectory, 'ServerLiveModelSmoke': 'run-server-live-model-smoke', 'ServerCorpusCapture': corpusCaptureDirectory, 'ClientGoalsSmoke': 'run-client-goals-smoke', 'ServerGoalsSaveSmoke': goalRestartDirectory, 'ServerGoalsLoadSmoke': goalRestartDirectory, 'ClientSupervisorSmoke': 'run-client-supervisor-smoke', 'ServerSupervisorSmoke': supervisorDirectory, 'ServerSupervisorSaveSmoke': supervisorRestartDirectory, 'ServerSupervisorLoadSmoke': supervisorRestartDirectory, 'ClientSupervisorFaultsSmoke': 'run-client-supervisor-faults-smoke', 'ServerSupervisorFaultsSmoke': supervisorFaultsDirectory, 'ClientPlannerSmoke': 'run-client-planner-smoke', 'ServerPlannerSmoke': plannerDirectory, 'ServerPlannerSaveSmoke': plannerRestartDirectory, 'ServerPlannerLoadSmoke': plannerRestartDirectory].each { suffix, folder ->
     def stage = tasks.register("stageBehaviorData${suffix}", Copy) {
         from project(':samcnpc-behavior').layout.projectDirectory.dir('src/main/resources/data')
         into layout.projectDirectory.dir("${folder}/data")
@@ -438,6 +498,7 @@ spawn-protection=0
         doLast { if (!report.text.startsWith('PASS ')) throw new GradleException('LLM hour failed: ' + report) }
     }
 }
+
 
 tasks.withType(Jar).configureEach {
     archiveBaseName = 'samcnpc-llm'

@@ -104,7 +104,7 @@ internal object LlmGoalCommands {
                 " | places " + record.memory.aliases.joinToString(",") { it.name } +
                 " | confirmed results " + record.memory.results.size +
                 " | intent " + (if (record.constraints == null) "FREE_TEXT_UNCONTRACTED" else
-                    "BOUNDED_V1 acquired=" + record.intentReservation.acquired + "/" + record.constraints.acquisitionLimit +
+                    "BOUNDED_V${record.constraints.version} acquired=" + record.intentReservation.acquired + "/" + record.constraints.acquisitionLimit +
                         " delivered=" + record.intentReservation.delivered + "/" + record.constraints.deliveryLimit) +
                 (if (record.mode == io.samcnpc.llm.context.LlmMode.PLANNER) " | steps " + record.planStepsCompleted + "/8" else "") +
                 (record.question?.let { "\n" + it } ?: "")

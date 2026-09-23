@@ -20,11 +20,15 @@ class TranslatorCorpusTest {
         LlmJson.parse(it.readBytes().toString(Charsets.UTF_8), 65536)
     }
 
-    @Test fun allSixteenPublishedFamiliesPassScriptedHttpDecodeAndPurePolicyValidation() {
+    @Test fun allPublishedFamiliesPassScriptedHttpDecodeAndPurePolicyValidation() {
         val corpus = corpus()
         assertEquals("SCRIPTED_WIRE_CONTRACT_NOT_MODEL_QUALITY", corpus["scope"].asString)
-        val rows = corpus["cases"].asJsonArray
+        val rows = corpus["cases"].asJsonArray.deepCopy()
         assertEquals(16, rows.size())
+        val extension=checkNotNull(javaClass.getResourceAsStream("/evaluation/v16/field-extension.json")).use { LlmJson.parse(it.readBytes().toString(Charsets.UTF_8),131072) }
+        val field=extension["cases"].asJsonArray[0].asJsonObject
+        rows.add(JsonObject().also { it.add("operation",field["expectedOperation"]);it.add("goal",field["goal"]) })
+        assertEquals(17,rows.size())
         val families = mutableSetOf<OperationType>()
         FakeOpenAiEndpoint().use { endpoint ->
             val settings = ProviderSettings(enabled = true, baseUrl = endpoint.baseUrl, model = "corpus-emulator",
@@ -43,7 +47,7 @@ class TranslatorCorpusTest {
                     families.add(order.type)
                 }
             }
-            assertEquals(16, endpoint.received.size)
+            assertEquals(17, endpoint.received.size)
         }
         assertEquals(OperationType.entries.toSet(), families)
     }

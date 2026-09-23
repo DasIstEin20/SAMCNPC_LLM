@@ -30,6 +30,8 @@ internal object GoalIntentPolicy {
     private fun order(order: OperationOrder, c: GoalConstraints, body: NpcBodyInspection, position: NpcPosition): GoalIntentCheck {
         if (order.type !in c.operations) return rejected("INTENT_OPERATION_NOT_ALLOWED")
         if (order.dimensionId != c.dimensionId) return rejected("INTENT_DIMENSION_NOT_ALLOWED")
+        if(c.requiredReturnTo != null && returnTarget(order) != c.requiredReturnTo)
+            return rejected("INTENT_REQUIRED_RETURN_NOT_SATISFIED")
         return when (order) {
             is OperationOrder.Navigate -> if (order.destination in c.navigation) GoalIntentCheck()
                 else rejected("INTENT_DESTINATION_NOT_ALLOWED")
@@ -49,6 +51,13 @@ internal object GoalIntentPolicy {
                 else -> GoalIntentCheck(charge = GoalIntentReservation(order.quantity, order.quantity))
             }
             is OperationInventoryOrder -> supply(order, c, body, position)
+            is OperationPrepareFieldOrder -> when {
+                !c.allowAuxiliaryBlockWork || !c.allowDestruction -> rejected("INTENT_SOIL_CHANGE_NOT_ALLOWED")
+                c.quantityMeaning != GoalQuantityMeaning.NONE -> rejected("INTENT_QUANTITY_MEANING")
+                !areaAllowed(order.area,c) -> rejected("INTENT_AREA_NOT_ALLOWED")
+                !returnAllowed(order.returnTo,c,position) -> rejected("INTENT_DESTINATION_NOT_ALLOWED")
+                else -> GoalIntentCheck()
+            }
             is OperationHarvestOrder.Lumberjack -> when {
                 !c.allowAcquisition || !c.allowDestruction -> rejected("INTENT_HARVEST_NOT_ALLOWED")
                 !c.allowAuxiliaryBlockWork -> rejected("INTENT_AUXILIARY_WORK_REQUIRED")
@@ -96,6 +105,14 @@ internal object GoalIntentPolicy {
     }
 
     private fun exact(quantity: Int, c: GoalConstraints) = c.quantityMeaning == GoalQuantityMeaning.EXACT_ADDITIONAL && quantity == c.quantity
+    private fun returnTarget(order: OperationOrder): NpcPosition? = when(order) {
+        is OperationOrder.Navigate -> order.destination
+        is OperationOrder.Transport -> order.returnTo
+        is OperationInventoryOrder -> order.returnTo
+        is OperationHarvestOrder.Mining -> order.returnTo
+        is OperationPrepareFieldOrder -> order.returnTo
+        else -> null
+    }
     private fun minimum(quantity: Int, c: GoalConstraints) = c.quantityMeaning == GoalQuantityMeaning.MINIMUM_HARVEST && quantity == c.quantity
     private fun returnAllowed(point: NpcPosition?, c: GoalConstraints, current: NpcPosition) = point == null || point == current || point in c.navigation
     internal fun areaAllowed(area: OperationWorkArea, c: GoalConstraints): Boolean {

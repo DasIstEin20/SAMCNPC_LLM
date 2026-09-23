@@ -108,8 +108,11 @@ internal class SchedulerRuntimeProbe(private val server: MinecraftServer, privat
         private val gateB = CountDownLatch(1)
         private val rates = InferenceRateGate(ServerInferenceResources(
             quotaMode = if (unlimited) InferenceQuotaMode.UNLIMITED else InferenceQuotaMode.LIMITED))
+        // This tests scheduling, not a historical prompt size. The explicit one-token
+        // case below still proves that preflight rejects/refunds an undersized request.
+        private val inputAllocation = if (name == "small") 1 else 24576
         private val scheduler = InferenceScheduler(provider, settings, profile,
-            InferenceAllocation(inputTokens = if (name == "small") 1 else 16384), this, rates)
+            InferenceAllocation(inputTokens = inputAllocation), this, rates)
         private var now = 0L
         private var ticks = 0
         private var arrivalTick: Int? = null
@@ -190,7 +193,7 @@ internal class SchedulerRuntimeProbe(private val server: MinecraftServer, privat
             else check(checkNotNull(budget.contextRemainingCalls) > 0)
             when (result) {
                 is InferenceResult.Decoded -> {
-                    check(result.requestBytes < 16384)
+                    check(result.requestBytes + 256 <= inputAllocation)
                     val outcome = checkNotNull(admissions[wake.npcUuid]).admit(server, actor, result.decision,
                         goal(wake.npcUuid), policy, false)
                     check(outcome.state == DecisionOutcomeState.NO_EFFECT) { "$name $outcome" }
@@ -235,7 +238,9 @@ internal class SchedulerRuntimeProbe(private val server: MinecraftServer, privat
             if (scheduler.activeCount() != 0 || scheduler.queuedCount() != 0) return false
             when (name) {
                 "parallel" -> {
-                    check(outcomes == listOf(handles[1].npcUuid, handles[2].npcUuid, handles[0].npcUuid))
+                    check(outcomes == listOf(handles[1].npcUuid, handles[2].npcUuid, handles[0].npcUuid)) {
+                        "$name outcomes=$outcomes starts=$starts failures=$failures deferrals=$deferrals httpCalls=${endpoint.received.size}"
+                    }
                     check(budgets.values.all { it.contextRemainingCalls == if (unlimited) null else 0 })
                 }
                 "retry" -> {

@@ -26,7 +26,11 @@ internal object GoalConstraintCodec {
         return BoundedGoalRequest(goal, decode(root["constraints"].asJsonObject, persisted = false))
     }
 
-    fun saved(text: String): GoalConstraints = decode(parse(text), persisted = true)
+    fun saved(text: String, expectedVersion: Int? = null): GoalConstraints {
+        val result=decode(parse(text),persisted=true)
+        require(expectedVersion == null || result.version == expectedVersion) { "constraint version differs from its saved intent mode" }
+        return result
+    }
 
     private fun parse(text: String): JsonObject = try {
         LlmJson.parse(text, MAX_BYTES)
@@ -49,6 +53,7 @@ internal object GoalConstraintCodec {
         root.add("navigation", array(value.navigation.map {
             JsonObject().also { point -> point.addProperty("x", it.x); point.addProperty("y", it.y); point.addProperty("z", it.z) }
         }))
+        if(value.version >= 2) root.add("requiredReturnTo",value.requiredReturnTo?.let(::pointJson) ?: JsonNull.INSTANCE)
         root.addProperty("allowAcquisition", value.allowAcquisition)
         root.addProperty("allowDestruction", value.allowDestruction)
         root.addProperty("allowAuxiliaryBlockWork", value.allowAuxiliaryBlockWork)
@@ -56,9 +61,12 @@ internal object GoalConstraintCodec {
     }
 
     private fun decode(root: JsonObject, persisted: Boolean): GoalConstraints {
-        require(root.keySet() == fields + if (persisted) setOf("initialStock") else emptySet())
-        require(integer(root["version"]) == 1)
-        val operations = list(root["operations"], 6).map { entry ->
+        require(root.has("version"))
+        val version=integer(root["version"])
+        require(version in 1..2)
+        require(root.keySet() == fields + (if(persisted) setOf("initialStock") else emptySet()) +
+            (if(version >= 2) setOf("requiredReturnTo") else emptySet()))
+        val operations = list(root["operations"], if(version == 1) 6 else 7).map { entry ->
             OperationType.entries.singleOrNull { it.operationId == string(entry) } ?: throw IllegalArgumentException("Unknown operation")
         }
         val ids = list(root["resourceIds"], 16).map(::string)
@@ -73,7 +81,8 @@ internal object GoalConstraintCodec {
             list(root["destinations"], 8).map(::position), list(root["navigation"], 16).map { value ->
                 val point = record(value, setOf("x", "y", "z"))
                 NpcPosition(decimal(point["x"]), decimal(point["y"]), decimal(point["z"]))
-            }, flag(root["allowAcquisition"]), flag(root["allowDestruction"]), flag(root["allowAuxiliaryBlockWork"]))
+            }, flag(root["allowAcquisition"]), flag(root["allowDestruction"]), flag(root["allowAuxiliaryBlockWork"]),
+            if(version >= 2 && !root["requiredReturnTo"].isJsonNull) point(root["requiredReturnTo"]) else null,version)
     }
 
     private fun record(value: JsonElement, keys: Set<String>): JsonObject {
@@ -113,6 +122,13 @@ internal object GoalConstraintCodec {
     }
     private fun positionJson(value: NpcBlockPosition): JsonObject = JsonObject().also {
         it.addProperty("x", value.x); it.addProperty("y", value.y); it.addProperty("z", value.z)
+    }
+    private fun point(value: JsonElement): NpcPosition {
+        val p=record(value,setOf("x","y","z"))
+        return NpcPosition(decimal(p["x"]),decimal(p["y"]),decimal(p["z"]))
+    }
+    private fun pointJson(value: NpcPosition): JsonObject = JsonObject().also {
+        it.addProperty("x",value.x);it.addProperty("y",value.y);it.addProperty("z",value.z)
     }
     private fun boxJson(value: OperationWorkBox): JsonObject = JsonObject().also {
         it.add("min", positionJson(value.min)); it.add("max", positionJson(value.max))

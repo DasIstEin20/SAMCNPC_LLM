@@ -13,7 +13,7 @@ import java.nio.charset.CharacterCodingException
 
 /** Pure worker-side encoding. No world reads, reflection, secrets or raw human diagnostics. */
 internal object NpcContextEncoder {
-    const val VERSION = 7
+    const val VERSION = 10
     const val MAX_DETAIL_LEVEL = 3
     const val MAX_STATE_BYTES = 24 * 1024
 
@@ -57,6 +57,7 @@ internal object NpcContextEncoder {
             "inventory" to BodyContext.inventory(inspection.body, enchantments),
             "equipment" to BodyContext.equipment(inspection.body, enchantments),
             "task" to TaskContext.task(inspection),
+            "lastTerminalTask" to TaskContext.lastTerminalTask(inspection),
             "currentAction" to ActionContext.capture(physical),
             "history" to HistoryContext.journal(inspection.journal, recentEvents),
             "world" to WorldContext.world(inspection.world, binding.issuedTick, staleAfterTicks = 40),
@@ -64,6 +65,8 @@ internal object NpcContextEncoder {
             "stockSupervision" to StockContext.encode(goal.supervision, captured.stock),
             "goal" to obj("id" to text(goal.id.toString()), "revision" to number(goal.revision), "text" to text(goal.text),
                 "explicitCoordinates" to GoalCoordinates.encode(goal.text),
+                "explicitItemMentions" to GoalItemMentions.encode(goal.text),
+                "itemMentionProvenance" to text("LITERAL_USER_TEXT_SPANS; NOT_REQUESTS_OBSERVATIONS_OR_AUTHORITY; READ_NEGATIONS_IN_GOAL_TEXT"),
                 "coordinateProvenance" to text("USER_TEXT_ONLY_NOT_OBSERVED_WORLD"),
                 "intentAuthority" to text(if (goal.constraints == null) "FREE_TEXT_UNCONTRACTED" else "PLAYER_APPROVED_TYPED_CONTRACT_V1"),
                 "constraints" to (goal.constraints?.let { io.samcnpc.llm.intent.GoalConstraintCodec.encode(it) } ?: text(null)),

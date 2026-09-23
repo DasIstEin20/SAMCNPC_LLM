@@ -74,7 +74,7 @@ internal object CorpusRequestArchive {
         it.addProperty("jsonPromptSha256", CorpusFixtures.sha(LlmJson.utf8(DecisionPrompt.text)))
         it.addProperty("expressionPromptSha256", CorpusFixtures.sha(LlmJson.utf8(SamExpressionPrompt.text)))
         it.addProperty("cases", files.size)
-        it.addProperty("holdoutExposure", "Authored unblinded; generation source displayed after JSON Prompt7 frozen; no semantic tuning from held-out rows.")
+        it.addProperty("holdoutExposure", "Development regression corpus, not a blind holdout. Authored unblinded; Prompt15 preserves Prompt13 retrieval/Planner rules after Prompt14 regressed physical retrieval. Prompt13 uses error classes from the completed Prompt11 campaign. Frozen goals and scoring oracles are unchanged.")
         it.add("files", JsonArray().also { array -> files.forEach(array::add) })
     }
 }

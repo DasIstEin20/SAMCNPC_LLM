@@ -10,6 +10,27 @@ import io.samcnpc.llm.context.ContextJson.array
 
 internal object TaskContext {
     fun task(inspection: OperationInspection): JsonElement {
+        val task = inspection.operation.task
+        return if (task == null || terminal(task.state)) obj("state" to text("NO_TASK"))
+        else describe(inspection)
+    }
+
+    fun lastTerminalTask(inspection: OperationInspection): JsonElement {
+        val task = inspection.operation.task ?: return text(null)
+        if (!terminal(task.state)) return text(null)
+        val history = describe(inspection).asJsonObject
+        // Retain receipts and failure phase, without presenting obsolete intent as the next order.
+        for (frame in history["frames"].asJsonArray) {
+            frame.asJsonObject.remove("parameters")
+            frame.asJsonObject.remove("parameterProvenance")
+        }
+        return history
+    }
+
+    private fun terminal(state: OperationTaskState): Boolean = state in setOf(
+        OperationTaskState.COMPLETED, OperationTaskState.CANCELLED, OperationTaskState.FAILED)
+
+    private fun describe(inspection: OperationInspection): JsonElement {
         val task = inspection.operation.task ?: return obj("state" to text("NO_TASK"))
         return obj("taskId" to text(task.taskId.toString()), "objectiveId" to text(task.objectiveId.toString()),
             "definitionRevision" to number(task.definitionRevision), "controlRevision" to number(task.controlRevision),
