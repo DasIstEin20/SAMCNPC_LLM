@@ -8,3 +8,6 @@
 gradlew text eol=lf
 *.sh text eol=lf
 *.bat text eol=crlf
+
+# These immutable fixtures are chained by SHA-256 over their exact bytes.
+src/test/resources/evaluation/** -text
