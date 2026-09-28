@@ -20,7 +20,7 @@ The umbrella SAMCNPC checkout records the tested sibling revisions. This reposit
 contains no dependency Git submodules and never downloads sibling source code during a build.
 
 ```bash
-./gradlew clean build -PsamcnpcCoreDir=../samcnpc-core -PsamcnpcBehaviorDir=../samcnpc-behavior
+./gradlew clean build "-PsamcnpcCoreDir=../samcnpc-core" "-PsamcnpcBehaviorDir=../samcnpc-behavior"
 ```
 
 Use `gradlew.bat` on Windows. In PowerShell, quote each `-Pname=path` argument.
