@@ -30,17 +30,23 @@ internal class LlmGoalController(
     private val compaction = GoalCompaction(server, store, settings)
     private var closed = false
 
-    fun startBounded(actor: ServerPlayer, npc: UUID, document: String, now: Long, planner: Boolean = false): GoalReply {
+    fun startBounded(actor: ServerPlayer, npc: UUID, document: String, now: Long, planner: Boolean = false,
+                     plannerVariant: io.samcnpc.llm.mission.PlannerVariant = io.samcnpc.llm.mission.PlannerVariant.V1): GoalReply {
         authorization(actor, npc)?.let { return it }
         val request = try { GoalConstraintCodec.playerDocument(document) }
             catch (_: IllegalArgumentException) { return rejected("INVALID_GOAL_CONSTRAINTS") }
-        return start(actor, npc, request.text, now, planner = planner, constraints = request.constraints)
+        return start(actor, npc, request.text, now, planner = planner, constraints = request.constraints, plannerVariant = plannerVariant)
     }
 
     fun start(actor: ServerPlayer, npc: UUID, text: String, now: Long, stockTarget: StockTarget? = null, planner: Boolean = false,
-              constraints: GoalConstraints? = null): GoalReply {
+              constraints: GoalConstraints? = null,
+              plannerVariant: io.samcnpc.llm.mission.PlannerVariant = io.samcnpc.llm.mission.PlannerVariant.V1): GoalReply {
         authorization(actor, npc)?.let { return it }
         readiness()?.let { return rejected(it) }
+        val mission = plannerVariant == io.samcnpc.llm.mission.PlannerVariant.MISSION_V2
+        if (mission && !planner) return rejected("CONFLICTING_GOAL_MODES")
+        if (mission && settings.responseFormat == io.samcnpc.llm.config.ResponseFormat.SAM_EXPRESSION_V1)
+            return rejected("MISSION_REQUIRES_JSON_PROTOCOL")
         if (planner && stockTarget != null) return rejected("CONFLICTING_GOAL_MODES")
         if (constraints != null && stockTarget != null) return rejected("CONFLICTING_GOAL_MODES")
         if (!GoalRecord.validText(text, 1024)) return rejected("INVALID_GOAL_TEXT")
@@ -64,7 +70,8 @@ internal class LlmGoalController(
             phase = if (stockTarget == null) GoalPhase.QUEUED else GoalPhase.WAITING,
             mode = if (planner) LlmMode.PLANNER else if (stockTarget == null) LlmMode.TRANSLATOR else LlmMode.SUPERVISOR,
             supervision = stockTarget?.let { StockSupervision(it) },
-            memory = previous?.memory?.placesOnly() ?: GoalMemory(), constraints = bound)
+            memory = previous?.memory?.placesOnly() ?: GoalMemory(), constraints = bound,
+            mission = if (mission) io.samcnpc.llm.mission.MissionState() else null)
         if (stockTarget != null) {
             val (_, problem) = StockSupervisor.read(server, actor, record)
             if (problem != null) return rejected(problem)
@@ -181,7 +188,7 @@ internal class LlmGoalController(
     fun complete(actor: ServerPlayer, npc: UUID): GoalReply {
         authorization(actor, npc)?.let { return it }
         val record = store.get(npc) ?: return rejected("GOAL_NOT_FOUND")
-        if (record.mode != LlmMode.PLANNER || record.phase != GoalPhase.ASK_USER ||
+        if (record.mode != LlmMode.PLANNER || record.mission != null || record.phase != GoalPhase.ASK_USER ||
             record.code != "PLAN_CONFIRMATION_REQUIRED" || record.manualHold ||
             record.memory.plan.isNotEmpty() || record.task != null || record.planStepsCompleted == 0)
             return rejected("PLAN_NOT_READY_FOR_CONFIRMATION")

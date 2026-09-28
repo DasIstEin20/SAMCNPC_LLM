@@ -86,7 +86,17 @@ internal object ChatCompletionCodec {
                 }
             }
             value.isJsonArray -> JsonArray().also { result -> value.asJsonArray.forEach { result.add(encode(it)) } }
-            else -> value.deepCopy()
+            else -> {
+                // JSON Schema compares numeric values, so 1200.0 and 1.2E+3 impose the same bound.
+                val primitive = if (value.isJsonPrimitive) value.asJsonPrimitive else null
+                val compact = if (primitive?.isNumber == true) {
+                    val number = primitive.asBigDecimal.stripTrailingZeros()
+                    val scientific = number.toString().replace("E+", "e").replace("E", "e")
+                    val plain = if (number.precision().toLong() + kotlin.math.abs(number.scale().toLong()) <= 64) number.toPlainString() else scientific
+                    if (plain.length < scientific.length) plain else scientific
+                } else null
+                if (compact != null && compact.length < value.toString().length) com.google.gson.JsonParser.parseString(compact) else value.deepCopy()
+            }
         }
         return SharedSchemaShapes.compact(encode(schema, true).asJsonObject)
     }

@@ -1,95 +1,76 @@
-<p align="center">
-  <img src="assets/samcnpc-llm-logo.png" width="720" alt="SAMCNPC LLM" />
-</p>
+<p align="center"><img src="assets/samcnpc-llm-logo.png" width="760" alt="SAMCNPC LLM" /></p>
 
 # SAMCNPC LLM
 
-English | [Polski](README.pl.md)
+[English](#english) · [Polski](#polski) · [Deutsch](#deutsch)
 
-Optional high-level decision integration for Minecraft Forge 1.20.1.
-LLM chooses bounded operations, Behavior executes and recovers, Core provides body
-mechanics. Core and Behavior work independently without this mod.
+> Early development source publication · Minecraft 1.20.1 · Forge 47.4.21 · Java 17 · Kotlin for Forge 4.12.0
 
-Implemented modes: **Translator**, **stock Supervisor** and **bounded Planner**.
-Translator selects one operation from the 16-family catalog. Supervisor maintains
-an explicit visible chest stock target with hysteresis and failure-loop protection.
-Planner executes one validated step at a time, with fresh inventory preconditions,
-durable bounded memory and explicit player confirmation of an open goal.
-Plan: **35/36**. The local Qwen profile now has a narrow native smoke; full
-real-model corpus/other-backend evaluation remains pending.
+<a id="english"></a>
+## English
 
-The default endpoint is **http://127.0.0.1:1234/v1**. Address and model are editable
-in Forge Mods Config. Integration is disabled by default; it never installs or
-automatically loads a model. Routine tests use a CPU HTTP emulator. An opt-in
-Qwen3.5-4B Q4_K_M test now covers eight command scenarios, including Polish/English
-chest supply, oak harvesting with exact bounds/counts, delivery and navigation;
-see [gameplay repair](docs/LLM_GAMEPLAY_REPAIR.md).
+**Optional high-level translation, supervision and planning for Minecraft Forge 1.20.1.**
 
-Commands accept Core-style NPC names and unique prefixes, with Tab completion:
-`/samcnpc llm status Sam`. Full UUIDs still work.
+Translator selects supported typed operations; Supervisor reacts to bounded observations; Planner proposes finite work through published Behavior APIs. Every admitted request is checked for current authority, freshness and task identity. Credentials, HTTP clients and inference belong only here. The model cannot execute commands, mutate the world directly or take over body channels. Integration is disabled by default; ordinary deterministic work does not need this mod. Planner V1 remains the default strategy and experimental Planner V2 is opt-in. Real-model long-mission reliability is not established. Native scripted passes are not model-quality evidence.
 
-[Configuration](docs/LLM_CONFIGURATION.md) · [Translator commands](docs/LLM_TRANSLATOR.md) ·
-[Supervisor](docs/LLM_SUPERVISOR.md) · [Planner](docs/LLM_PLANNER.md) ·
-[Memory](docs/LLM_MEMORY.md) · [Plan](docs/LLM_INTEGRATION_PLAN.md)
+### Requirements and build
 
-## Build
+Requires matching Core, Behavior and Kotlin for Forge. The provider is optional and disabled by default. Dependencies are pinned; use compatible module revisions.
+The umbrella SAMCNPC checkout records the tested sibling revisions. This repository
+contains no dependency Git submodules and never downloads sibling source code during a build.
 
-Use Java 17, pinned Forge 47.4.21, Kotlin 2.2.21 and Kotlin for Forge 4.12.0.
-
-```sh
-git submodule update --init --recursive
-./gradlew clean build
+```bash
+./gradlew clean build -PsamcnpcCoreDir=../samcnpc-core -PsamcnpcBehaviorDir=../samcnpc-behavior
 ```
 
-Windows:  `gradlew.bat clean build`. Artifact: `build/libs/samcnpc-llm-0.1.0.jar`.
-Install matching Core, Behavior and Kotlin for Forge. All public dependencies are
-pinned submodules. Unit tests start neither Minecraft nor a model.
+Use `gradlew.bat` on Windows. In PowerShell, quote each `-Pname=path` argument.
+Building from the umbrella checkout configures the sibling projects automatically.
+JARs are written under `build/libs/`; do not install sources or development remapping artifacts.
 
-Real Forge probes include `runServerLoadingSmoke`, `runClientLoadingSmoke`,
-`runClientGoalsSmoke`, server/client `SupervisorSmoke`, `SupervisorFaultsSmoke`
-and `PlannerSmoke`. Server `GoalsSaveSmoke`/`GoalsLoadSmoke`,
-`SupervisorSaveSmoke`/`SupervisorLoadSmoke` and
-`PlannerSaveSmoke`/`PlannerLoadSmoke` use a fresh `-PllmGoalRestartId=<id>`.
-Server runs require Minecraft EULA acceptance.
+### Evaluation
 
-## Validation
+Test new work in disposable worlds. Provide an exact revision, input document,
+initial world/inventory, reproduction steps and the actual outcome in bug reports.
+Compilation alone is not evidence of physical navigation, combat, persistence or skin behavior.
+The two-authenticated-account skin/refresh check remains MANUAL_PENDING and nonblocking;
+automated loading, permissions, synchronization and persistence checks remain required.
 
-The gameplay repair adds profile-scaled quotas, Forge GUI call limits, visible
-quota waits and bounded real-eye chest observations. Prompt defaults remain
-visible; the compact decoding schema preserves every effective constraint.
-[Gameplay evidence](docs/GAMEPLAY_REPAIR_VALIDATION.json) records canonical and
-standalone tests, native client/server scenarios and the focused real-Qwen run.
-Bulk take-all and standalone armor equipping remain unsupported operations.
+<a id="polski"></a>
+## Polski
 
-The following selector/release figures are historical.
+**Opcjonalne tłumaczenie, nadzór i planowanie wysokiego poziomu dla Minecraft Forge 1.20.1.**
 
-The selector/connection repair has 525 passing workspace unit tests (49/364/112),
-seven Python guards, dedicated and client Translator regression (8 cases/9 HTTP),
-and 23 command authority checks. Standalone clean build also passed (112 LLM
-units, 128 matching own sources). Server Supervisor/Planner and goal restart
-passed their focused reruns. Real Qwen completed the separate three-case smoke.
-[Repair validation](docs/CONNECTION_REPAIR_VALIDATION.json) records the current
-artifacts and focused reruns. The following release/endurance evidence is historical.
+Translator wybiera typowane operacje, Supervisor reaguje na ograniczone obserwacje, a Planner proponuje pracę przez publiczne API Behavior. Każde zlecenie przechodzi kontrolę aktualnych uprawnień, świeżości i tożsamości zadania. Sekrety, HTTP i inferencja należą wyłącznie do tego modułu. Model nie wykonuje dowolnych komend ani bezpośrednich zmian świata i nie przejmuje kanałów ciała. Integracja jest domyślnie wyłączona. Planner V1 pozostaje domyślny, V2 jest eksperymentalną opcją. Niezawodność długich misji rzeczywistego modelu nie została potwierdzona. Test deterministyczny nie dowodzi jakości modelu.
 
-Canonical clean build: 518 units (49 Core/364 Behavior/105 LLM), 850 frozen files and
-three-JAR guards. Client and dedicated server each passed Translator 8 cases/9 HTTP,
-Supervisor 14/22 and Planner 6/9. Physical supply balances, stale resources, provider
-failures, manual controls and late cancellation passed. Three restart suites
-retained known identities/intent without replay and held uncertain admission.
-Dedicated admission: 37 checks; goal authority/input: 15 checks.
+Zestaw docelowy: Minecraft 1.20.1, Forge 47.4.21, Java 17 i Kotlin for Forge 4.12.0.
+Zgodne wersje zależności są wymagane. Główne repozytorium SAMCNPC przypina rewizje
+sąsiednich modułów; tutaj nie ma zagnieżdżonych submodułów Git. Polecenie kompilacji
+znajduje się wyżej; Windows używa `gradlew.bat`, a argumenty `-Pname=path` w PowerShell
+należy ująć w cudzysłowy. JAR powstaje w `build/libs/`.
 
-Standalone clean build: 105 LLM tests, 122 matching own sources.
-[Release evidence and hashes](docs/RELEASE_VALIDATION.json) record the previous
-release build; [goal-mode evidence](docs/PLANNER_VALIDATION.json) separates emulator/runtime
-proof from real-model semantics. Unchanged Core 146/Behavior 215 native and Core 52 animation
-cases retain prior evidence. [Project state](PROJECT_STATE.md) records limitations.
-The active one-hour restricted patrol/melee test passed with six NPCs, twelve HTTP
-calls and twenty minutes of actual endpoint shutdown. Fresh standalone client/server
-loading also passed. Two-account skins are manual and nonblocking.
+Nowe funkcje sprawdzaj na jednorazowych światach. Zgłoszenie powinno zawierać rewizję,
+dokument wejściowy, stan początkowy i odtwarzalne kroki. Sam wynik kompilacji nie
+potwierdza zachowania w grze. Wizualny test skina z dwoma kontami pozostaje
+MANUAL_PENDING; testy automatyczne nadal obowiązują.
 
-[Core](https://github.com/DasIstEin20/SAMCNPC_Core) ·
-[Behavior](https://github.com/DasIstEin20/SAMCNPC_Behavior)
+<a id="deutsch"></a>
+## Deutsch
 
-[Frozen evaluation corpus and scoring](docs/LLM_EVALUATION.md): 56 cases, three scripted repetitions; full real-model corpus quality remains pending.
+**Optionale Übersetzung, Aufsicht und Planung auf hoher Ebene für Minecraft Forge 1.20.1.**
 
-[Installation](docs/LLM_INSTALLATION.md) · [Endurance](docs/LLM_ENDURANCE.md) · [Release acceptance](docs/RELEASE_ACCEPTANCE.md) · [Artifacts](docs/ARTIFACTS.md) · [Manual skin test](docs/MANUAL_SKIN_TEST.md)
+Translator wählt typisierte Operationen, Supervisor reagiert auf begrenzte Beobachtungen und Planner schlägt Arbeit über öffentliche Behavior-APIs vor. Berechtigung, Aktualität und Aufgabenidentität werden erneut geprüft. Zugangsdaten, HTTP und Inferenz bleiben in diesem Modul. Das Modell darf weder beliebige Befehle ausführen noch die Welt direkt verändern oder Körperkanäle übernehmen. Die Integration ist standardmäßig deaktiviert. Planner V1 bleibt Standard, V2 ist experimentell und optional. Zuverlässigkeit langer Modellmissionen ist nicht nachgewiesen. Deterministische Tests sind kein Nachweis für Modellqualität.
+
+Zielplattform: Minecraft 1.20.1, Forge 47.4.21, Java 17 und Kotlin for Forge 4.12.0.
+Kompatible Abhängigkeitsversionen sind erforderlich. Das Hauptrepository SAMCNPC
+pinnt die benachbarten Modulrevisionen; dieses Repository hat keine verschachtelten
+Git-Submodule. Der Build-Befehl steht oben. Unter Windows `gradlew.bat` verwenden;
+PowerShell-Argumente `-Pname=path` in Anführungszeichen setzen. JAR-Ausgabe: `build/libs/`.
+
+Neue Funktionen in entbehrlichen Welten testen. Fehlerberichte brauchen Revision,
+Eingabedokument, Ausgangszustand und reproduzierbare Schritte. Kompilierung allein
+belegt kein Spielverhalten. Der visuelle Skin-Test mit zwei Konten bleibt
+MANUAL_PENDING; automatisierte Prüfungen bleiben erforderlich.
+
+## License
+
+See [LICENSE](LICENSE). Minecraft and third-party dependencies retain their own terms.

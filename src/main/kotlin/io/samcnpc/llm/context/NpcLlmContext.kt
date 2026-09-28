@@ -47,8 +47,10 @@ internal class ContextGoal(val id: UUID, val revision: Long, val text: String, v
                            val supervision: io.samcnpc.llm.supervision.StockSupervision? = null,
                            val planStepsCompleted: Int = 0,
                            val constraints: io.samcnpc.llm.intent.GoalConstraints? = null,
-                           val intentReservation: io.samcnpc.llm.intent.GoalIntentReservation = io.samcnpc.llm.intent.GoalIntentReservation()) {
+                           val intentReservation: io.samcnpc.llm.intent.GoalIntentReservation = io.samcnpc.llm.intent.GoalIntentReservation(),
+                           val mission: io.samcnpc.llm.mission.MissionState? = null) {
     init {
+        require(mission == null || mode == LlmMode.PLANNER)
         require(constraints == null && intentReservation == io.samcnpc.llm.intent.GoalIntentReservation() ||
             constraints != null && mode != LlmMode.SUPERVISOR && intentReservation.fits(constraints))
         require(revision >= 0 && text.length in 1..2048 && (remainingCalls == null || remainingCalls in 0..24))
@@ -81,6 +83,7 @@ internal class CapturedContext(
     val actorIsSummoner: Boolean,
     val actorIsOperator: Boolean,
     val stock: io.samcnpc.core.api.NpcStockRead.Observed? = null,
+    val missionEvaluation: io.samcnpc.llm.mission.MissionEvaluation? = null,
 )
 
 internal class NpcLlmContext(val binding: ContextBinding, val stateJson: String, val utf8Bytes: Int)

@@ -28,6 +28,8 @@ internal object GoalRecordCodec {
         tag.putString("mode", record.mode.name)
         tag.put("memory", GoalMemoryCodec.encode(record.memory))
         tag.putInt("planSteps", record.planStepsCompleted)
+        tag.putString("plannerVariant", if (record.mission == null) "V1" else "MISSION_V2")
+        record.mission?.let { tag.put("mission", io.samcnpc.llm.mission.MissionStateCodec.encode(it)) }
         tag.putString("intentMode", if (record.constraints == null) "FREE_TEXT" else "BOUNDED_V${record.constraints.version}")
         record.constraints?.let {
             tag.putString("constraints", it.persistenceJson)
@@ -61,9 +63,11 @@ internal object GoalRecordCodec {
             (if (version >= 3) setOf("memory") else emptySet()) +
             (if (version >= 4) setOf("planSteps") else emptySet()) +
             (if (version >= 5) setOf("quotaMode") else emptySet()) +
-            (if (version >= 6) setOf("intentMode") else emptySet())
+            (if (version >= 6) setOf("intentMode") else emptySet()) +
+            (if (version >= 8) setOf("plannerVariant") else emptySet())
         val optionalFields = (if (version == 1) optional else optional + "supervisor") +
-            (if (version >= 6) setOf("constraints", "acquiredIntent", "deliveredIntent") else emptySet())
+            (if (version >= 6) setOf("constraints", "acquiredIntent", "deliveredIntent") else emptySet()) +
+            (if (version >= 8) setOf("mission") else emptySet())
         if (!tag.allKeys.containsAll(requiredFields) || tag.allKeys.any { it !in requiredFields && it !in optionalFields }) return null
         val quotaMode = if (version < 5) InferenceQuotaMode.LIMITED else {
             if (!tag.contains("quotaMode", Tag.TAG_STRING.toInt())) return null
@@ -74,6 +78,17 @@ internal object GoalRecordCodec {
             LlmMode.entries.firstOrNull { it.name == tag.getString("mode") } ?: return null
         }
         if (version < 4 && mode == LlmMode.PLANNER) return null
+        val mission = if (version < 8) null else {
+            if (!tag.contains("plannerVariant", Tag.TAG_STRING.toInt())) return null
+            when (tag.getString("plannerVariant")) {
+                "V1" -> { if (tag.contains("mission")) return null; null }
+                "MISSION_V2" -> {
+                    if (mode != LlmMode.PLANNER || !tag.contains("mission", Tag.TAG_COMPOUND.toInt())) return null
+                    io.samcnpc.llm.mission.MissionStateCodec.decode(tag.getCompound("mission")) ?: return null
+                }
+                else -> return null
+            }
+        }
         if (version >= 4 && !tag.contains("planSteps", Tag.TAG_INT.toInt())) return null
         val planSteps = if (version >= 4) tag.getInt("planSteps") else 0
         val memory = if (version < 3) GoalMemory() else {
@@ -129,7 +144,7 @@ internal object GoalRecordCodec {
                 InferenceBudgetLimits(tag.getInt("attemptLimit"), tag.getLong("inputLimit"),
                     tag.getLong("outputLimit"), tag.getLong("costLimit"), quotaMode),
                 InferenceBudgetView(tag.getInt("attempts"), tag.getLong("input"), tag.getLong("output"),
-                    tag.getLong("cost"), if (tag.hasUUID("inFlight")) tag.getUUID("inFlight") else null), mode, supervision, memory, planSteps, constraints, reservation)
+                    tag.getLong("cost"), if (tag.hasUUID("inFlight")) tag.getUUID("inFlight") else null), mode, supervision, memory, planSteps, constraints, reservation, mission)
             if (fits(tag)) result else null
         } catch (_: IllegalArgumentException) { null }
     }

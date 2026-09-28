@@ -7,6 +7,7 @@ import io.samcnpc.llm.goal.*
 /** Advances only from a validated receipt and the exact observed terminal task. */
 internal object PlannerOutcomes {
     fun admitted(record: GoalRecord, decision: LlmDecision, outcome: DecisionOutcome): GoalRecord {
+        if (record.mission != null) return io.samcnpc.llm.mission.MissionOutcomes.admitted(record, decision, outcome)
         val prepared = if (decision.action is DecisionAction.Assign && outcome.state == DecisionOutcomeState.APPLIED)
             record.copy(memory = record.memory.withPlan(checkNotNull(decision.plan).steps))
         else record
@@ -35,8 +36,8 @@ internal object PlannerOutcomes {
     }
 
     fun boundary(record: GoalRecord?): Boolean = record != null && record.mode == LlmMode.PLANNER &&
-        record.phase == GoalPhase.WAITING && !record.manualHold && record.code == "PLAN_NEXT_STEP" &&
-        record.memory.plan.isNotEmpty()
+        (io.samcnpc.llm.mission.MissionOutcomes.boundary(record) ||
+            record.phase == GoalPhase.WAITING && !record.manualHold && record.code == "PLAN_NEXT_STEP" && record.memory.plan.isNotEmpty())
 
     private fun ask(record: GoalRecord, code: String, question: String): GoalRecord =
         record.copy(phase = GoalPhase.ASK_USER, code = code, question = question, manualHold = false)

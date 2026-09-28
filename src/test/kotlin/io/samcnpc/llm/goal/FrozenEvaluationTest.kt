@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit
 class FrozenEvaluationTest {
     private val policy = ContextPolicy(1, OperationType.entries.toSet(), emptySet(), emptySet(), 72000, 16, 0)
     private fun bytes(name: String): ByteArray =
-        checkNotNull(javaClass.getResourceAsStream((if (name == "profile.json") "/evaluation/v19/" else "/evaluation/v1/") + name)).use { it.readBytes() }
+        checkNotNull(javaClass.getResourceAsStream((if (name == "profile.json") "/evaluation/v21/" else "/evaluation/v1/") + name)).use { it.readBytes() }
     private fun json(name: String): JsonObject = LlmJson.parse(bytes(name).toString(Charsets.UTF_8), 131072)
     private fun sha(bytes: ByteArray): String = MessageDigest.getInstance("SHA-256").digest(bytes)
         .joinToString("") { "%02x".format(it) }
@@ -50,7 +50,13 @@ class FrozenEvaluationTest {
         val fieldProfile=checkNotNull(javaClass.getResourceAsStream("/evaluation/v16/profile.json")).use { it.readBytes() }
         val returnProfile=checkNotNull(javaClass.getResourceAsStream("/evaluation/v17/profile.json")).use { it.readBytes() }
         val nullableProfile=checkNotNull(javaClass.getResourceAsStream("/evaluation/v18/profile.json")).use { it.readBytes() }
-        assertEquals(profile["previousProfileSha256"].asString,sha(nullableProfile))
+        val wholeGoalProfile = checkNotNull(javaClass.getResourceAsStream("/evaluation/v19/profile.json")).use { it.readBytes() }
+        val firstMissionProfile = checkNotNull(javaClass.getResourceAsStream("/evaluation/v20/profile.json")).use { it.readBytes() }
+        assertEquals(profile["previousProfileSha256"].asString, sha(firstMissionProfile))
+        assertEquals(LlmJson.parse(firstMissionProfile.toString(Charsets.UTF_8),131072)["previousProfileSha256"].asString, sha(wholeGoalProfile))
+        assertEquals(io.samcnpc.llm.mission.MissionProtocol.REQUIREMENTS_PROMPT_VERSION, profile["missionRequirementsPromptVersion"].asInt)
+        assertEquals(profile["coalCorpusSha256"].asString, sha(io.samcnpc.llm.mission.CoalRequirementCorpus.bytes))
+        assertEquals(LlmJson.parse(wholeGoalProfile.toString(Charsets.UTF_8),131072)["previousProfileSha256"].asString,sha(nullableProfile))
         assertEquals(LlmJson.parse(nullableProfile.toString(Charsets.UTF_8),131072)["previousProfileSha256"].asString,sha(returnProfile))
         assertEquals(LlmJson.parse(returnProfile.toString(Charsets.UTF_8),131072)["previousProfileSha256"].asString,sha(fieldProfile))
         assertEquals(LlmJson.parse(fieldProfile.toString(Charsets.UTF_8),131072)["previousProfileSha256"].asString,sha(priorProfile))

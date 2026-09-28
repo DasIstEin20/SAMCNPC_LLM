@@ -5,7 +5,7 @@ license="MIT"
 [modproperties.samcnpc_llm]
 apiVersion="2"
 requiresCoreApi="2"
-requiresBehaviorApi="5"
+requiresBehaviorApi="6"
 buildId="${buildId}"
 
 [[mods]]

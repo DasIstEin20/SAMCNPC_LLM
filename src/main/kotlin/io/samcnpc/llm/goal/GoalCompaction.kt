@@ -27,7 +27,7 @@ internal class GoalCompaction(private val server: MinecraftServer, private val s
             manualHold = record.manualHold || pending)
         val goal = ContextGoal(next.goalId, next.revision, next.contextText(), next.mode, null,
             InferenceBudget(next.limits, next.budget).contextRemainingCalls, next.memory.context(),
-            next.supervision, next.planStepsCompleted, next.constraints, next.intentReservation)
+            next.supervision, next.planStepsCompleted, next.constraints, next.intentReservation, next.mission)
         val capture = NpcContextBuilder.capture(server, actor, next.npcUuid, goal, GoalPolicies.forRecord(next), diagnostic = true)
         if (capture is ContextCaptureResult.Rejected) return GoalReply(false, capture.code)
         check(capture is ContextCaptureResult.Captured)

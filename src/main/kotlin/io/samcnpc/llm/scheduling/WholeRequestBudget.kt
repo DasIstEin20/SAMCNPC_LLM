@@ -31,8 +31,10 @@ internal object WholeRequestBudget {
     fun prepare(requestId: UUID, prompt: String, schema: String, settings: ProviderSettings,
                 profile: InferenceTokenProfile, allocation: InferenceAllocation,
                 levels: IntRange = 0..NpcContextEncoder.MAX_DETAIL_LEVEL,
+                maxStateBytes: Int = NpcContextEncoder.MAX_STATE_BYTES,
                 projection: (Int) -> ContextEncodingResult): RequestPreparation {
         require(!levels.isEmpty() && levels.first >= 0 && levels.last <= NpcContextEncoder.MAX_DETAIL_LEVEL)
+        require(maxStateBytes in 1..NpcContextEncoder.MAX_MISSION_STATE_BYTES)
         var last: RequestPreparation.Rejected? = null
         for (level in levels) {
             val state = projection(level)
@@ -49,7 +51,7 @@ internal object WholeRequestBudget {
             val problem = when {
                 tokens == null -> "UNVERIFIED_TOKEN_PROFILE"
                 tokens < 0 -> "INVALID_TOKEN_PROFILE"
-                state.value.utf8Bytes > NpcContextEncoder.MAX_STATE_BYTES -> "CONTEXT_TOO_LARGE"
+                state.value.utf8Bytes > maxStateBytes -> "CONTEXT_TOO_LARGE"
                 wire.bytes.size > settings.maxContextBytes -> "CONTEXT_TOO_LARGE"
                 tokens > allocation.inputTokens -> "INPUT_TOKEN_BOUND_EXCEEDED"
                 else -> null

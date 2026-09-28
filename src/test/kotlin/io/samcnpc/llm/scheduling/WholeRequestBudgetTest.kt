@@ -15,15 +15,15 @@ import java.util.UUID
 class WholeRequestBudgetTest {
     @Test fun diagnosticRangesKeepRealPreflightFailuresAndCannotSelectUnboundedProjectionLevels() {
         val allocation = InferenceAllocation(size(0) + 255)
-        val before = WholeRequestBudget.prepare(id, prompt, schema, settings, profile, allocation, 0..0, ::state)
+        val before = WholeRequestBudget.prepare(id, prompt, schema, settings, profile, allocation, 0..0, projection = ::state)
         assertEquals("INPUT_TOKEN_BOUND_EXCEEDED", (before as RequestPreparation.Rejected).code)
         assertEquals(size(0), before.metrics?.totalHttpRequestBytes)
-        val after = WholeRequestBudget.prepare(id, prompt, schema, settings, profile, allocation, 1..3, ::state)
+        val after = WholeRequestBudget.prepare(id, prompt, schema, settings, profile, allocation, 1..3, projection = ::state)
         assertTrue(after is RequestPreparation.Ready)
         assertEquals(1, after.metrics?.detailLevel)
         assertEquals(size(1), after.metrics?.totalHttpRequestBytes)
         for (range in listOf(-1..1, 0..4, 2..1)) assertThrows(IllegalArgumentException::class.java) {
-            WholeRequestBudget.prepare(id, prompt, schema, settings, profile, allocation, range, ::state)
+            WholeRequestBudget.prepare(id, prompt, schema, settings, profile, allocation, range, projection = ::state)
         }
     }
 
@@ -86,5 +86,22 @@ class WholeRequestBudgetTest {
         assertEquals("UNVERIFIED_TOKEN_PROFILE", (result as RequestPreparation.Rejected).code)
         assertEquals(1, trials)
         assertNull(result.metrics?.calculatedTokenUpperBound)
+    }
+
+    @Test fun missionAllowanceStillEnforcesStateHttpAndTokenCeilings() {
+        fun projected(bytes: Int): ContextEncodingResult.Encoded {
+            val text = "{\"mission\":\"" + "x".repeat(bytes) + "\"}"
+            return ContextEncodingResult.Encoded(NpcLlmContext(binding, text, LlmJson.utf8(text).size))
+        }
+        fun prepare(bytes: Int, tokens: Int, maxState: Int) = WholeRequestBudget.prepare(
+            id, prompt, schema, settings, profile, InferenceAllocation(tokens), maxStateBytes = maxState) { projected(bytes) }
+        assertEquals("CONTEXT_TOO_LARGE", (prepare(25000, 65536, NpcContextEncoder.MAX_STATE_BYTES) as RequestPreparation.Rejected).code)
+        assertTrue(prepare(25000, 65536, NpcContextEncoder.MAX_MISSION_STATE_BYTES) is RequestPreparation.Ready)
+        assertEquals("INPUT_TOKEN_BOUND_EXCEEDED", (prepare(25000, 25000, NpcContextEncoder.MAX_MISSION_STATE_BYTES) as RequestPreparation.Rejected).code)
+        assertEquals("CONTEXT_TOO_LARGE", (prepare(41000, 65536, NpcContextEncoder.MAX_MISSION_STATE_BYTES) as RequestPreparation.Rejected).code)
+        val limited = settings.copy(maxContextBytes = 24576)
+        val result = WholeRequestBudget.prepare(id, prompt, schema, limited, profile, InferenceAllocation(65536),
+            maxStateBytes = NpcContextEncoder.MAX_MISSION_STATE_BYTES) { projected(25000) }
+        assertEquals("CONTEXT_TOO_LARGE", (result as RequestPreparation.Rejected).code)
     }
 }

@@ -35,10 +35,10 @@ internal object SharedSchemaShapes {
         for ((key, _) in counts.entries.filter { it.value.toLong() * (it.key.length - 24) > it.key.length + 8 }
             .sortedByDescending { it.value.toLong() * (it.key.length - 24) - it.key.length - 8 }.take(64)) {
             var name: String
-            do { name = "s" + index++ } while (!names.add(name))
+            do { name = (index++).toString(36) } while (!names.add(name))
             aliases[key] = name
         }
-        if (aliases.isEmpty()) return schema
+        if (aliases.isEmpty()) return CompactSchemaReferences.compact(schema)
         val pending = ArrayDeque<String>()
         val used = mutableSetOf<String>()
         fun encode(value: JsonElement, expand: Boolean = false): JsonElement {
@@ -63,6 +63,7 @@ internal object SharedSchemaShapes {
             val key = pending.removeFirst()
             definitions.add(aliases.getValue(key), encode(nodes.getValue(key), expand = true))
         }
-        return if (LlmJson.utf8(result.toString()).size < LlmJson.utf8(schema.toString()).size) result else schema
+        val compact = CompactSchemaReferences.compact(result)
+        return if (LlmJson.utf8(compact.toString()).size < LlmJson.utf8(schema.toString()).size) compact else schema
     }
 }

@@ -62,7 +62,12 @@ internal class RichContextRuntimeProbe(private val server: MinecraftServer, priv
                 return null
             }
             val report = diagnosticController.status(actor, handle.npcUuid).compactionReport ?: return null
-            check(report.code == "CONTEXT_COMPACTED" && report.before?.detailLevel == 0 && report.after?.detailLevel == 1) { report.describe() }
+            // The expanded public operation contract now needs the final bounded projection
+            // for this full-inventory fixture; the original 64K input/window limits stay fixed.
+            check(report.code == "CONTEXT_COMPACTED" && report.before?.detailLevel == 0 && report.after?.detailLevel == 3) { report.describe() }
+            check(checkNotNull(report.after).configuredInputAllocation == 63488)
+            check(checkNotNull(report.after).configuredContextWindow == 65536)
+            check(checkNotNull(checkNotNull(report.after).calculatedTokenUpperBound) <= 63488)
             check(checkNotNull(report.before).totalHttpRequestBytes > checkNotNull(report.after).totalHttpRequestBytes)
             check(diagnosticEndpoint.received.isEmpty())
             val detached = checkNotNull(diagnosticCapture)
@@ -196,6 +201,11 @@ internal class RichContextRuntimeProbe(private val server: MinecraftServer, priv
                 prepared.metrics?.describe() + "\n" + if (prepared is RequestPreparation.Rejected) prepared.code else "READY")
             check(prepared is RequestPreparation.Ready) { "Rich context preflight rejected: $prepared; metrics=${prepared.metrics}" }
             check(prepared.metrics.detailLevel > 0 && prepared.metrics.totalHttpRequestBytes < before.bytes.size)
+            for (level in 0 until prepared.metrics.detailLevel) {
+                val earlier = WholeRequestBudget.prepare(captured.binding.contextId, DecisionPrompt.text, schema,
+                    settings, profile, InferenceAllocation(63488), levels = level..level) { NpcContextEncoder.encodeProjection(captured, it) }
+                check(earlier is RequestPreparation.Rejected) { "An earlier, richer projection already fit at level $level" }
+            }
             val after = ItemFactsEvidence.expand(LlmJson.parse(prepared.request.contextJson, 65536))
             val original = LlmJson.parse(full.value.stateJson, 131072)
             for (key in original.keySet() - setOf("inventory", "equipment", "history", "projection"))

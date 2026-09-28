@@ -32,6 +32,9 @@ import java.util.UUID
 internal object ShowtimeServerSmoke {
     private val enabled = java.lang.Boolean.getBoolean("samcnpc.showtimeSmoke")
     private val sequenceMode = java.lang.Boolean.getBoolean("samcnpc.sequenceSmoke")
+    private val missionV2 = java.lang.Boolean.getBoolean("samcnpc.missionV2Smoke")
+    private val scriptedMission = java.lang.Boolean.getBoolean("samcnpc.missionScriptedSmoke")
+    private var emulator: SequenceMissionEmulator? = null
     private val boundedField = java.lang.Boolean.getBoolean("samcnpc.boundedFieldSmoke")
     private val fieldMode = java.lang.Boolean.getBoolean("samcnpc.fieldSmoke")
     private val spawn = NpcPosition(-39.5, 63.0, 78.5)
@@ -94,10 +97,14 @@ internal object ShowtimeServerSmoke {
             }
             val controller = checkNotNull(LlmServerEvents.controller(server))
             val record = checkNotNull(controller.store.get(handle.npcUuid))
+            if (sequenceMode && (ticks % 40 == 0 || record.phase == GoalPhase.COMPLETED || record.phase == GoalPhase.ASK_USER))
+                Files.writeString(Path.of("sequence-goal-record.snbt"), GoalRecordCodec.encode(record).toString())
             if (sequenceMode) SequenceShowtimeScene.observe(server, player, handle, record, counts)
+            if (io.samcnpc.llm.planning.PlannerOutcomes.boundary(record)) return
             if (record.phase in setOf(GoalPhase.QUEUED, GoalPhase.INFERENCING, GoalPhase.ADMITTING, GoalPhase.EXECUTING)) return
             if (sequenceMode) {
-                evidence.add("PASS " + SequenceShowtimeScene.verify(server, player, handle, record))
+                SequenceShowtimeScene.measure(server, player, handle, record)
+                evidence.add("PASS " + SequenceShowtimeScene.verify(server, player, handle, record, missionV2))
                 retire(server, player); return
             }
             if(fieldMode) {
@@ -138,6 +145,10 @@ internal object ShowtimeServerSmoke {
             val player = actor
             val handle = npc
             if (player != null && handle != null) {
+                if (sequenceMode) LlmServerEvents.controller(server)?.store?.get(handle.npcUuid)?.let {
+                    SequenceShowtimeScene.measure(server, player, handle, it)
+                    Files.writeString(Path.of("sequence-goal-record.snbt"), GoalRecordCodec.encode(it).toString())
+                }
                 val snapshot = OperationInspectionApi.inspect(server, player, handle.npcUuid)
                 Files.writeString(Path.of("showtime-failure-$index.json"), com.google.gson.GsonBuilder().serializeNulls()
                     .setPrettyPrinting().create().toJson(snapshot) + "\n")
@@ -155,6 +166,7 @@ internal object ShowtimeServerSmoke {
     }
 
     private fun request(server: MinecraftServer, player: ServerPlayer, handle: NpcHandle) {
+        if (scriptedMission) evidence.add(MissionAdmissionProbe.verify(server, player, handle))
         val items = requested().entries.joinToString(", ") { "${it.value} minecraft:${it.key}" }
         val goal = if(sequenceMode) SequenceShowtimeScene.goal else if(fieldMode) FieldShowtimeScene.goal(case) else if (case == 7)
             "Zabierz wszystko ze skrzyni (-38,63,78) do swojego ekwipunku. Zachowaj rzeczy w plecaku; nie zakładaj zbroi."
@@ -165,7 +177,8 @@ internal object ShowtimeServerSmoke {
         else "Take $items from the chest at (-38,63,78) into your inventory. Carry these items; do not equip armor."
         val reply = checkNotNull(LlmServerEvents.controller(server)).start(player, handle.npcUuid, goal,
             player.serverLevel().gameTime, planner = if(sequenceMode) true else if(fieldMode) case == 2 else case == 4 || case == 8,
-            constraints = if (fieldMode && boundedField && case != 3) FieldShowtimeScene.constraints() else null)
+            constraints = if (fieldMode && boundedField && case != 3) FieldShowtimeScene.constraints() else null,
+            plannerVariant = if (missionV2) io.samcnpc.llm.mission.PlannerVariant.MISSION_V2 else io.samcnpc.llm.mission.PlannerVariant.V1)
         check(reply.accepted) { reply.code }
         stage = "INFERENCE"
     }
@@ -189,6 +202,10 @@ internal object ShowtimeServerSmoke {
 
     private fun initialize(server: MinecraftServer) {
         check(server.isDedicatedServer)
+        check(!missionV2 || sequenceMode)
+        check(!scriptedMission || missionV2)
+        if (scriptedMission && emulator == null) { emulator = SequenceMissionEmulator(); return }
+        if (scriptedMission && LlmServerEvents.controller(server)?.settings != emulator?.settings) return
         val settings = LlmConfig.snapshot().values
         check(settings.enabled && settings.problem() == null && settings.inference.readiness(settings) == null)
         val level = server.overworld()
@@ -205,7 +222,7 @@ internal object ShowtimeServerSmoke {
         }
         if (sequenceMode) SequenceShowtimeScene.initialize(player)
         level.setBlockAndUpdate(chestPosition, Blocks.CHEST.defaultBlockState())
-        Files.writeString(Path.of("showtime-progress.txt"), "RUNNING realEndpoint=true repetitions=${if(sequenceMode) 1 else 3} boundedField=$boundedField\n")
+        Files.writeString(Path.of("showtime-progress.txt"), "RUNNING realEndpoint=${!scriptedMission} missionV2=$missionV2 repetitions=${if(sequenceMode) 1 else 3} boundedField=$boundedField\n")
     }
 
     private fun retire(server: MinecraftServer, player: ServerPlayer) {
@@ -219,7 +236,7 @@ internal object ShowtimeServerSmoke {
         Files.writeString(Path.of("showtime-progress.txt"), evidence.joinToString("\n") + "\n")
         if (++index == names.size * if (sequenceMode) 1 else 3) {
             done = true
-            Files.writeString(Path.of("showtime-result.txt"), "${if (failures.isEmpty()) "PASS" else "FAIL"} realEndpoint=true cases=$index boundedField=$boundedField\n" +
+            Files.writeString(Path.of("showtime-result.txt"), "${if (failures.isEmpty()) "PASS" else "FAIL"} realEndpoint=${!scriptedMission} missionV2=$missionV2 cases=$index boundedField=$boundedField\n" +
                 evidence.joinToString("\n") + "\n" + failures.joinToString("\n"))
             server.halt(false)
         }
@@ -227,6 +244,7 @@ internal object ShowtimeServerSmoke {
 
     @SubscribeEvent fun stopping(event: ServerStoppingEvent) {
         if (!enabled) return
+        emulator?.close(); emulator = null
         actor?.let { event.server.playerList.remove(it) }; actor = null
         channel?.finishAndReleaseAll(); channel = null
     }

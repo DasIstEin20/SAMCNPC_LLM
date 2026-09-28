@@ -78,6 +78,7 @@ internal class InferenceScheduler(
             val result = when (completed) {
                 is InferenceResult.Failed -> completed.copy(submission = submission)
                 is InferenceResult.Decoded -> completed.copy(submission = submission)
+                is InferenceResult.Mission -> completed.copy(submission = submission)
             }
             if (result.providerInvoked) completedProviderInvocations++
             val sent = when (submission) { LlmSubmission.NOT_SENT -> "false"; LlmSubmission.SUBMITTED -> "true"; LlmSubmission.UNKNOWN -> "unknown" }
@@ -86,7 +87,7 @@ internal class InferenceScheduler(
                 result.metrics?.describe() ?: "requestMetrics=UNAVAILABLE")
             val failure = (result as? InferenceResult.Failed)?.providerFailure
             circuit.complete(attempt.permit, nowMillis,
-                if (result is InferenceResult.Decoded) null else failure ?: LlmFailure.CANCELLED,
+                if (result is InferenceResult.Decoded || result is InferenceResult.Mission) null else failure ?: LlmFailure.CANCELLED,
                 (result as? InferenceResult.Failed)?.retryAfterSeconds)
             completing = attempt
             try {

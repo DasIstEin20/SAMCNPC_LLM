@@ -62,7 +62,10 @@ internal object NpcContextBuilder {
         val task = inspection.operation.task
         val binding = ContextBinding(UUID.randomUUID(), npcUuid, actor.uuid, goal.id, goal.revision, policy.revision,
             inspection.generations, catalogHash, tick, expiry, task?.taskId, task?.definitionRevision, task?.controlRevision)
+        val missionEvaluation = goal.mission?.takeIf { it.contract != null }?.let {
+            io.samcnpc.llm.mission.MissionObservation.evaluate(server, actor, npcUuid, it, inspection)
+        }
         return ContextCaptureResult.Captured(CapturedContext(binding, inspection, goal, policy,
-            physical.summonerUuid == actor.uuid, actor.hasPermissions(2), stock))
+            physical.summonerUuid == actor.uuid, actor.hasPermissions(2), stock, missionEvaluation))
     }
 }

@@ -22,7 +22,7 @@ internal object LlmGoalCommands {
         BoundedGoalCommands.register(branch) { source, npc, request ->
             execute(source, "bounded_typed", npc, request.text, constraints = request.constraints)
         }
-        for (action in listOf("goal", "answer", "plan", "goal_bounded", "plan_bounded")) {
+        for (action in listOf("goal", "answer", "plan", "plan_v2", "goal_bounded", "plan_bounded", "plan_bounded_v2")) {
             branch.then(Commands.literal(action).then(LlmNpcArguments.argument()
                 .then(Commands.argument("text", StringArgumentType.greedyString()).executes { context ->
                     execute(context.source, action, StringArgumentType.getString(context, "npc"),
@@ -80,8 +80,12 @@ internal object LlmGoalCommands {
             "goal" -> controller.start(actor, npc, text, now)
             "bounded_typed" -> controller.start(actor, npc, text, now, constraints = checkNotNull(constraints))
             "plan" -> controller.start(actor, npc, text, now, planner = true)
+            "plan_v2" -> controller.start(actor, npc, text, now, planner = true,
+                plannerVariant = io.samcnpc.llm.mission.PlannerVariant.MISSION_V2)
             "goal_bounded" -> controller.startBounded(actor, npc, text, now)
             "plan_bounded" -> controller.startBounded(actor, npc, text, now, planner = true)
+            "plan_bounded_v2" -> controller.startBounded(actor, npc, text, now, planner = true,
+                plannerVariant = io.samcnpc.llm.mission.PlannerVariant.MISSION_V2)
             "complete" -> controller.complete(actor, npc)
             "maintain" -> controller.start(actor, npc, text, now, checkNotNull(stock))
             "answer" -> controller.answer(actor, npc, text, now)
@@ -107,6 +111,8 @@ internal object LlmGoalCommands {
                     "BOUNDED_V${record.constraints.version} acquired=" + record.intentReservation.acquired + "/" + record.constraints.acquisitionLimit +
                         " delivered=" + record.intentReservation.delivered + "/" + record.constraints.deliveryLimit) +
                 (if (record.mode == io.samcnpc.llm.context.LlmMode.PLANNER) " | steps " + record.planStepsCompleted + "/8" else "") +
+                (record.mission?.let { " | planner V2 | stage " + it.stage.name +
+                    " | requirements " + (it.contract?.requirements?.size ?: 0) + " | milestones " + it.receipts.size } ?: "") +
                 (record.question?.let { "\n" + it } ?: "")
         if (action == "status" && reply.accepted)
             message += "\nhourlyQuotaMode=" + controller.settings.inference.hourlyQuotaMode.name + "\n" +

@@ -200,6 +200,7 @@ internal class SchedulerRuntimeProbe(private val server: MinecraftServer, privat
                     outcomes.add(wake.npcUuid)
                 }
                 is InferenceResult.Failed -> failures.add(result.code)
+                is InferenceResult.Mission -> error("Legacy scheduler fixture must not receive mission-stage output")
             }
         }
 

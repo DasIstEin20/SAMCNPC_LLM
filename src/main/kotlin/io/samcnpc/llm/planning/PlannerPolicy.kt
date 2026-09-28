@@ -14,6 +14,12 @@ internal object PlannerPolicy {
 
     fun problem(decision: LlmDecision, captured: CapturedContext): String? {
         val goal = captured.goal
+        if (goal.mission != null) {
+            if (goal.mission.stage != io.samcnpc.llm.mission.MissionStage.OPERATION) return "MISSION_NOT_READY_FOR_OPERATION"
+            if (decision.schemaVersion != 1 || decision.plan != null) return "MISSION_OPERATION_CANNOT_REWRITE_PLAN"
+            if (goal.planStepsCompleted >= 8 && decision.action is DecisionAction.Assign) return "PLAN_STEP_BUDGET_EXCEEDED"
+            return null
+        }
         if (goal.mode != LlmMode.PLANNER)
             return if (decision.schemaVersion != 1 || decision.plan != null) "PLANNER_ENVELOPE_NOT_ALLOWED" else null
         if (decision.schemaVersion != 2) return "PLANNER_ENVELOPE_REQUIRED"

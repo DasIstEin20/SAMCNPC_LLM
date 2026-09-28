@@ -21,6 +21,9 @@ internal sealed interface InferenceResult {
     data class Decoded(val decision: LlmDecision, val usage: LlmUsage?, val inputTokenUpperBound: Long,
                        val requestBytes: Int, override val metrics: RequestMetrics? = null,
                        override val submission: LlmSubmission = LlmSubmission.UNKNOWN) : InferenceResult { override val providerInvoked = true }
+    data class Mission(val reply: io.samcnpc.llm.mission.MissionReply, val usage: LlmUsage?,
+                       override val metrics: RequestMetrics?,
+                       override val submission: LlmSubmission = LlmSubmission.UNKNOWN) : InferenceResult { override val providerInvoked = true }
     data class Failed(val code: String, val providerFailure: LlmFailure? = null,
                       val retryAfterSeconds: Int? = null, override val providerInvoked: Boolean = false,
                       override val metrics: RequestMetrics? = null,
@@ -94,6 +97,14 @@ internal object InferenceWork {
             if (usage?.promptTokens != null && usage.promptTokens.toLong() > tokens ||
                 usage?.completionTokens != null && usage.completionTokens > input.allocation.outputTokens)
                 return InferenceResult.Failed("PROFILE_USAGE_BOUND_VIOLATED", LlmFailure.INCOMPATIBLE, providerInvoked = true, metrics = metrics)
+            val mission = input.captured.goal.mission
+            if (mission != null && mission.stage != io.samcnpc.llm.mission.MissionStage.OPERATION) {
+                return when (val parsed = io.samcnpc.llm.mission.MissionProtocol.decode(response.decisionJson, input.captured)) {
+                    is io.samcnpc.llm.mission.MissionDecodeResult.Accepted -> InferenceResult.Mission(parsed.reply, usage, metrics)
+                    is io.samcnpc.llm.mission.MissionDecodeResult.Rejected ->
+                        InferenceResult.Failed(parsed.code, LlmFailure.INVALID_OUTPUT, providerInvoked = true, metrics = metrics)
+                }
+            }
             val decoded = if (input.settings.responseFormat == io.samcnpc.llm.config.ResponseFormat.SAM_EXPRESSION_V1)
                 io.samcnpc.llm.expression.SamExpressionDecoder.decode(response.decisionJson,
                     input.captured.binding.contextId, input.captured.goal.mode == LlmMode.PLANNER)

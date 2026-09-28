@@ -19,6 +19,7 @@ internal object DecisionFreshness {
             goal.mode != captured.goal.mode || goal.supervision != captured.goal.supervision -> "GOAL_POLICY_CHANGED"
             goal.constraints != captured.goal.constraints || goal.intentReservation != captured.goal.intentReservation -> "GOAL_INTENT_CHANGED"
             goal.planStepsCompleted != captured.goal.planStepsCompleted -> "GOAL_PLAN_CHANGED"
+            goal.mission != captured.goal.mission -> "GOAL_MISSION_CHANGED"
             goal.memory.plan != captured.goal.memory.plan || goal.memory.aliases != captured.goal.memory.aliases ||
                 goal.memory.confirmedResults != captured.goal.memory.confirmedResults -> "GOAL_MEMORY_CHANGED"
             goal.remainingCalls == 0 -> "GOAL_BUDGET_EXHAUSTED"

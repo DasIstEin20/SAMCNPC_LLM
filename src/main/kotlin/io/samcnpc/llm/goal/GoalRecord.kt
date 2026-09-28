@@ -41,14 +41,17 @@ internal data class GoalRecord(
     val planStepsCompleted: Int = 0,
     val constraints: io.samcnpc.llm.intent.GoalConstraints? = null,
     val intentReservation: io.samcnpc.llm.intent.GoalIntentReservation = io.samcnpc.llm.intent.GoalIntentReservation(),
+    val mission: io.samcnpc.llm.mission.MissionState? = null,
 ) {
     init {
+        require(mission == null || mode == LlmMode.PLANNER && memory.plan.isEmpty())
+        require(mission == null || phase != GoalPhase.EXECUTING || mission.plan != null)
         require(constraints == null && intentReservation == io.samcnpc.llm.intent.GoalIntentReservation() ||
             constraints != null && mode != LlmMode.SUPERVISOR && intentReservation.fits(constraints))
         require(revision >= 0)
         require(planStepsCompleted in 0..8 && (mode == LlmMode.PLANNER || planStepsCompleted == 0))
         require(mode != LlmMode.PLANNER || memory.plan.size <= 8 - planStepsCompleted)
-        require(mode != LlmMode.PLANNER || phase != GoalPhase.EXECUTING || memory.plan.isNotEmpty())
+        require(mode != LlmMode.PLANNER || phase != GoalPhase.EXECUTING || memory.plan.isNotEmpty() || mission != null)
         require((mode == LlmMode.SUPERVISOR) == (supervision != null))
         require(mode != LlmMode.SUPERVISOR || phase != GoalPhase.EXECUTING || supervision?.pendingDecision != null)
         require(validText(text, 1024) && (answer == null || validText(answer, 512)))

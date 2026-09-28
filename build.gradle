@@ -3,43 +3,19 @@ plugins {
     id 'net.minecraftforge.gradle' version '6.0.54'
     id 'org.jetbrains.kotlin.jvm' version '2.2.21'
 }
-
 group = providers.gradleProperty('mod_group').get()
 version = providers.gradleProperty('mod_version').get()
-
 repositories {
     mavenCentral()
-    maven {
-        name = 'KotlinForForge'
-        url = 'https://thedarkcolour.github.io/KotlinForForge/'
-        content { includeGroup 'thedarkcolour' }
-    }
+    maven { name = 'KotlinForForge'; url = 'https://thedarkcolour.github.io/KotlinForForge/'; content { includeGroup 'thedarkcolour' } }
 }
-
-java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(17)
-    }
-}
-
-tasks.withType(JavaCompile).configureEach {
-    options.release = 17
-    options.encoding = 'UTF-8'
-}
-
+java { toolchain { languageVersion = JavaLanguageVersion.of(17) } }
+tasks.withType(JavaCompile).configureEach { options.release = 17; options.encoding = 'UTF-8' }
 tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile).configureEach {
-    compilerOptions {
-        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
-        freeCompilerArgs.add('-Xjvm-default=all')
-    }
+    compilerOptions { jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17; freeCompilerArgs.add('-Xjvm-default=all') }
 }
-
-tasks.withType(Test).configureEach {
-    useJUnitPlatform()
-}
-
-// Published dependencies are pinned Git submodules and use the same dev remapping.
-ext.fullVerificationId = null
+tasks.withType(Test).configureEach { useJUnitPlatform() }
+if (!rootProject.ext.has('fullVerificationId')) rootProject.ext.fullVerificationId = null
 evaluationDependsOn(':samcnpc-core')
 evaluationDependsOn(':samcnpc-behavior')
 
@@ -47,6 +23,7 @@ def goalRestartId = providers.gradleProperty('llmGoalRestartId').orElse(rootProj
 if (!(goalRestartId ==~ /[A-Za-z0-9_-]{1,64}/)) throw new GradleException('Invalid llmGoalRestartId')
 def goalRestartDirectory = "run-server-goals-restart-${goalRestartId}"
 def plannerRestartDirectory = "run-server-planner-restart-${goalRestartId}"
+def missionRestartDirectory = "run-server-mission-restart-${goalRestartId}"
 def plannerDirectory = "run-server-planner-smoke-${goalRestartId}"
 def supervisorDirectory = "run-server-supervisor-smoke-${goalRestartId}"
 def supervisorFaultsDirectory = "run-server-supervisor-faults-${goalRestartId}"
@@ -148,6 +125,18 @@ minecraft {
             property 'samcnpc.plannerRestartPhase', 'load'
             mods { samcnpc_llm { source sourceSets.test } }
         }
+        serverMissionSaveSmoke {
+            parent runs.server
+            workingDirectory project.file(missionRestartDirectory)
+            property 'samcnpc.missionRestartPhase', 'save'
+            mods { samcnpc_llm { source sourceSets.test } }
+        }
+        serverMissionLoadSmoke {
+            parent runs.server
+            workingDirectory project.file(missionRestartDirectory)
+            property 'samcnpc.missionRestartPhase', 'load'
+            mods { samcnpc_llm { source sourceSets.test } }
+        }
         serverGoalsSaveSmoke {
             parent runs.server
             workingDirectory project.file(goalRestartDirectory)
@@ -174,6 +163,8 @@ minecraft {
             property 'samcnpc.showtimeSmoke', 'true'
             property 'samcnpc.fieldSmoke', providers.gradleProperty('llmFieldSmoke').orElse('false').get()
             property 'samcnpc.sequenceSmoke', providers.gradleProperty('llmSequenceSmoke').orElse('false').get()
+            property 'samcnpc.missionV2Smoke', providers.gradleProperty('llmMissionV2Smoke').orElse('false').get()
+            property 'samcnpc.missionScriptedSmoke', providers.gradleProperty('llmMissionScriptedSmoke').orElse('false').get()
             property 'samcnpc.boundedFieldSmoke', providers.gradleProperty('llmBoundedFieldSmoke').orElse('false').get()
             mods { samcnpc_llm { source sourceSets.test } }
         }
@@ -271,6 +262,7 @@ server-port=25578
 online-mode=true
 level-name=showtime-regression-world
 level-type=minecraft:flat
+level-seed=0
 generator-settings={"layers":[{"block":"minecraft:bedrock","height":1},{"block":"minecraft:dirt","height":2},{"block":"minecraft:grass_block","height":1}],"biome":"minecraft:plains"}
 generate-structures=false
 difficulty=peaceful
@@ -305,7 +297,7 @@ tasks.matching { it.name == 'runClientGoalsSmoke' }.configureEach {
 }
 
 
-[[name: 'Goals', directory: goalRestartDirectory, report: 'goals'], [name: 'Supervisor', directory: supervisorRestartDirectory, report: 'supervisor'], [name: 'Planner', directory: plannerRestartDirectory, report: 'planner']].each { suite ->
+[[name: 'Goals', directory: goalRestartDirectory, report: 'goals'], [name: 'Supervisor', directory: supervisorRestartDirectory, report: 'supervisor'], [name: 'Planner', directory: plannerRestartDirectory, report: 'planner'], [name: 'Mission', directory: missionRestartDirectory, report: 'mission']].each { suite ->
 ['Save', 'Load'].each { stage ->
     tasks.matching { it.name == "runServer${suite.name}${stage}Smoke" }.configureEach {
         def report = layout.projectDirectory.file("${suite.directory}/server-${suite.report}-${stage.toLowerCase()}.txt").asFile
@@ -339,6 +331,15 @@ spawn-protection=0
 
 tasks.matching { it.name == "runServerGoalsLoadSmoke" }.configureEach { mustRunAfter "runServerGoalsSaveSmoke" }
 tasks.matching { it.name == "runServerSupervisorLoadSmoke" }.configureEach { mustRunAfter "runServerSupervisorSaveSmoke" }
+tasks.matching { it.name == "runServerMissionLoadSmoke" }.configureEach { mustRunAfter "runServerMissionSaveSmoke" }
+
+['Save', 'Load'].each { stage ->
+    def data = tasks.register("stageBehaviorDataServerMission${stage}Smoke", Copy) {
+        from project(':samcnpc-behavior').layout.projectDirectory.dir('src/main/resources/data')
+        into layout.projectDirectory.dir("${missionRestartDirectory}/data")
+    }
+    tasks.matching { it.name == "runServerMission${stage}Smoke" }.configureEach { dependsOn data }
+}
 
 // Opt-in fixture capture performs no inference. Never overwrite an earlier capture directory.
 tasks.matching { it.name == 'runServerCorpusCapture' }.configureEach {
@@ -372,6 +373,11 @@ spawn-protection=0
 tasks.withType(Test).configureEach {
     classpath = files(project(':samcnpc-core').sourceSets.main.output,
         project(':samcnpc-behavior').sourceSets.main.output) + classpath
+    if (providers.gradleProperty('llmRealMissionOutput').isPresent()) {
+        systemProperty 'samcnpc.realMissionCorpus', 'true'
+        systemProperty 'samcnpc.realMissionOutput', rootProject.file(providers.gradleProperty('llmRealMissionOutput').get()).absolutePath
+        outputs.upToDateWhen { false }
+    }
     if (providers.gradleProperty('llmRealCorpusInput').isPresent()) {
         systemProperty 'samcnpc.realCorpus', 'true'
         systemProperty 'samcnpc.realCorpusInput', rootProject.file(providers.gradleProperty('llmRealCorpusInput').get()).absolutePath
@@ -500,15 +506,6 @@ spawn-protection=0
 }
 
 
-tasks.withType(Jar).configureEach {
-    archiveBaseName = 'samcnpc-llm'
-    manifest {
-        attributes('Specification-Title': 'samcnpc-llm', 'Specification-Vendor': 'SAMCNPC',
-            'Specification-Version': '1', 'Implementation-Title': 'samcnpc-llm',
-            'Implementation-Version': project.version, 'Implementation-Vendor': 'SAMCNPC')
-    }
-}
-
 // Requires an explicitly configured real endpoint; deliberately excluded from verifyAll.
 tasks.matching { it.name == 'runServerLiveModelSmoke' }.configureEach {
     def report = layout.projectDirectory.file('run-server-live-model-smoke/live-model-result.txt').asFile
@@ -517,3 +514,22 @@ tasks.matching { it.name == 'runServerLiveModelSmoke' }.configureEach {
         if (!report.text.startsWith('PASS ')) throw new GradleException("Real model smoke failed: ${report}")
     }
 }
+
+tasks.register('verifyProductionKotlin') {
+    group = 'verification'
+    doLast {
+        def sources = fileTree('src/main') { include '**/*.java' }.files
+        if (!sources.empty) throw new GradleException("Production source must be Kotlin: ${sources}")
+    }
+}
+tasks.named('check').configure { dependsOn tasks.named('verifyProductionKotlin') }
+tasks.matching { it.name == 'runGameTestServer' }.configureEach {
+    doLast {
+        def report = new File(workingDir, 'logs/latest.log')
+        if (!report.isFile()) throw new GradleException('Missing native test report')
+        def failures=report.readLines('UTF-8').findAll { it.contains('/ERROR]') && it.contains('LogTestReporter') && it.contains(' failed!') }
+        if (!failures.empty) throw new GradleException("Required native test failure: ${failures.first()}")
+    }
+}
+
+tasks.withType(Jar).configureEach { archiveBaseName = 'samcnpc-llm' }

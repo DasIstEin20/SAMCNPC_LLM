@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "scope": "FROZEN_DEVELOPMENT_REQUIREMENT_EXTRACTION_NOT_BLIND_HOLDOUT",
+  "bareCoalSemantics": "EXACT_MINECRAFT_COAL",
+  "cases": [
+    {"id": "A", "goal": "Get at least 2 coal.", "expected": [{"items": ["minecraft:coal"], "minimum": 2}]},
+    {"id": "B", "goal": "Get at least 2 minecraft:coal. minecraft:charcoal does not satisfy this requirement.", "expected": [{"items": ["minecraft:coal"], "minimum": 2}]},
+    {"id": "C", "goal": "Get at least 2 coal-type fuel items. Coal or charcoal is acceptable.", "expected": [{"items": ["minecraft:coal", "minecraft:charcoal"], "minimum": 2}]},
+    {"id": "D", "goal": "Get:\n- 32 oak logs\n- 30 cobblestone\n- 2 minecraft:coal\nDo not substitute charcoal for coal.", "expected": [{"items": ["minecraft:oak_log"], "minimum": 32}, {"items": ["minecraft:cobblestone"], "minimum": 30}, {"items": ["minecraft:coal"], "minimum": 2}]}
+  ]
+}

@@ -52,6 +52,7 @@ class GoalIntentPersistenceTest {
     @Test fun versionFiveFreeTextMigrationNeverInventsAContractOrDropsOutstandingInference() {
         val value = record().copy(constraints = null, intentReservation = GoalIntentReservation())
         val legacy = file(value); legacy.putInt("version", 5)
+        legacy.getList("goals", 10).getCompound(0).remove("plannerVariant")
         legacy.getList("goals", 10).getCompound(0).remove("intentMode")
         val loaded = checkNotNull(LlmGoalStore.load(legacy).get(value.npcUuid))
         assertEquals(value.recovered(), loaded)
@@ -62,13 +63,14 @@ class GoalIntentPersistenceTest {
     @Test fun versionSixBoundedMigrationPreservesItsOldMeaningAndDoesNotInventRequiredReturn() {
         val r=record();val legacy=file(r);legacy.putInt("version",6)
         val entry=legacy.getList("goals",10).getCompound(0)
+        entry.remove("plannerVariant")
         val constraints=GoalConstraintCodec.encode(checkNotNull(r.constraints))
         constraints.addProperty("version",1);constraints.remove("requiredReturnTo")
         entry.putString("intentMode","BOUNDED_V1");entry.putString("constraints",constraints.toString())
         val store=LlmGoalStore.load(legacy);val restored=checkNotNull(store.get(r.npcUuid))
         assertEquals(1,restored.constraints?.version);assertNull(restored.constraints?.requiredReturnTo)
         assertEquals(r.intentReservation,restored.intentReservation);assertEquals(2,restored.budget.settledAttempts)
-        val saved=store.save(CompoundTag());assertEquals(7,saved.getInt("version"))
+        val saved=store.save(CompoundTag());assertEquals(8,saved.getInt("version"))
         assertEquals("BOUNDED_V1",saved.getList("goals",10).getCompound(0).getString("intentMode"))
         val future=file(r);future.putInt("version",6);assertRejected(future)
     }

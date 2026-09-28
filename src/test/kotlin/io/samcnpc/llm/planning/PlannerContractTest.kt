@@ -154,6 +154,7 @@ class PlannerContractTest {
             listOf(ContextPlaceAlias("home", "minecraft:overworld", NpcBlockPosition(0, 64, 0)))))
         val oldStore = LlmGoalStore.empty(); assertNull(oldStore.put(previous))
         val oldFile = oldStore.save(CompoundTag()); oldFile.putInt("version", 3)
+        oldFile.getList("goals", 10).getCompound(0).remove("plannerVariant")
         oldFile.getList("goals", 10).getCompound(0).remove("planSteps")
         oldFile.getList("goals", 10).getCompound(0).remove("quotaMode")
         oldFile.getList("goals", 10).getCompound(0).remove("intentMode")

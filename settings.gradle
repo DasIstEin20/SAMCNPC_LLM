@@ -1,13 +1,12 @@
 pluginManagement {
-    repositories {
-        gradlePluginPortal()
-        maven { url = 'https://maven.minecraftforge.net/' }
-    }
+    repositories { gradlePluginPortal(); maven { url = 'https://maven.minecraftforge.net/' } }
 }
 rootProject.name = 'samcnpc-llm'
-if (!file('behavior/build.gradle').isFile() || !file('behavior/core/build.gradle').isFile()) {
-    throw new GradleException('Dependencies missing. Run: git submodule update --init --recursive')
-}
-include 'samcnpc-behavior', 'samcnpc-core'
-project(':samcnpc-behavior').projectDir = file('behavior')
-project(':samcnpc-core').projectDir = file('behavior/core')
+def coreDirectory = file(providers.gradleProperty('samcnpcCoreDir').getOrElse('../samcnpc-core'))
+if (!new File(coreDirectory, 'build.gradle').isFile()) throw new GradleException('Provide the sibling core source directory with -PsamcnpcCoreDir=<path>, or build from the umbrella checkout.')
+include 'samcnpc-core'
+project(':samcnpc-core').projectDir = coreDirectory
+def behaviorDirectory = file(providers.gradleProperty('samcnpcBehaviorDir').getOrElse('../samcnpc-behavior'))
+if (!new File(behaviorDirectory, 'build.gradle').isFile()) throw new GradleException('Provide the sibling behavior source directory with -PsamcnpcBehaviorDir=<path>, or build from the umbrella checkout.')
+include 'samcnpc-behavior'
+project(':samcnpc-behavior').projectDir = behaviorDirectory

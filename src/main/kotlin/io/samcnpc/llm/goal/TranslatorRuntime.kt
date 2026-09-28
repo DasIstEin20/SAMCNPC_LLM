@@ -8,6 +8,7 @@ import io.samcnpc.llm.context.*
 import io.samcnpc.llm.scheduling.*
 import io.samcnpc.llm.supervision.*
 import io.samcnpc.llm.planning.*
+import io.samcnpc.llm.mission.*
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.level.ServerPlayer
 import java.util.UUID
@@ -125,6 +126,8 @@ internal class TranslatorRuntime(
         val captured = NpcContextBuilder.capture(server, actor, record.npcUuid, contextGoal(record, session), policy(record))
         if (captured is ContextCaptureResult.Rejected) return InferencePreparation.Rejected(captured.code)
         check(captured is ContextCaptureResult.Captured)
+        if (record.mission?.stage == MissionStage.OPERATION && captured.value.missionEvaluation?.complete == true)
+            return InferencePreparation.Rejected("MISSION_ALREADY_SATISFIED")
         val currentTask = captured.value.inspection.operation.task
         if (record.constraints != null && currentTask != null && currentTask.state !in setOf(
                 OperationTaskState.COMPLETED, OperationTaskState.FAILED, OperationTaskState.CANCELLED) &&
@@ -156,7 +159,8 @@ internal class TranslatorRuntime(
         }
         requestReports.remove(wake.npcUuid)
         requestReports[wake.npcUuid] = InferenceReport(record.goalId, record.revision, captured.binding.contextId,
-            result.providerInvoked, result.submission, result.metrics, (result as? InferenceResult.Decoded)?.usage)
+            result.providerInvoked, result.submission, result.metrics,
+            (result as? InferenceResult.Decoded)?.usage ?: (result as? InferenceResult.Mission)?.usage)
         while (requestReports.size > MAX_ACTIVE) requestReports.remove(requestReports.keys.first())
         if (result is InferenceResult.Failed) {
             session.failedInference = true
@@ -169,9 +173,19 @@ internal class TranslatorRuntime(
             }
             return
         }
-        check(result is InferenceResult.Decoded)
         val actor = server.playerList.getPlayer(record.actorUuid)
         if (actor == null) { hold(record.npcUuid, "ACTOR_DISCONNECTED"); return }
+        if (result is InferenceResult.Mission) {
+            val problem = MissionAdmission.problem(server, actor, captured, contextGoal(record, session), policy(record), result.reply, record.manualHold)
+            if (problem != null) { hold(record.npcUuid, problem); return }
+            val next = try { MissionOutcomes.adopt(record, result.reply) }
+                catch (_: IllegalArgumentException) { hold(record.npcUuid, "MISSION_PAYLOAD_LIMIT"); return }
+            val storageProblem = store.put(next)
+            if (storageProblem != null) { hold(record.npcUuid, storageProblem); return }
+            if (next.phase == GoalPhase.ASK_USER) notify(next)
+            return
+        }
+        check(result is InferenceResult.Decoded)
         // This dirty mark is conservative recovery metadata, not an atomic transaction with Behavior.
         val prepared = if (record.supervision == null) record else StockSupervisor.admitting(record, result.decision, captured)
         if (prepared.phase == GoalPhase.ASK_USER) { persist(prepared); notify(prepared); return }
@@ -219,6 +233,11 @@ internal class TranslatorRuntime(
         if (record.goalId != wake.goalId || record.revision != wake.goalRevision || record.manualHold) {
             scheduler.cancel(wake.npcUuid); return
         }
+        if (code == "MISSION_ALREADY_SATISFIED" && record.mission?.stage == MissionStage.OPERATION) {
+            val completed = record.copy(phase = GoalPhase.COMPLETED, code = "MISSION_COMPLETED", question = null, task = null)
+            persist(completed); notify(completed); release(record.npcUuid)
+            return
+        }
         if (code == "STOCK_TARGET_REACHED" && record.supervision != null) {
             persist(record.copy(phase = GoalPhase.WAITING, code = code, question = null,
                 supervision = record.supervision.copy(armed = true, waitUntilTick = null)))
@@ -256,8 +275,17 @@ internal class TranslatorRuntime(
             next = if (stock == null) StockSupervisor.unavailable(record, checkNotNull(problem))
                 else StockSupervisor.terminal(next.copy(code = view?.task?.frames?.firstOrNull()?.reason ?: next.code), stock)
         }
-        if (record.mode == LlmMode.PLANNER && next.phase in setOf(GoalPhase.COMPLETED, GoalPhase.FAILED))
-            next = PlannerOutcomes.terminal(next)
+        if (record.mode == LlmMode.PLANNER && next.phase in setOf(GoalPhase.COMPLETED, GoalPhase.FAILED)) {
+            if (record.mission == null) next = PlannerOutcomes.terminal(next)
+            else {
+                val read = OperationInspectionApi.inspect(server, actor, record.npcUuid)
+                val inspection = read.inspection
+                next = if (read.result.status != NpcActionStatus.SUCCEEDED || inspection == null)
+                    record.copy(phase = GoalPhase.WAITING, code = "MISSION_OBSERVATION_UNAVAILABLE", manualHold = true)
+                else MissionOutcomes.terminal(next, MissionObservation.evaluate(server, actor, record.npcUuid,
+                    record.mission, inspection, record.task))
+            }
+        }
         if (next != record) {
             persist(next); notify(next)
             if (next.phase != GoalPhase.EXECUTING && !isWatching(next)) cancel(record.npcUuid)
@@ -285,7 +313,8 @@ internal class TranslatorRuntime(
 
     private fun contextGoal(record: GoalRecord, session: GoalSession) = ContextGoal(record.goalId,
         record.revision, record.contextText(), record.mode, null, session.budget.contextRemainingCalls, memory = record.memory.context(), supervision = record.supervision,
-        planStepsCompleted = record.planStepsCompleted, constraints = record.constraints, intentReservation = record.intentReservation)
+        planStepsCompleted = record.planStepsCompleted, constraints = record.constraints, intentReservation = record.intentReservation,
+        mission = record.mission)
 
     private fun isWatching(record: GoalRecord?): Boolean = PlannerOutcomes.boundary(record) ||
         record?.supervision != null && record.phase == GoalPhase.WAITING && !record.manualHold

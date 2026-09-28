@@ -13,6 +13,7 @@ class LlmGoalStoreTest {
         val old = record().copy(phase = GoalPhase.INFERENCING, manualHold = true,
             budget = InferenceBudgetView(3, 32000, 4096, 0, UUID.randomUUID()))
         val legacy = file(old); legacy.putInt("version", 4)
+        legacy.getList("goals", 10).getCompound(0).remove("plannerVariant")
         legacy.getList("goals", 10).getCompound(0).remove("intentMode")
         legacy.getList("goals", 10).getCompound(0).remove("quotaMode")
         val restored = checkNotNull(LlmGoalStore.load(legacy).get(old.npcUuid))
@@ -47,6 +48,7 @@ class LlmGoalStoreTest {
             task = GoalTask(UUID.randomUUID(), 2, 3, "samcnpc:transport"),
             budget = InferenceBudgetView(2, 32000, 2048, 0, null))
         val legacy = file(value); legacy.putInt("version", 1)
+        legacy.getList("goals", 10).getCompound(0).remove("plannerVariant")
         legacy.getList("goals", 10).getCompound(0).remove("intentMode")
         legacy.getList("goals", 10).getCompound(0).remove("mode")
         legacy.getList("goals", 10).getCompound(0).remove("memory")
@@ -54,7 +56,7 @@ class LlmGoalStoreTest {
         legacy.getList("goals", 10).getCompound(0).remove("quotaMode")
         val restored = LlmGoalStore.load(legacy)
         assertNull(restored.problem); assertEquals(value, restored.get(value.npcUuid))
-        assertEquals(7, restored.save(CompoundTag()).getInt("version"))
+        assertEquals(8, restored.save(CompoundTag()).getInt("version"))
         assertEquals(value, LlmGoalStore.load(restored.save(CompoundTag())).get(value.npcUuid))
         val disguised = file(value); disguised.putInt("version", 1)
         assertEquals("INVALID_GOAL_RECORD", LlmGoalStore.load(disguised).problem)
